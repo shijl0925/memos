@@ -8,7 +8,7 @@
 
 1. **路由层改造（中）**
    - 将原 `gin` 路由注册方式迁移到 `gin-ninja` 的分组+typed handler 风格。
-   - 示例：原 `gin` 常见写法是 `r.GET("/api/memo", handler)`（`handler` 通常为 `func(*gin.Context)`，`r` 可为 `*gin.Engine` 或 `*gin.RouterGroup`）；迁移后可写为 `ninja.Get(router, "/api/memo", listMemos)`，其中 `router` 为 `gin-ninja` 的 `*ninja.Router`，`listMemos` 通常为 `func(ctx *ninja.Context, in *ListMemosRequest) (*ListMemosResponse, error)`。
+   - 示例：原 `gin` 常见写法是 `r.GET("/api/memo", handler)`（`handler` 通常为 `func(*gin.Context)`，`r` 可为 `*gin.Engine` 或 `*gin.RouterGroup`）；迁移后可写为 `ninja.Get(router, "/api/memo", listMemos)`，其中 `ninja` 及相关类型来自项目实际选用的 `gin-ninja` 包导入，`router` 为 `gin-ninja` 的 `*ninja.Router`，`listMemos` 通常为 `func(ctx *ninja.Context, in *ListMemosRequest) (*ListMemosResponse, error)`。
    - 需要逐个 API 校对 URL、Method、参数绑定和中间件挂载顺序。
 
 2. **参数绑定与校验（中）**
@@ -35,7 +35,7 @@
 - **目录结构保持不动**：不重组 `service / store / model` 等现有业务代码组织。
 - **第一阶段只动 HTTP 入口层**：仅调整路由注册、handler 签名、参数绑定和统一错误出口。
 - **业务逻辑原样复用**：不在首阶段改 DAO、核心 service、领域对象与数据库访问逻辑。
-- **迁移前先完成接口清单盘点**：把现有 API 按 `auth / user / memo / resource` 四个模块归类，记录 URL、Method、入参来源、鉴权要求、响应结构。
+- **迁移前先完成接口清单盘点**：把现有 API 按 `auth`、`user`、`memo`、`resource` 四个模块归类，记录 URL、Method、入参来源、鉴权要求、响应结构。
 
 ### 第一阶段目标
 
