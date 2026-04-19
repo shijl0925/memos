@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -78,24 +79,35 @@ func (server *Server) Run() error {
 }
 
 func frontendHandler(distPath string) gin.HandlerFunc {
+	distRoot, err := filepath.Abs(distPath)
+	if err != nil {
+		panic(fmt.Errorf("failed to resolve dist path: %w", err))
+	}
+
 	return func(c *gin.Context) {
 		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
 			c.Status(http.StatusNotFound)
 			return
 		}
 		if c.Request.URL.Path == "/" {
-			c.File(filepath.Join(distPath, "index.html"))
+			c.File(filepath.Join(distRoot, "index.html"))
 			return
 		}
 
 		filename := filepath.Clean(c.Request.URL.Path)
 		filename = filename[1:]
-		target := filepath.Join(distPath, filename)
-		if info, err := os.Stat(target); err == nil && !info.IsDir() {
-			c.File(target)
-			return
+		target := filepath.Join(distRoot, filename)
+		target, err := filepath.Abs(target)
+		if err == nil {
+			rel, relErr := filepath.Rel(distRoot, target)
+			if relErr == nil && rel != ".." && !strings.HasPrefix(rel, fmt.Sprintf("..%c", filepath.Separator)) {
+				if info, statErr := os.Stat(target); statErr == nil && !info.IsDir() {
+					c.File(target)
+					return
+				}
+			}
 		}
 
-		c.File(filepath.Join(distPath, "index.html"))
+		c.File(filepath.Join(distRoot, "index.html"))
 	}
 }
