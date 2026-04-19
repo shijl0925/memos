@@ -6,6 +6,9 @@ on:
       # Run on pushing branches like `release/1.0.0`
       - "release/v*.*.*"
 
+permissions:
+  contents: read
+
 jobs:
   build-and-push-release-image:
     runs-on: ubuntu-latest

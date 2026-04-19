@@ -5,6 +5,9 @@ on:
     branches:
       - "main"
 
+permissions:
+  contents: read
+
 jobs:
   build-and-push-dev-image:
     runs-on: ubuntu-latest
