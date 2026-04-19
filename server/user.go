@@ -12,66 +12,64 @@ import (
 	"github.com/usememos/memos/common"
 	metric "github.com/usememos/memos/plugin/metrics"
 
-	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Server) registerUserRoutes(g *echo.Group) {
-	g.POST("/user", func(c echo.Context) error {
+func (s *Server) registerUserRoutes(g Group) {
+	g.POST("/user", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing auth session")
+			return unauthorizedError("Missing auth session")
 		}
 		currentUser, err := s.Store.FindUser(ctx, &api.UserFind{
 			ID: &userID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by id").SetInternal(err)
+			return internalError("Failed to find user by id", err)
 		}
 		if currentUser.Role != api.Host {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Only Host user can create member")
+			return unauthorizedError("Only Host user can create member")
 		}
 
 		userCreate := &api.UserCreate{}
 		if err := json.NewDecoder(c.Request().Body).Decode(userCreate); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post user request").SetInternal(err)
+			return badRequestError("Malformatted post user request", err)
 		}
 		if userCreate.Role == api.Host {
-			return echo.NewHTTPError(http.StatusForbidden, "Could not create host user")
+			return forbiddenError("Could not create host user")
 		}
 		userCreate.OpenID = common.GenUUID()
 
 		if err := userCreate.Validate(); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Invalid user create format").SetInternal(err)
+			return badRequestError("Invalid user create format", err)
 		}
 
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(userCreate.Password), bcrypt.DefaultCost)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate password hash").SetInternal(err)
+			return internalError("Failed to generate password hash", err)
 		}
 
 		userCreate.PasswordHash = string(passwordHash)
 		user, err := s.Store.CreateUser(ctx, userCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user").SetInternal(err)
+			return internalError("Failed to create user", err)
 		}
 		if err := s.createUserCreateActivity(c, user); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create activity").SetInternal(err)
+			return internalError("Failed to create activity", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
+		if err := writeJSON(c, user); err != nil {
+			return internalError("Failed to encode user response", err)
 		}
 		return nil
 	})
 
-	g.GET("/user", func(c echo.Context) error {
+	g.GET("/user", func(c Context) error {
 		ctx := c.Request().Context()
 		userList, err := s.Store.FindUserList(ctx, &api.UserFind{})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch user list").SetInternal(err)
+			return internalError("Failed to fetch user list", err)
 		}
 
 		for _, user := range userList {
@@ -80,19 +78,18 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 			user.Email = ""
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(userList)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user list response").SetInternal(err)
+		if err := writeJSON(c, userList); err != nil {
+			return internalError("Failed to encode user list response", err)
 		}
 		return nil
 	})
 
 	// GET /api/user/me is used to check if the user is logged in.
-	g.GET("/user/me", func(c echo.Context) error {
+	g.GET("/user/me", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing auth session")
+			return unauthorizedError("Missing auth session")
 		}
 
 		userFind := &api.UserFind{
@@ -100,64 +97,62 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		}
 		user, err := s.Store.FindUser(ctx, userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user").SetInternal(err)
+			return internalError("Failed to find user", err)
 		}
 
 		userSettingList, err := s.Store.FindUserSettingList(ctx, &api.UserSettingFind{
 			UserID: userID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find userSettingList").SetInternal(err)
+			return internalError("Failed to find userSettingList", err)
 		}
 		user.UserSettingList = userSettingList
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
+		if err := writeJSON(c, user); err != nil {
+			return internalError("Failed to encode user response", err)
 		}
 		return nil
 	})
 
-	g.POST("/user/setting", func(c echo.Context) error {
+	g.POST("/user/setting", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing auth session")
+			return unauthorizedError("Missing auth session")
 		}
 
 		userSettingUpsert := &api.UserSettingUpsert{}
 		if err := json.NewDecoder(c.Request().Body).Decode(userSettingUpsert); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post user setting upsert request").SetInternal(err)
+			return badRequestError("Malformatted post user setting upsert request", err)
 		}
 		if err := userSettingUpsert.Validate(); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Invalid user setting format").SetInternal(err)
+			return badRequestError("Invalid user setting format", err)
 		}
 
 		userSettingUpsert.UserID = userID
 		userSetting, err := s.Store.UpsertUserSetting(ctx, userSettingUpsert)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to upsert user setting").SetInternal(err)
+			return internalError("Failed to upsert user setting", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(userSetting)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user setting response").SetInternal(err)
+		if err := writeJSON(c, userSetting); err != nil {
+			return internalError("Failed to encode user setting response", err)
 		}
 		return nil
 	})
 
-	g.GET("/user/:id", func(c echo.Context) error {
+	g.GET("/user/:id", func(c Context) error {
 		ctx := c.Request().Context()
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted user id").SetInternal(err)
+			return badRequestError("Malformatted user id", err)
 		}
 
 		user, err := s.Store.FindUser(ctx, &api.UserFind{
 			ID: &id,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch user").SetInternal(err)
+			return internalError("Failed to fetch user", err)
 		}
 
 		if user != nil {
@@ -166,33 +161,32 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 			user.Email = ""
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
+		if err := writeJSON(c, user); err != nil {
+			return internalError("Failed to encode user response", err)
 		}
 		return nil
 	})
 
-	g.PATCH("/user/:id", func(c echo.Context) error {
+	g.PATCH("/user/:id", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("id"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("id")), err)
 		}
 		currentUserID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 		currentUser, err := s.Store.FindUser(ctx, &api.UserFind{
 			ID: &currentUserID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user").SetInternal(err)
+			return internalError("Failed to find user", err)
 		}
 		if currentUser == nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Current session user not found with ID: %d", currentUserID)).SetInternal(err)
+			return badRequestError(fmt.Sprintf("Current session user not found with ID: %d", currentUserID), err)
 		} else if currentUser.Role != api.Host && currentUserID != userID {
-			return echo.NewHTTPError(http.StatusForbidden, "Access forbidden for current session user").SetInternal(err)
+			return forbiddenError("Access forbidden for current session user")
 		}
 
 		currentTs := time.Now().Unix()
@@ -200,17 +194,17 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 			UpdatedTs: &currentTs,
 		}
 		if err := json.NewDecoder(c.Request().Body).Decode(userPatch); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted patch user request").SetInternal(err)
+			return badRequestError("Malformatted patch user request", err)
 		}
 		userPatch.ID = userID
 		if err := userPatch.Validate(); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Invalid user patch format").SetInternal(err)
+			return badRequestError("Invalid user patch format", err)
 		}
 
 		if userPatch.Password != nil && *userPatch.Password != "" {
 			passwordHash, err := bcrypt.GenerateFromPassword([]byte(*userPatch.Password), bcrypt.DefaultCost)
 			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate password hash").SetInternal(err)
+				return internalError("Failed to generate password hash", err)
 			}
 
 			passwordHashStr := string(passwordHash)
@@ -224,45 +218,44 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 
 		user, err := s.Store.PatchUser(ctx, userPatch)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to patch user").SetInternal(err)
+			return internalError("Failed to patch user", err)
 		}
 
 		userSettingList, err := s.Store.FindUserSettingList(ctx, &api.UserSettingFind{
 			UserID: userID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find userSettingList").SetInternal(err)
+			return internalError("Failed to find userSettingList", err)
 		}
 		user.UserSettingList = userSettingList
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
+		if err := writeJSON(c, user); err != nil {
+			return internalError("Failed to encode user response", err)
 		}
 		return nil
 	})
 
-	g.DELETE("/user/:id", func(c echo.Context) error {
+	g.DELETE("/user/:id", func(c Context) error {
 		ctx := c.Request().Context()
 		currentUserID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 		currentUser, err := s.Store.FindUser(ctx, &api.UserFind{
 			ID: &currentUserID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user").SetInternal(err)
+			return internalError("Failed to find user", err)
 		}
 		if currentUser == nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Current session user not found with ID: %d", currentUserID)).SetInternal(err)
+			return badRequestError(fmt.Sprintf("Current session user not found with ID: %d", currentUserID), err)
 		} else if currentUser.Role != api.Host {
-			return echo.NewHTTPError(http.StatusForbidden, "Access forbidden for current session user").SetInternal(err)
+			return forbiddenError("Access forbidden for current session user")
 		}
 
 		userID, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("id"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("id")), err)
 		}
 
 		userDelete := &api.UserDelete{
@@ -270,16 +263,16 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		}
 		if err := s.Store.DeleteUser(ctx, userDelete); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User ID not found: %d", userID))
+				return notFoundError(fmt.Sprintf("User ID not found: %d", userID), nil)
 			}
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete user").SetInternal(err)
+			return internalError("Failed to delete user", err)
 		}
 
 		return c.JSON(http.StatusOK, true)
 	})
 }
 
-func (s *Server) createUserCreateActivity(c echo.Context, user *api.User) error {
+func (s *Server) createUserCreateActivity(c Context, user *api.User) error {
 	ctx := c.Request().Context()
 	payload := api.ActivityUserCreatePayload{
 		UserID:   user.ID,

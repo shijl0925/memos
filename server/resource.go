@@ -15,8 +15,6 @@ import (
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 	metric "github.com/usememos/memos/plugin/metrics"
-
-	"github.com/labstack/echo/v4"
 )
 
 const (
@@ -24,52 +22,51 @@ const (
 	maxFileSize = 32 << 20
 )
 
-func (s *Server) registerResourceRoutes(g *echo.Group) {
-	g.POST("/resource", func(c echo.Context) error {
+func (s *Server) registerResourceRoutes(g Group) {
+	g.POST("/resource", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		resourceCreate := &api.ResourceCreate{}
 		if err := json.NewDecoder(c.Request().Body).Decode(resourceCreate); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post resource request").SetInternal(err)
+			return badRequestError("Malformatted post resource request", err)
 		}
 
 		resourceCreate.CreatorID = userID
 		resource, err := s.Store.CreateResource(ctx, resourceCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create resource").SetInternal(err)
+			return internalError("Failed to create resource", err)
 		}
 		if err := s.createResourceCreateActivity(c, resource); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create activity").SetInternal(err)
+			return internalError("Failed to create activity", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
+		if err := writeJSON(c, resource); err != nil {
+			return internalError("Failed to encode resource response", err)
 		}
 		return nil
 	})
 
-	g.POST("/resource/blob", func(c echo.Context) error {
+	g.POST("/resource/blob", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		if err := c.Request().ParseMultipartForm(maxFileSize); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Upload file overload max size").SetInternal(err)
+			return badRequestError("Upload file overload max size", err)
 		}
 
 		file, err := c.FormFile("file")
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to get uploading file").SetInternal(err)
+			return internalError("Failed to get uploading file", err)
 		}
 		if file == nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Upload file not found").SetInternal(err)
+			return badRequestError("Upload file not found", nil)
 		}
 
 		filename := file.Filename
@@ -77,13 +74,13 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		size := file.Size
 		src, err := file.Open()
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to open file").SetInternal(err)
+			return internalError("Failed to open file", err)
 		}
 		defer src.Close()
 
 		fileBytes, err := io.ReadAll(src)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read file").SetInternal(err)
+			return internalError("Failed to read file", err)
 		}
 
 		resourceCreate := &api.ResourceCreate{
@@ -95,31 +92,30 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		}
 		resource, err := s.Store.CreateResource(ctx, resourceCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create resource").SetInternal(err)
+			return internalError("Failed to create resource", err)
 		}
 		if err := s.createResourceCreateActivity(c, resource); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create activity").SetInternal(err)
+			return internalError("Failed to create activity", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
+		if err := writeJSON(c, resource); err != nil {
+			return internalError("Failed to encode resource response", err)
 		}
 		return nil
 	})
 
-	g.GET("/resource", func(c echo.Context) error {
+	g.GET("/resource", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 		resourceFind := &api.ResourceFind{
 			CreatorID: &userID,
 		}
 		list, err := s.Store.FindResourceList(ctx, resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch resource list").SetInternal(err)
+			return internalError("Failed to fetch resource list", err)
 		}
 
 		for _, resource := range list {
@@ -127,28 +123,27 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 				ResourceID: &resource.ID,
 			})
 			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find memo resource list").SetInternal(err)
+				return internalError("Failed to find memo resource list", err)
 			}
 			resource.LinkedMemoAmount = len(memoResourceList)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(list)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource list response").SetInternal(err)
+		if err := writeJSON(c, list); err != nil {
+			return internalError("Failed to encode resource list response", err)
 		}
 		return nil
 	})
 
-	g.GET("/resource/:resourceId", func(c echo.Context) error {
+	g.GET("/resource/:resourceId", func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
 
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 		resourceFind := &api.ResourceFind{
 			ID:        &resourceID,
@@ -157,26 +152,25 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch resource").SetInternal(err)
+			return internalError("Failed to fetch resource", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
+		if err := writeJSON(c, resource); err != nil {
+			return internalError("Failed to encode resource response", err)
 		}
 		return nil
 	})
 
-	g.GET("/resource/:resourceId/blob", func(c echo.Context) error {
+	g.GET("/resource/:resourceId/blob", func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
 
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 		resourceFind := &api.ResourceFind{
 			ID:        &resourceID,
@@ -185,28 +179,28 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch resource").SetInternal(err)
+			return internalError("Failed to fetch resource", err)
 		}
 
-		c.Response().Writer.WriteHeader(http.StatusOK)
-		c.Response().Writer.Header().Set("Content-Type", resource.Type)
-		c.Response().Writer.Header().Set(echo.HeaderContentSecurityPolicy, "default-src 'self'")
-		if _, err := c.Response().Writer.Write(resource.Blob); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to write resource blob").SetInternal(err)
+		c.Status(http.StatusOK)
+		c.Header(headerContentType, resource.Type)
+		c.Header(headerContentSecurityPolicy, "default-src 'self'")
+		if _, err := c.Writer().Write(resource.Blob); err != nil {
+			return internalError("Failed to write resource blob", err)
 		}
 		return nil
 	})
 
-	g.PATCH("/resource/:resourceId", func(c echo.Context) error {
+	g.PATCH("/resource/:resourceId", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
 
 		resourceFind := &api.ResourceFind{
@@ -214,10 +208,10 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find resource").SetInternal(err)
+			return internalError("Failed to find resource", err)
 		}
 		if resource.CreatorID != userID {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			return unauthorizedError("Unauthorized")
 		}
 
 		currentTs := time.Now().Unix()
@@ -225,32 +219,31 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 			UpdatedTs: &currentTs,
 		}
 		if err := json.NewDecoder(c.Request().Body).Decode(resourcePatch); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted patch resource request").SetInternal(err)
+			return badRequestError("Malformatted patch resource request", err)
 		}
 
 		resourcePatch.ID = resourceID
 		resource, err = s.Store.PatchResource(ctx, resourcePatch)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to patch resource").SetInternal(err)
+			return internalError("Failed to patch resource", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
+		if err := writeJSON(c, resource); err != nil {
+			return internalError("Failed to encode resource response", err)
 		}
 		return nil
 	})
 
-	g.DELETE("/resource/:resourceId", func(c echo.Context) error {
+	g.DELETE("/resource/:resourceId", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
 
 		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{
@@ -258,10 +251,10 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 			CreatorID: &userID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find resource").SetInternal(err)
+			return internalError("Failed to find resource", err)
 		}
 		if resource.CreatorID != userID {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			return unauthorizedError("Unauthorized")
 		}
 
 		resourceDelete := &api.ResourceDelete{
@@ -269,25 +262,25 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		}
 		if err := s.Store.DeleteResource(ctx, resourceDelete); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Resource ID not found: %d", resourceID))
+				return notFoundError(fmt.Sprintf("Resource ID not found: %d", resourceID), nil)
 			}
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete resource").SetInternal(err)
+			return internalError("Failed to delete resource", err)
 		}
 
 		return c.JSON(http.StatusOK, true)
 	})
 }
 
-func (s *Server) registerResourcePublicRoutes(g *echo.Group) {
-	g.GET("/r/:resourceId/:filename", func(c echo.Context) error {
+func (s *Server) registerResourcePublicRoutes(g Group) {
+	g.GET("/r/:resourceId/:filename", func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
 		filename, err := url.QueryUnescape(c.Param("filename"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("filename is invalid: %s", c.Param("filename"))).SetInternal(err)
+			return badRequestError(fmt.Sprintf("filename is invalid: %s", c.Param("filename")), err)
 		}
 		resourceFind := &api.ResourceFind{
 			ID:       &resourceID,
@@ -296,24 +289,24 @@ func (s *Server) registerResourcePublicRoutes(g *echo.Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch resource ID: %v", resourceID)).SetInternal(err)
+			return internalError(fmt.Sprintf("Failed to fetch resource ID: %v", resourceID), err)
 		}
 
 		resourceType := strings.ToLower(resource.Type)
 		if strings.HasPrefix(resourceType, "text") || (strings.HasPrefix(resourceType, "application") && resourceType != "application/pdf") {
-			resourceType = echo.MIMETextPlain
+			resourceType = mimeTextPlain
 		}
-		c.Response().Writer.Header().Set(echo.HeaderCacheControl, "max-age=31536000, immutable")
-		c.Response().Writer.Header().Set(echo.HeaderContentSecurityPolicy, "default-src 'self'")
+		c.Writer().Header().Set(headerCacheControl, "max-age=31536000, immutable")
+		c.Writer().Header().Set(headerContentSecurityPolicy, "default-src 'self'")
 		if strings.HasPrefix(resourceType, "video") || strings.HasPrefix(resourceType, "audio") {
-			http.ServeContent(c.Response(), c.Request(), resource.Filename, time.Unix(resource.UpdatedTs, 0), bytes.NewReader(resource.Blob))
+			http.ServeContent(c.Writer(), c.Request(), resource.Filename, time.Unix(resource.UpdatedTs, 0), bytes.NewReader(resource.Blob))
 			return nil
 		}
 		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(resource.Blob))
 	})
 }
 
-func (s *Server) createResourceCreateActivity(c echo.Context, resource *api.Resource) error {
+func (s *Server) createResourceCreateActivity(c Context, resource *api.Resource) error {
 	ctx := c.Request().Context()
 	payload := api.ActivityResourceCreatePayload{
 		Filename: resource.Filename,

@@ -9,22 +9,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
-
-	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) registerSystemRoutes(g *echo.Group) {
-	g.GET("/ping", func(c echo.Context) error {
+func (s *Server) registerSystemRoutes(g Group) {
+	g.GET("/ping", func(c Context) error {
 		data := s.Profile
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(data)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to compose system profile").SetInternal(err)
+		if err := writeJSON(c, data); err != nil {
+			return internalError("Failed to compose system profile", err)
 		}
 		return nil
 	})
 
-	g.GET("/status", func(c echo.Context) error {
+	g.GET("/status", func(c Context) error {
 		ctx := c.Request().Context()
 		hostUserType := api.Host
 		hostUserFind := api.UserFind{
@@ -32,7 +29,7 @@ func (s *Server) registerSystemRoutes(g *echo.Group) {
 		}
 		hostUser, err := s.Store.FindUser(ctx, &hostUserFind)
 		if err != nil && common.ErrorCode(err) != common.NotFound {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find host user").SetInternal(err)
+			return internalError("Failed to find host user", err)
 		}
 
 		if hostUser != nil {
@@ -60,7 +57,7 @@ func (s *Server) registerSystemRoutes(g *echo.Group) {
 
 		systemSettingList, err := s.Store.FindSystemSettingList(ctx, &api.SystemSettingFind{})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find system setting list").SetInternal(err)
+			return internalError("Failed to find system setting list", err)
 		}
 		for _, systemSetting := range systemSettingList {
 			if systemSetting.Name == api.SystemSettingServerID || systemSetting.Name == api.SystemSettingSecretSessionName {
@@ -70,7 +67,7 @@ func (s *Server) registerSystemRoutes(g *echo.Group) {
 			var value interface{}
 			err := json.Unmarshal([]byte(systemSetting.Value), &value)
 			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to unmarshal system setting").SetInternal(err)
+				return internalError("Failed to unmarshal system setting", err)
 			}
 
 			if systemSetting.Name == api.SystemSettingAllowSignUpName {
@@ -110,94 +107,91 @@ func (s *Server) registerSystemRoutes(g *echo.Group) {
 				ID: &userID,
 			})
 			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user").SetInternal(err)
+				return internalError("Failed to find user", err)
 			}
 			if user != nil && user.Role == api.Host {
 				fi, err := os.Stat(s.Profile.DSN)
 				if err != nil {
-					return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read database fileinfo").SetInternal(err)
+					return internalError("Failed to read database fileinfo", err)
 				}
 				systemStatus.DBSize = fi.Size()
 			}
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(systemStatus)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode system status response").SetInternal(err)
+		if err := writeJSON(c, systemStatus); err != nil {
+			return internalError("Failed to encode system status response", err)
 		}
 		return nil
 	})
 
-	g.POST("/system/setting", func(c echo.Context) error {
+	g.POST("/system/setting", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		user, err := s.Store.FindUser(ctx, &api.UserFind{
 			ID: &userID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user").SetInternal(err)
+			return internalError("Failed to find user", err)
 		}
 		if user == nil || user.Role != api.Host {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			return unauthorizedError("Unauthorized")
 		}
 
 		systemSettingUpsert := &api.SystemSettingUpsert{}
 		if err := json.NewDecoder(c.Request().Body).Decode(systemSettingUpsert); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post system setting request").SetInternal(err)
+			return badRequestError("Malformatted post system setting request", err)
 		}
 		if err := systemSettingUpsert.Validate(); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "system setting invalidate").SetInternal(err)
+			return badRequestError("system setting invalidate", err)
 		}
 
 		systemSetting, err := s.Store.UpsertSystemSetting(ctx, systemSettingUpsert)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to upsert system setting").SetInternal(err)
+			return internalError("Failed to upsert system setting", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(systemSetting)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode system setting response").SetInternal(err)
+		if err := writeJSON(c, systemSetting); err != nil {
+			return internalError("Failed to encode system setting response", err)
 		}
 		return nil
 	})
 
-	g.GET("/system/setting", func(c echo.Context) error {
+	g.GET("/system/setting", func(c Context) error {
 		ctx := c.Request().Context()
 		systemSettingList, err := s.Store.FindSystemSettingList(ctx, &api.SystemSettingFind{})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find system setting list").SetInternal(err)
+			return internalError("Failed to find system setting list", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(systemSettingList)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode system setting list response").SetInternal(err)
+		if err := writeJSON(c, systemSettingList); err != nil {
+			return internalError("Failed to encode system setting list response", err)
 		}
 		return nil
 	})
 
-	g.POST("/system/vacuum", func(c echo.Context) error {
+	g.POST("/system/vacuum", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 		user, err := s.Store.FindUser(ctx, &api.UserFind{
 			ID: &userID,
 		})
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user").SetInternal(err)
+			return internalError("Failed to find user", err)
 		}
 		if user == nil || user.Role != api.Host {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			return unauthorizedError("Unauthorized")
 		}
 		if err := s.Store.Vacuum(ctx); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to vacuum database").SetInternal(err)
+			return internalError("Failed to vacuum database", err)
 		}
-		c.Response().WriteHeader(http.StatusOK)
+		c.Status(http.StatusOK)
 		return nil
 	})
 }

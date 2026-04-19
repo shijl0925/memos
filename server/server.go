@@ -58,14 +58,14 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	e.Use(middleware.Gzip())
 
 	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
-		Skipper:     s.DefaultAuthSkipper,
+		Skipper:     echoSkipper(s.DefaultAuthSkipper),
 		TokenLookup: "cookie:_csrf",
 	}))
 
 	e.Use(middleware.CORS())
 
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
-		Skipper:            DefaultGetRequestSkipper,
+		Skipper:            echoSkipper(DefaultGetRequestSkipper),
 		XSSProtection:      "1; mode=block",
 		ContentTypeNosniff: "nosniff",
 		XFrameOptions:      "SAMEORIGIN",
@@ -97,24 +97,23 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	// Register MetricCollector to server.
 	s.registerMetricCollector()
 
-	rootGroup := e.Group("")
+	rootGroup := newEchoGroup(e.Group(""))
 	s.registerRSSRoutes(rootGroup)
 
-	publicGroup := e.Group("/o")
+	publicGroup := newEchoGroup(e.Group("/o"))
 	s.registerResourcePublicRoutes(publicGroup)
 	registerGetterPublicRoutes(publicGroup)
 
 	apiGroup := e.Group("/api")
-	apiGroup.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return aclMiddleware(s, next)
-	})
-	s.registerSystemRoutes(apiGroup)
-	s.registerAuthRoutes(apiGroup)
-	s.registerUserRoutes(apiGroup)
-	s.registerMemoRoutes(apiGroup)
-	s.registerShortcutRoutes(apiGroup)
-	s.registerResourceRoutes(apiGroup)
-	s.registerTagRoutes(apiGroup)
+	apiGroup.Use(toEchoMiddleware(aclMiddleware(s)))
+	apiGroupAdapter := newEchoGroup(apiGroup)
+	s.registerSystemRoutes(apiGroupAdapter)
+	s.registerAuthRoutes(apiGroupAdapter)
+	s.registerUserRoutes(apiGroupAdapter)
+	s.registerMemoRoutes(apiGroupAdapter)
+	s.registerShortcutRoutes(apiGroupAdapter)
+	s.registerResourceRoutes(apiGroupAdapter)
+	s.registerTagRoutes(apiGroupAdapter)
 
 	return s, nil
 }

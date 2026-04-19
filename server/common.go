@@ -3,7 +3,6 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 )
@@ -18,16 +17,16 @@ func composeResponse(data interface{}) response {
 	}
 }
 
-func DefaultGetRequestSkipper(c echo.Context) bool {
+func DefaultGetRequestSkipper(c Context) bool {
 	return c.Request().Method == http.MethodGet
 }
 
-func DefaultAPIRequestSkipper(c echo.Context) bool {
+func DefaultAPIRequestSkipper(c Context) bool {
 	path := c.Path()
 	return common.HasPrefixes(path, "/api")
 }
 
-func (server *Server) DefaultAuthSkipper(c echo.Context) bool {
+func (server *Server) DefaultAuthSkipper(c Context) bool {
 	ctx := c.Request().Context()
 	path := c.Path()
 
