@@ -184,7 +184,7 @@ func (s *Server) registerUserRoutes(g Group) {
 			return internalError("Failed to find user", err)
 		}
 		if currentUser == nil {
-			return badRequestError(fmt.Sprintf("Current session user not found with ID: %d", currentUserID), err)
+			return badRequestError(fmt.Sprintf("Current session user not found with ID: %d", currentUserID), nil)
 		} else if currentUser.Role != api.Host && currentUserID != userID {
 			return forbiddenError("Access forbidden for current session user")
 		}
