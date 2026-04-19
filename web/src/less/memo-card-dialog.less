@@ -1,0 +1,117 @@
+@import "./mixin.less";
+
+.dialog-wrapper.memo-card-dialog {
+  > .dialog-container {
+    @apply p-0 bg-transparent;
+
+    > * {
+      @apply shrink-0;
+    }
+
+    > .memo-card-container {
+      .flex(column, flex-start, flex-start);
+      @apply relative w-128 max-w-full py-3 px-6 mb-3 rounded-lg bg-yellow-200;
+
+      > * {
+        z-index: 1;
+      }
+
+      > .header-container {
+        .flex(row, space-between, center);
+        @apply w-full h-auto pb-0 my-0;
+
+        > .time-text {
+          @apply text-sm text-gray-500 font-mono;
+        }
+
+        > .btns-container {
+          .flex(row, flex-end, center);
+
+          > .btn {
+            .flex(row, center, center);
+            @apply w-6 h-6 ml-1 rounded hover:bg-white;
+
+            > .icon-img {
+              @apply w-5 h-5;
+            }
+          }
+        }
+      }
+
+      > .memo-container {
+        .flex(column, flex-start, flex-start);
+        @apply w-full pt-2;
+
+        > .memo-content-text {
+          @apply w-full text-base leading-6;
+
+          .tag-span {
+            @apply p-0 text-blue-600 text-base bg-transparent cursor-auto;
+          }
+        }
+
+        > .images-wrapper {
+          .flex(row, flex-start, flex-start);
+          @apply w-full mt-2 overflow-x-auto overflow-y-hidden;
+          padding-bottom: 2px;
+          .pretty-scroll-bar(0, 2px);
+
+          > .memo-img {
+            @apply mr-2 w-auto h-32 shrink-0 grow-0 overflow-y-hidden hover:border-gray-400 last:mr-0;
+            .hide-scroll-bar();
+
+            > img {
+              @apply w-auto rounded-lg;
+              max-height: 128px;
+            }
+          }
+        }
+      }
+
+      > .normal-text {
+        @apply mt-2 text-sm text-gray-500;
+      }
+
+      > .layer-container,
+      > .background-layer-container {
+        position: absolute;
+        bottom: -3px;
+        left: 3px;
+        width: calc(100% - 6px);
+        height: 100%;
+        border-radius: 8px;
+        z-index: -1;
+        background-color: @bg-paper-yellow;
+        border-bottom: 1px solid lightgray;
+      }
+
+      > .layer-container {
+        z-index: 0;
+        background-color: @bg-paper-yellow;
+        border: 1px solid lightgray;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    }
+
+    > .linked-memos-wrapper {
+      .flex(column, flex-start, flex-start);
+      @apply w-128 max-w-full mt-2 py-3 px-6 rounded-lg bg-white last:mb-8;
+
+      > .normal-text {
+        @apply text-sm;
+      }
+
+      > .linked-memo-container {
+        @apply text-sm leading-6 mt-2 cursor-pointer max-w-full truncate hover:opacity-80;
+
+        > .time-text {
+          @apply font-mono text-gray-500;
+        }
+      }
+    }
+  }
+}

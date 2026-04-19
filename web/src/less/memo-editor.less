@@ -1,0 +1,46 @@
+@import "./mixin.less";
+
+.memo-editor-container {
+  @apply relative w-full max-h-full flex flex-col justify-start items-start bg-white p-4 rounded-lg border-2 border-gray-200;
+
+  &.edit-ing {
+    border-color: @text-blue;
+  }
+
+  > .tip-text {
+    @apply text-xs leading-5 text-gray-400;
+  }
+
+  > .memo-editor {
+    .flex(column, flex-start, flex-start);
+    position: relative;
+    width: 100%;
+    height: auto;
+    background-color: white;
+  }
+
+  > .tag-list {
+    .flex(column, flex-start, flex-start);
+    position: absolute;
+    z-index: 10;
+    background-color: rgba(30, 30, 30, 0.9);
+    padding: 2px;
+    border-radius: 4px;
+    width: 128px;
+    max-height: 200px;
+    overflow: auto;
+
+    > span {
+      width: 100%;
+      padding: 2px 6px;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 13px;
+
+      &:hover {
+        background-color: #505050;
+      }
+    }
+  }
+}

@@ -1,0 +1,131 @@
+@import "./mixin.less";
+@import "./memo-content.less";
+
+.memo-wrapper {
+  .flex(column, flex-start, flex-start);
+  @apply w-full max-w-full p-3 px-4 mt-2 bg-white rounded-lg border border-transparent hover:border-gray-200;
+
+  &.deleted-memo {
+    @apply border-gray-200;
+  }
+
+  &.pinned {
+    @apply border-gray-200 border-2;
+  }
+
+  > .memo-top-wrapper {
+    .flex(row, space-between, center);
+    @apply w-full h-6 mb-2;
+
+    > .time-text {
+      @apply text-xs text-gray-400 cursor-pointer;
+    }
+
+    > .btns-container {
+      .flex(row, flex-end, center);
+      @apply relative flex-shrink-0;
+
+      > .more-action-btns-wrapper {
+        .flex(column, flex-start, center);
+        @apply absolute flex-nowrap;
+        top: calc(100% - 8px);
+        right: -16px;
+        width: auto;
+        height: auto;
+        padding: 12px;
+        z-index: 1;
+        display: none;
+
+        &:hover {
+          display: flex;
+        }
+
+        > .more-action-btns-container {
+          width: 112px;
+          height: auto;
+          padding: 4px;
+          white-space: nowrap;
+          border-radius: 8px;
+          background-color: white;
+          box-shadow: 0 0 8px 0 rgb(0 0 0 / 20%);
+          z-index: 1;
+
+          > .btn {
+            @apply w-full py-2 px-3 rounded;
+            height: unset;
+            line-height: unset;
+            justify-content: flex-start;
+
+            &.delete-btn {
+              color: @text-red;
+
+              &.final-confirm {
+                font-weight: bold;
+              }
+            }
+          }
+        }
+      }
+
+      .btn {
+        .flex(row, center, center);
+        @apply px-2 leading-6 text-sm rounded hover:bg-gray-100;
+
+        &.more-action-btn {
+          @apply w-8 -mr-2 opacity-60;
+          cursor: unset;
+
+          > .icon-img {
+            @apply w-4 h-auto;
+          }
+
+          &:hover {
+            background-color: unset;
+
+            & + .more-action-btns-wrapper {
+              display: flex;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  > .memo-content-text {
+    @apply w-full;
+  }
+
+  > .images-wrapper {
+    .flex(row, flex-start, flex-start);
+    margin-top: 8px;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    .pretty-scroll-bar(0, 2px);
+
+    > .memo-img {
+      margin-right: 8px;
+      width: auto;
+      height: 128px;
+      flex-shrink: 0;
+      flex-grow: 0;
+      overflow-y: hidden;
+      .hide-scroll-bar();
+
+      &:hover {
+        border-color: lightgray;
+      }
+
+      &:last-child {
+        margin-right: 0;
+      }
+
+      > img {
+        width: auto;
+        max-height: 128px;
+        border-radius: 8px;
+      }
+    }
+  }
+}

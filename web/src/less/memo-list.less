@@ -1,0 +1,33 @@
+@import "./mixin.less";
+
+.memo-list-container {
+  .flex(column, flex-start, flex-start);
+  width: 100%;
+  max-width: 100%;
+  overflow-y: scroll;
+  .hide-scroll-bar();
+
+  > .status-text-container {
+    .flex(column, flex-start, center);
+    width: 100%;
+    margin-top: 16px;
+    margin-bottom: 16px;
+
+    &.completed {
+      margin-bottom: 64px;
+    }
+
+    &.invisible {
+      visibility: hidden;
+    }
+
+    > .status-text {
+      font-size: 13px;
+      color: gray;
+    }
+  }
+
+  &.completed {
+    @apply pb-40;
+  }
+}
