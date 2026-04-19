@@ -10,8 +10,8 @@
    - 将原 `gin` 路由注册方式迁移到 `gin-ninja` 的分组+typed handler 风格。
    - 示例。
      - 旧写法：`r.GET("/api/memo", handler)`，其中 `handler` 通常为 `func(*gin.Context)`，`r` 可为 `*gin.Engine` 或 `*gin.RouterGroup`。
-     - 新写法：`ninja.Get(router, "/api/memo", listMemos)`。
-     - 说明：`ninja` 及相关类型来自项目实际选用的 `gin-ninja` 包导入，`router` 为 `gin-ninja` 的 `*ninja.Router`，`listMemos` 通常为 `func(ctx *ninja.Context, in *ListMemosRequest) (*ListMemosResponse, error)`。
+     - 新写法：可按 `ninja.Get(router, "/api/memo", listMemos)` 这一类形式迁移。
+     - 说明：此处仅为迁移风格示意，实际应以项目最终选用的 `gin-ninja` 版本与导出 API 为准；`ninja`、`router`、`Context` 等命名需按真实包结构校对后再落地。
    - 需要逐个 API 校对 URL、Method、参数绑定和中间件挂载顺序。
 
 2. **参数绑定与校验（中）**
@@ -29,7 +29,7 @@
 ### 推荐最小风险迁移策略
 
 1. 先保留原目录结构，仅替换路由注册入口（不改业务层）。
-2. 分模块迁移（auth -> user -> memo -> resource），每模块迁移后立刻回归。
+2. 分模块迁移（auth → user → memo → resource），每模块迁移后立刻回归。
 3. 保持响应体结构不变，先兼容再优化。
 4. 最后统一整理中间件和错误码映射。
 
