@@ -3,10 +3,11 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"memos/api"
-	"memos/common"
 	"net/http"
 	"strconv"
+
+	"github.com/usememos/memos/api"
+	"github.com/usememos/memos/common"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -34,7 +35,6 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
 		}
-
 		return nil
 	})
 
@@ -48,7 +48,6 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(userList)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user list response").SetInternal(err)
 		}
-
 		return nil
 	})
 
@@ -72,7 +71,6 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
 		}
-
 		return nil
 	})
 
@@ -109,7 +107,6 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
 		}
-
 		return nil
 	})
 
@@ -158,7 +155,6 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
 		}
-
 		return nil
 	})
 }

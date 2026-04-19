@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"memos/common"
-	"memos/server/profile"
 	"os"
 	"sort"
+
+	"github.com/usememos/memos/common"
+	"github.com/usememos/memos/server/profile"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -74,15 +75,15 @@ func (db *DB) Open() (err error) {
 		}
 	}
 
-	return err
-}
-
-func (db *DB) migrate() error {
-	err := db.compareMigrationHistory()
+	err = db.compareMigrationHistory()
 	if err != nil {
 		return fmt.Errorf("failed to compare migration history, err=%w", err)
 	}
 
+	return err
+}
+
+func (db *DB) migrate() error {
 	filenames, err := fs.Glob(migrationFS, fmt.Sprintf("%s/*.sql", "migration"))
 	if err != nil {
 		return err
@@ -136,31 +137,28 @@ func (db *DB) executeFile(FS embed.FS, name string) error {
 
 // compareMigrationHistory compares migration history data
 func (db *DB) compareMigrationHistory() error {
-	table, err := findTable(db, "migration_history")
+	table, err := findTable(db.Db, "migration_history")
 	if err != nil {
 		return err
 	}
 	if table == nil {
-		createTable(db, `
+		if err := createTable(db.Db, `
 		CREATE TABLE migration_history (
 			version TEXT NOT NULL PRIMARY KEY,
 			created_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now'))
 		);
-		`)
+		`); err != nil {
+			return err
+		}
 	}
 
-	migrationHistoryList, err := findMigrationHistoryList(db)
+	currentVersion := common.Version
+	migrationHistory, err := upsertMigrationHistory(db.Db, currentVersion)
 	if err != nil {
 		return err
 	}
-
-	if len(migrationHistoryList) == 0 {
-		createMigrationHistory(db, common.Version)
-	} else {
-		migrationHistory := migrationHistoryList[0]
-		if migrationHistory.Version != common.Version {
-			createMigrationHistory(db, common.Version)
-		}
+	if migrationHistory == nil {
+		return fmt.Errorf("failed to upsert migration history")
 	}
 
 	return nil

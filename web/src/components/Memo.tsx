@@ -1,10 +1,10 @@
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { escape } from "lodash-es";
 import { IMAGE_URL_REG, LINK_REG, MEMO_LINK_REG, TAG_REG, UNKNOWN_ID } from "../helpers/consts";
-import { parseMarkedToHtml, parseRawTextToHtml } from "../helpers/marked";
+import { parseMarkedToHtml } from "../helpers/marked";
 import * as utils from "../helpers/utils";
 import useToggle from "../hooks/useToggle";
-import { editorStateService, memoService } from "../services";
+import { editorStateService, locationService, memoService } from "../services";
 import Only from "./common/OnlyWhen";
 import Image from "./Image";
 import showMemoCardDialog from "./MemoCardDialog";
@@ -12,8 +12,16 @@ import showShareMemoImageDialog from "./ShareMemoImageDialog";
 import toastHelper from "./Toast";
 import "../less/memo.less";
 
+const MAX_MEMO_CONTAINER_HEIGHT = 384;
+
 interface Props {
   memo: Memo;
+}
+
+type ExpandButtonStatus = -1 | 0 | 1;
+
+interface State {
+  expandButtonStatus: ExpandButtonStatus;
 }
 
 const Memo: React.FC<Props> = (props: Props) => {
@@ -22,8 +30,25 @@ const Memo: React.FC<Props> = (props: Props) => {
     ...propsMemo,
     createdAtStr: utils.getDateTimeString(propsMemo.createdTs),
   };
+  const [state, setState] = useState<State>({
+    expandButtonStatus: -1,
+  });
+  const memoContainerRef = useRef<HTMLDivElement>(null);
   const [showConfirmDeleteBtn, toggleConfirmDeleteBtn] = useToggle(false);
-  const imageUrls = Array.from(memo.content.match(IMAGE_URL_REG) ?? []);
+  const imageUrls = Array.from(memo.content.match(IMAGE_URL_REG) ?? []).map((s) => s.replace(IMAGE_URL_REG, "$1"));
+
+  useEffect(() => {
+    if (!memoContainerRef) {
+      return;
+    }
+
+    if (Number(memoContainerRef.current?.clientHeight) > MAX_MEMO_CONTAINER_HEIGHT) {
+      setState({
+        ...state,
+        expandButtonStatus: 0,
+      });
+    }
+  }, []);
 
   const handleShowMemoStoryDialog = () => {
     showMemoCardDialog(memo);
@@ -91,9 +116,24 @@ const Memo: React.FC<Props> = (props: Props) => {
         toastHelper.error("MEMO Not Found");
         targetEl.classList.remove("memo-link-text");
       }
+    } else if (targetEl.tagName === "SPAN" && targetEl.className === "tag-span") {
+      const tagName = targetEl.innerText.slice(1);
+      const currTagQuery = locationService.getState().query?.tag;
+      if (currTagQuery === tagName) {
+        locationService.setTagQuery("");
+      } else {
+        locationService.setTagQuery(tagName);
+      }
     } else if (targetEl.className === "todo-block") {
-      // do nth
+      // ...do nth
     }
+  };
+
+  const handleShowMoreBtnClick = () => {
+    setState({
+      ...state,
+      expandButtonStatus: Number(Boolean(!state.expandButtonStatus)) as ExpandButtonStatus,
+    });
   };
 
   return (
@@ -111,20 +151,25 @@ const Memo: React.FC<Props> = (props: Props) => {
           </span>
           <div className="more-action-btns-wrapper">
             <div className="more-action-btns-container">
-              <span className="btn" onClick={handleShowMemoStoryDialog}>
-                View Story
-              </span>
-              <span className="btn" onClick={handleTogglePinMemoBtnClick}>
-                {memo.pinned ? "Unpin" : "Pin"}
-              </span>
+              <div className="btns-container">
+                <div className="btn" onClick={handleTogglePinMemoBtnClick}>
+                  <img className="icon-img" src="/icons/pin.svg" alt="" />
+                  <span className="tip-text">{memo.pinned ? "Unpin" : "Pin"}</span>
+                </div>
+                <div className="btn" onClick={handleEditMemoClick}>
+                  <img className="icon-img" src="/icons/edit.svg" alt="" />
+                  <span className="tip-text">Edit</span>
+                </div>
+                <div className="btn" onClick={handleGenMemoImageBtnClick}>
+                  <img className="icon-img" src="/icons/share.svg" alt="" />
+                  <span className="tip-text">Share</span>
+                </div>
+              </div>
               <span className="btn" onClick={handleMarkMemoClick}>
                 Mark
               </span>
-              <span className="btn" onClick={handleGenMemoImageBtnClick}>
-                Share
-              </span>
-              <span className="btn" onClick={handleEditMemoClick}>
-                Edit
+              <span className="btn" onClick={handleShowMemoStoryDialog}>
+                View Story
               </span>
               <span className={`btn delete-btn ${showConfirmDeleteBtn ? "final-confirm" : ""}`} onClick={handleDeleteMemoClick}>
                 {showConfirmDeleteBtn ? "Delete!" : "Delete"}
@@ -134,10 +179,19 @@ const Memo: React.FC<Props> = (props: Props) => {
         </div>
       </div>
       <div
-        className="memo-content-text"
+        ref={memoContainerRef}
+        className={`memo-content-text ${state.expandButtonStatus === 0 ? "expanded" : ""}`}
         onClick={handleMemoContentClick}
         dangerouslySetInnerHTML={{ __html: formatMemoContent(memo.content) }}
       ></div>
+      {state.expandButtonStatus !== -1 && (
+        <div className="expand-btn-container">
+          <span className={`btn ${state.expandButtonStatus === 0 ? "expand-btn" : "fold-btn"}`} onClick={handleShowMoreBtnClick}>
+            {state.expandButtonStatus === 0 ? "Expand" : "Fold"}
+            <img className="icon-img" src="/icons/arrow-right.svg" alt="" />
+          </span>
+        </div>
+      )}
       <Only when={imageUrls.length > 0}>
         <div className="images-wrapper">
           {imageUrls.map((imgUrl, idx) => (
@@ -150,39 +204,14 @@ const Memo: React.FC<Props> = (props: Props) => {
 };
 
 export function formatMemoContent(content: string) {
-  content = escape(content);
-  content = parseRawTextToHtml(content)
-    .split("<br>")
-    .map((t) => {
-      return `<p>${t !== "" ? t : "<br>"}</p>`;
-    })
-    .join("");
+  const tempElement = document.createElement("div");
+  tempElement.innerHTML = parseMarkedToHtml(escape(content));
 
-  content = parseMarkedToHtml(content);
-
-  content = content.replace(IMAGE_URL_REG, "");
-
-  content = content
-    .replace(TAG_REG, "<span class='tag-span'>#$1</span>")
+  return tempElement.innerHTML
+    .replace(IMAGE_URL_REG, "")
+    .replace(TAG_REG, "<span class='tag-span'>#$1</span> ")
     .replace(LINK_REG, "<a class='link' target='_blank' rel='noreferrer' href='$1'>$1</a>")
     .replace(MEMO_LINK_REG, "<span class='memo-link-text' data-value='$2'>$1</span>");
-
-  // Add space in english and chinese
-  content = content.replace(/([\u4e00-\u9fa5])([A-Za-z0-9?.,;[\]]+)/g, "$1 $2").replace(/([A-Za-z0-9?.,;[\]]+)([\u4e00-\u9fa5])/g, "$1 $2");
-
-  const tempDivContainer = document.createElement("div");
-  tempDivContainer.innerHTML = content;
-  for (let i = 0; i < tempDivContainer.children.length; i++) {
-    const c = tempDivContainer.children[i];
-
-    if (c.tagName === "P" && c.textContent === "" && c.firstElementChild?.tagName !== "BR") {
-      c.remove();
-      i--;
-      continue;
-    }
-  }
-
-  return tempDivContainer.innerHTML;
 }
 
 export default memo(Memo);

@@ -34,27 +34,31 @@ const SettingDialog: React.FC<Props> = (props: Props) => {
       </button>
       <div className="section-selector-container">
         <span className="section-title">Basic</span>
-        <span
-          onClick={() => handleSectionSelectorItemClick("my-account")}
-          className={`section-item ${state.selectedSection === "my-account" ? "selected" : ""}`}
-        >
-          My account
-        </span>
-        <span
-          onClick={() => handleSectionSelectorItemClick("preferences")}
-          className={`section-item ${state.selectedSection === "preferences" ? "selected" : ""}`}
-        >
-          Preferences
-        </span>
+        <div className="section-items-container">
+          <span
+            onClick={() => handleSectionSelectorItemClick("my-account")}
+            className={`section-item ${state.selectedSection === "my-account" ? "selected" : ""}`}
+          >
+            <span className="icon-text">🤠</span> My account
+          </span>
+          <span
+            onClick={() => handleSectionSelectorItemClick("preferences")}
+            className={`section-item ${state.selectedSection === "preferences" ? "selected" : ""}`}
+          >
+            <span className="icon-text">🏟</span> Preferences
+          </span>
+        </div>
         {user?.role === "OWNER" ? (
           <>
             <span className="section-title">Admin</span>
-            <span
-              onClick={() => handleSectionSelectorItemClick("member")}
-              className={`section-item ${state.selectedSection === "member" ? "selected" : ""}`}
-            >
-              Member
-            </span>
+            <div className="section-items-container">
+              <span
+                onClick={() => handleSectionSelectorItemClick("member")}
+                className={`section-item ${state.selectedSection === "member" ? "selected" : ""}`}
+              >
+                <span className="icon-text">👤</span> Member
+              </span>
+            </div>
           </>
         ) : null}
       </div>

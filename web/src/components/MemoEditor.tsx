@@ -46,6 +46,7 @@ const MemoEditor: React.FC<Props> = () => {
   const editorState = useAppSelector((state) => state.editor);
   const tags = useAppSelector((state) => state.memo.tags);
   const [isTagSeletorShown, toggleTagSeletor] = useToggle(false);
+  const [isUploadingResource, setIsUploadingResource] = useToggle(false);
   const editorRef = useRef<EditorRefActions>(null);
   const prevGlobalStateRef = useRef(editorState);
   const tagSeletorRef = useRef<HTMLDivElement>(null);
@@ -74,17 +75,13 @@ const MemoEditor: React.FC<Props> = () => {
   }, [editorState.markMemoId, editorState.editMemoId]);
 
   useEffect(() => {
-    if (!editorRef.current) {
-      return;
-    }
-
     const handlePasteEvent = async (event: ClipboardEvent) => {
       if (event.clipboardData && event.clipboardData.files.length > 0) {
         event.preventDefault();
         const file = event.clipboardData.files[0];
         const url = await handleUploadFile(file);
         if (url) {
-          editorRef.current?.insertText(url);
+          editorRef.current?.insertText(`![](${url})`);
         }
       }
     };
@@ -95,7 +92,7 @@ const MemoEditor: React.FC<Props> = () => {
         const file = event.dataTransfer.files[0];
         const url = await handleUploadFile(file);
         if (url) {
-          editorRef.current?.insertText(url);
+          editorRef.current?.insertText(`![](${url})`);
         }
       }
     };
@@ -110,10 +107,10 @@ const MemoEditor: React.FC<Props> = () => {
       });
     };
 
-    editorRef.current.element.addEventListener("paste", handlePasteEvent);
-    editorRef.current.element.addEventListener("drop", handleDropEvent);
-    editorRef.current.element.addEventListener("click", handleClickEvent);
-    editorRef.current.element.addEventListener("keydown", handleKeyDownEvent);
+    editorRef.current?.element.addEventListener("paste", handlePasteEvent);
+    editorRef.current?.element.addEventListener("drop", handleDropEvent);
+    editorRef.current?.element.addEventListener("click", handleClickEvent);
+    editorRef.current?.element.addEventListener("keydown", handleKeyDownEvent);
 
     return () => {
       editorRef.current?.element.removeEventListener("paste", handlePasteEvent);
@@ -123,22 +120,32 @@ const MemoEditor: React.FC<Props> = () => {
     };
   }, []);
 
-  const handleUploadFile = useCallback(async (file: File) => {
-    const { type } = file;
+  const handleUploadFile = useCallback(
+    async (file: File) => {
+      if (isUploadingResource) {
+        return;
+      }
 
-    if (!type.startsWith("image")) {
-      return;
-    }
+      setIsUploadingResource(true);
+      const { type } = file;
 
-    try {
-      const image = await resourceService.upload(file);
-      const url = `/h/r/${image.id}/${image.filename}`;
+      if (!type.startsWith("image")) {
+        return;
+      }
 
-      return url;
-    } catch (error: any) {
-      toastHelper.error(error);
-    }
-  }, []);
+      try {
+        const image = await resourceService.upload(file);
+        const url = `/h/r/${image.id}/${image.filename}`;
+
+        return url;
+      } catch (error: any) {
+        toastHelper.error(error);
+      } finally {
+        setIsUploadingResource(false);
+      }
+    },
+    [isUploadingResource]
+  );
 
   const handleSaveBtnClick = useCallback(async (content: string) => {
     if (content === "") {
@@ -250,7 +257,7 @@ const MemoEditor: React.FC<Props> = () => {
       const file = inputEl.files[0];
       const url = await handleUploadFile(file);
       if (url) {
-        editorRef.current?.insertText(url);
+        editorRef.current?.insertText(`![](${url})`);
       }
     };
     inputEl.click();
@@ -258,7 +265,7 @@ const MemoEditor: React.FC<Props> = () => {
 
   const handleTagSeletorClick = useCallback((event: React.MouseEvent) => {
     if (tagSeletorRef.current !== event.target && tagSeletorRef.current?.contains(event.target as Node)) {
-      editorRef.current?.insertText((event.target as HTMLElement).textContent + " " ?? "");
+      editorRef.current?.insertText((event.target as HTMLElement).textContent ?? "");
       toggleTagSeletor(false);
     }
   }, []);
@@ -287,14 +294,19 @@ const MemoEditor: React.FC<Props> = () => {
         {...editorConfig}
         tools={
           <>
-            <img className="action-btn file-upload" src="/icons/tag.svg" onClick={handleTagTextBtnClick} />
-            <img className="action-btn file-upload" src="/icons/image.svg" onClick={handleUploadFileBtnClick} />
+            <div className="action-btn">
+              <img className="icon-img" src="/icons/tag.svg" onClick={handleTagTextBtnClick} />
+            </div>
+            <div className="action-btn">
+              <img className="icon-img" src="/icons/image.svg" onClick={handleUploadFileBtnClick} />
+              <span className={`tip-text ${isUploadingResource ? "!block" : ""}`}>Uploading</span>
+            </div>
           </>
         }
       />
       <div
         ref={tagSeletorRef}
-        className={`tag-list ${isTagSeletorShown && tags.length > 0 ? "" : "hidden"}`}
+        className={`tag-list ${isTagSeletorShown && tags.length > 0 ? "" : "!hidden"}`}
         onClick={handleTagSeletorClick}
       >
         {tags.map((t) => {

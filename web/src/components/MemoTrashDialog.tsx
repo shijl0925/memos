@@ -28,8 +28,9 @@ const MemoTrashDialog: React.FC<Props> = (props: Props) => {
     locationService.clearQuery();
   }, []);
 
-  const handleDeletedMemoAction = useCallback((memoId: MemoId) => {
+  const handleDeletedMemoAction = useCallback(async (memoId: MemoId) => {
     setDeletedMemos((deletedMemos) => deletedMemos.filter((memo) => memo.id !== memoId));
+    await memoService.fetchAllMemos();
   }, []);
 
   return (
@@ -37,7 +38,7 @@ const MemoTrashDialog: React.FC<Props> = (props: Props) => {
       <div className="dialog-header-container">
         <p className="title-text">
           <span className="icon-text">🗑️</span>
-          Trash Bin
+          Recycle Bin
         </p>
         <button className="btn close-btn" onClick={destroy}>
           <img className="icon-img" src="/icons/close.svg" />

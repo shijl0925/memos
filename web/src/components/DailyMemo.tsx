@@ -20,7 +20,7 @@ const DailyMemo: React.FC<Props> = (props: Props) => {
     createdAtStr: utils.getDateTimeString(propsMemo.createdTs),
     timeStr: utils.getTimeString(propsMemo.createdTs),
   };
-  const imageUrls = Array.from(memo.content.match(IMAGE_URL_REG) ?? []);
+  const imageUrls = Array.from(memo.content.match(IMAGE_URL_REG) ?? []).map((s) => s.replace(IMAGE_URL_REG, "$1"));
 
   return (
     <div className="daily-memo-wrapper">
@@ -37,6 +37,7 @@ const DailyMemo: React.FC<Props> = (props: Props) => {
           </div>
         </Only>
       </div>
+      <div className="split-line"></div>
     </div>
   );
 };

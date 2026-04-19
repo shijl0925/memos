@@ -20,10 +20,10 @@ const ShareMemoImageDialog: React.FC<Props> = (props: Props) => {
     ...propsMemo,
     createdAtStr: utils.getDateTimeString(propsMemo.createdTs),
   };
-  const memoImgUrls = Array.from(memo.content.match(IMAGE_URL_REG) ?? []);
+  const imageUrls = Array.from(memo.content.match(IMAGE_URL_REG) ?? []).map((s) => s.replace(IMAGE_URL_REG, "$1"));
 
   const [shortcutImgUrl, setShortcutImgUrl] = useState("");
-  const [imgAmount, setImgAmount] = useState(memoImgUrls.length);
+  const [imgAmount, setImgAmount] = useState(imageUrls.length);
   const memoElRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,17 +55,24 @@ const ShareMemoImageDialog: React.FC<Props> = (props: Props) => {
 
   const handleImageOnLoad = (ev: React.SyntheticEvent<HTMLImageElement>) => {
     if (ev.type === "error") {
-      toastHelper.error("有个图片加载失败了😟");
+      toastHelper.error("😟 Image load failed");
       (ev.target as HTMLImageElement).remove();
     }
     setImgAmount(imgAmount - 1);
+  };
+
+  const handleDownloadBtnClick = () => {
+    const a = document.createElement("a");
+    a.href = shortcutImgUrl;
+    a.download = `memos-${utils.getDateTimeString(Date.now())}.png`;
+    a.click();
   };
 
   return (
     <>
       <div className="dialog-header-container">
         <p className="title-text">
-          <span className="icon-text">🥰</span>Share Memo
+          <span className="icon-text">🌄</span>Share Memo
         </p>
         <button className="btn close-btn" onClick={handleCloseBtnClick}>
           <img className="icon-img" src="/icons/close.svg" />
@@ -73,17 +80,17 @@ const ShareMemoImageDialog: React.FC<Props> = (props: Props) => {
       </div>
       <div className="dialog-content-container">
         <div className={`tip-words-container ${shortcutImgUrl ? "finish" : "loading"}`}>
-          <p className="tip-text">{shortcutImgUrl ? "Right click or long press to save image 👇" : "Generating the screenshot..."}</p>
+          <p className="tip-text">{shortcutImgUrl ? "Click or press to save the image 👇" : "Generating the screenshot..."}</p>
         </div>
         <div className="memo-container" ref={memoElRef}>
           <Only when={shortcutImgUrl !== ""}>
-            <img className="memo-shortcut-img" src={shortcutImgUrl} />
+            <img className="memo-shortcut-img" onClick={handleDownloadBtnClick} src={shortcutImgUrl} />
           </Only>
           <span className="time-text">{memo.createdAtStr}</span>
           <div className="memo-content-text" dangerouslySetInnerHTML={{ __html: formatMemoContent(memo.content) }}></div>
-          <Only when={memoImgUrls.length > 0}>
+          <Only when={imageUrls.length > 0}>
             <div className="images-container">
-              {memoImgUrls.map((imgUrl, idx) => (
+              {imageUrls.map((imgUrl, idx) => (
                 <img
                   crossOrigin="anonymous"
                   decoding="async"

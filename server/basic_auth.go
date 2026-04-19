@@ -2,10 +2,11 @@ package server
 
 import (
 	"fmt"
-	"memos/api"
-	"memos/common"
 	"net/http"
 	"strconv"
+
+	"github.com/usememos/memos/api"
+	"github.com/usememos/memos/common"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
@@ -32,7 +33,6 @@ func setUserSession(c echo.Context, user *api.User) error {
 	if err != nil {
 		return fmt.Errorf("failed to set session, err: %w", err)
 	}
-
 	return nil
 }
 
@@ -48,7 +48,6 @@ func removeUserSession(c echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to set session, err: %w", err)
 	}
-
 	return nil
 }
 

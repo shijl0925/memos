@@ -2,9 +2,10 @@ package server
 
 import (
 	"fmt"
-	"memos/server/profile"
-	"memos/store"
 	"time"
+
+	"github.com/usememos/memos/server/profile"
+	"github.com/usememos/memos/store"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -70,6 +71,7 @@ func NewServer(profile *profile.Profile) *Server {
 	s.registerMemoRoutes(apiGroup)
 	s.registerShortcutRoutes(apiGroup)
 	s.registerResourceRoutes(apiGroup)
+	s.registerTagRoutes(apiGroup)
 
 	return s
 }

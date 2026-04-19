@@ -1,6 +1,6 @@
 import { useAppSelector } from "../store";
 import * as utils from "../helpers/utils";
-import showDailyMemoDiaryDialog from "./DailyMemoDiaryDialog";
+import showDailyReviewDialog from "./DailyReviewDialog";
 import showSettingDialog from "./SettingDialog";
 import showMemoTrashDialog from "./MemoTrashDialog";
 import UserBanner from "./UserBanner";
@@ -27,6 +27,11 @@ const Sidebar: React.FC<Props> = () => {
 
   return (
     <aside className="sidebar-wrapper">
+      <div className="close-container">
+        <span className="action-btn" onClick={toggleSiderbar}>
+          <img src="/icons/close.svg" className="icon-img" alt="" />
+        </span>
+      </div>
       <UserBanner />
       <div className="status-text-container">
         <div className="status-text memos-text">
@@ -37,15 +42,18 @@ const Sidebar: React.FC<Props> = () => {
           <span className="amount-text">{tags.length}</span>
           <span className="type-text">TAG</span>
         </div>
-        <div className="status-text duration-text" onClick={() => showDailyMemoDiaryDialog()}>
+        <div className="status-text duration-text">
           <span className="amount-text">{createdDays}</span>
           <span className="type-text">DAY</span>
         </div>
       </div>
       <UsageHeatMap />
       <div className="action-btns-container">
+        <button className="btn action-btn" onClick={() => showDailyReviewDialog()}>
+          <span className="icon">📅</span> Daily Review
+        </button>
         <button className="btn action-btn" onClick={handleMyAccountBtnClick}>
-          <span className="icon">👤</span> Setting
+          <span className="icon">⚙️</span> Setting
         </button>
         <button className="btn action-btn" onClick={handleMemosTrashBtnClick}>
           <span className="icon">🗑️</span> Recycle Bin
@@ -55,6 +63,16 @@ const Sidebar: React.FC<Props> = () => {
       <TagList />
     </aside>
   );
+};
+
+export const toggleSiderbar = () => {
+  const sidebarEl = document.body.querySelector(".sidebar-wrapper") as HTMLDivElement;
+  const display = window.getComputedStyle(sidebarEl).display;
+  if (display === "none") {
+    sidebarEl.style.display = "flex";
+  } else {
+    sidebarEl.style.display = "none";
+  }
 };
 
 export default Sidebar;

@@ -3,9 +3,10 @@ package store
 import (
 	"database/sql"
 	"fmt"
-	"memos/api"
-	"memos/common"
 	"strings"
+
+	"github.com/usememos/memos/api"
+	"github.com/usememos/memos/common"
 )
 
 // memoRaw is the store model for an Memo.
@@ -209,6 +210,17 @@ func findMemoRawList(db *sql.DB, find *api.MemoFind) ([]*memoRaw, error) {
 	if v := find.Pinned; v != nil {
 		where = append(where, "id in (SELECT memo_id FROM memo_organizer WHERE pinned = 1 AND user_id = memo.creator_id )")
 	}
+	if v := find.ContentSearch; v != nil {
+		where, args = append(where, "content LIKE ?"), append(args, "%"+*v+"%")
+	}
+
+	pagination := ""
+	if find.Limit > 0 {
+		pagination = fmt.Sprintf("%s LIMIT %d", pagination, find.Limit)
+		if find.Offset > 0 {
+			pagination = fmt.Sprintf("%s OFFSET %d", pagination, find.Offset)
+		}
+	}
 
 	rows, err := db.Query(`
 		SELECT
@@ -220,7 +232,7 @@ func findMemoRawList(db *sql.DB, find *api.MemoFind) ([]*memoRaw, error) {
 			row_status
 		FROM memo
 		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY created_ts DESC`,
+		ORDER BY created_ts DESC`+pagination,
 		args...,
 	)
 	if err != nil {

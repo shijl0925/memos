@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"memos/api"
 	"net/http"
+	"regexp"
 	"strconv"
+
+	"github.com/usememos/memos/api"
 
 	"github.com/labstack/echo/v4"
 )
@@ -18,7 +20,6 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 
 	g.POST("/:openId/memo", func(c echo.Context) error {
 		openID := c.Param("openId")
-
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
@@ -46,13 +47,11 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
 		}
-
 		return nil
 	})
 
-	g.GET("/:openId/memo", func(c echo.Context) error {
+	g.PATCH("/:openId/memo/:memoId", func(c echo.Context) error {
 		openID := c.Param("openId")
-
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
@@ -61,7 +60,44 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("Unauthorized: %s", openID))
+			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID))
+		}
+
+		memoID, err := strconv.Atoi(c.Param("memoId"))
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("memoId is not a number: %s", c.Param("memoId"))).SetInternal(err)
+		}
+
+		memoPatch := &api.MemoPatch{
+			ID: memoID,
+		}
+		if err := json.NewDecoder(c.Request().Body).Decode(memoPatch); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted patch memo request by open api").SetInternal(err)
+		}
+
+		memo, err := s.Store.PatchMemo(memoPatch)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to patch memo").SetInternal(err)
+		}
+
+		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
+		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
+		}
+		return nil
+	})
+
+	g.GET("/:openId/memo", func(c echo.Context) error {
+		openID := c.Param("openId")
+		userFind := &api.UserFind{
+			OpenID: &openID,
+		}
+		user, err := s.Store.FindUser(userFind)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+		}
+		if user == nil {
+			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Not found user with openid: %s", openID))
 		}
 
 		memoFind := &api.MemoFind{
@@ -70,6 +106,22 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		rowStatus := api.RowStatus(c.QueryParam("rowStatus"))
 		if rowStatus != "" {
 			memoFind.RowStatus = &rowStatus
+		}
+		pinnedStr := c.QueryParam("pinned")
+		if pinnedStr != "" {
+			pinned := pinnedStr == "true"
+			memoFind.Pinned = &pinned
+		}
+		tag := c.QueryParam("tag")
+		if tag != "" {
+			contentSearch := tag + " "
+			memoFind.ContentSearch = &contentSearch
+		}
+		if limit, err := strconv.Atoi(c.QueryParam("limit")); err == nil {
+			memoFind.Limit = limit
+		}
+		if offset, err := strconv.Atoi(c.QueryParam("offset")); err == nil {
+			memoFind.Offset = offset
 		}
 
 		list, err := s.Store.FindMemoList(memoFind)
@@ -81,13 +133,11 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(list)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo list response").SetInternal(err)
 		}
-
 		return nil
 	})
 
 	g.POST("/:openId/resource", func(c echo.Context) error {
 		openID := c.Param("openId")
-
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
@@ -139,7 +189,57 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
 		}
+		return nil
+	})
 
+	g.GET("/:openId/tag", func(c echo.Context) error {
+		openID := c.Param("openId")
+		userFind := &api.UserFind{
+			OpenID: &openID,
+		}
+		user, err := s.Store.FindUser(userFind)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+		}
+		if user == nil {
+			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID))
+		}
+
+		contentSearch := "#"
+		normalRowStatus := api.Normal
+		memoFind := api.MemoFind{
+			CreatorID:     &user.ID,
+			ContentSearch: &contentSearch,
+			RowStatus:     &normalRowStatus,
+		}
+
+		memoList, err := s.Store.FindMemoList(&memoFind)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find memo list").SetInternal(err)
+		}
+
+		tagMapSet := make(map[string]bool)
+
+		r, err := regexp.Compile("#(.+?) ")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to compile regexp").SetInternal(err)
+		}
+		for _, memo := range memoList {
+			for _, rawTag := range r.FindAllString(memo.Content, -1) {
+				tag := r.ReplaceAllString(rawTag, "$1")
+				tagMapSet[tag] = true
+			}
+		}
+
+		tagList := []string{}
+		for tag := range tagMapSet {
+			tagList = append(tagList, tag)
+		}
+
+		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
+		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(tagList)); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode tags response").SetInternal(err)
+		}
 		return nil
 	})
 
@@ -150,12 +250,10 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		}
 
 		filename := c.Param("filename")
-
 		resourceFind := &api.ResourceFind{
 			ID:       &resourceID,
 			Filename: &filename,
 		}
-
 		resource, err := s.Store.FindResource(resourceFind)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch resource ID: %v", resourceID)).SetInternal(err)

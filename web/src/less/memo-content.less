@@ -1,15 +1,14 @@
 @import "./mixin.less";
 
 .memo-content-text {
-  .flex(column, flex-start, flex-start);
-  @apply w-full whitespace-pre-wrap break-words;
+  @apply w-full whitespace-pre-wrap break-words text-base leading-7;
 
   > p {
-    @apply inline-block w-full h-auto mb-1 text-base leading-6 whitespace-pre-wrap break-words;
+    @apply inline-block w-full h-auto mb-1 last:mb-0 text-base leading-7 whitespace-pre-wrap break-words;
   }
 
   .tag-span {
-    @apply inline-block w-auto px-2 text-sm leading-6 border-none rounded mr-1 cursor-pointer text-blue-600 bg-blue-50 hover:text-white hover:bg-blue-600;
+    @apply inline-block w-auto font-mono text-blue-600;
   }
 
   .memo-link-text {
@@ -17,7 +16,7 @@
   }
 
   .link {
-    @apply inline-block text-blue-600 cursor-pointer underline hover:opacity-80;
+    @apply inline-block text-blue-600 cursor-pointer underline break-all hover:opacity-80;
   }
 
   .counter-block,
