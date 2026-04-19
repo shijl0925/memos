@@ -271,7 +271,7 @@ func wrapEchoHandler(handler HandlerFunc) echo.HandlerFunc {
 		}
 
 		var httpErr *httpError
-		if ok := AsHTTPError(err, &httpErr); ok {
+		if ok := unwrapHTTPError(err, &httpErr); ok {
 			echoErr := echo.NewHTTPError(httpErr.code, httpErr.message)
 			if httpErr.internal != nil {
 				echoErr.SetInternal(httpErr.internal)
@@ -282,7 +282,7 @@ func wrapEchoHandler(handler HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func AsHTTPError(err error, target **httpError) bool {
+func unwrapHTTPError(err error, target **httpError) bool {
 	httpErr, ok := err.(*httpError)
 	if !ok {
 		return false

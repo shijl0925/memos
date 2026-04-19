@@ -191,8 +191,7 @@ func (s *Server) registerSystemRoutes(g Group) {
 		if err := s.Store.Vacuum(ctx); err != nil {
 			return internalError("Failed to vacuum database", err)
 		}
-		c.Status(http.StatusOK)
-		return nil
+		return c.JSON(http.StatusOK, true)
 	})
 }
 
