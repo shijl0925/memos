@@ -3,8 +3,6 @@ package getter
 import (
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -17,11 +15,12 @@ type HTMLMeta struct {
 }
 
 func GetHTMLMeta(urlStr string) (*HTMLMeta, error) {
-	if _, err := url.Parse(urlStr); err != nil {
+	requestURL, err := validateOutboundURL(urlStr)
+	if err != nil {
 		return nil, err
 	}
 
-	response, err := http.Get(urlStr)
+	response, err := defaultHTTPClient.Get(requestURL.String())
 	if err != nil {
 		return nil, err
 	}
