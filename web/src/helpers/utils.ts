@@ -1,4 +1,6 @@
-import { assign } from "lodash-es";
+export const isNullorUndefined = (value: any) => {
+  return value === null || value === undefined;
+};
 
 export function getNowTimeStamp(): number {
   return Date.now();
@@ -44,10 +46,6 @@ export function getDateString(t: Date | number | string): string {
   return `${year}/${month}/${date}`;
 }
 
-export function getDataStringWithTs(ts: number): string {
-  return getDateTimeString(ts * 1000);
-}
-
 export function getTimeString(t: Date | number | string): string {
   const d = new Date(getTimeStampByDate(t));
 
@@ -80,146 +78,6 @@ export function getDateTimeString(t: Date | number | string): string {
   return `${year}/${monthStr}/${dateStr} ${hoursStr}:${minsStr}:${secsStr}`;
 }
 
-export function dedupe<T>(data: T[]): T[] {
-  return Array.from(new Set(data));
-}
-
-export function dedupeObjectWithId<T extends { id: string | number }>(data: T[]): T[] {
-  const idSet = new Set<string | number>();
-  const result = [];
-
-  for (const d of data) {
-    if (!idSet.has(d.id)) {
-      idSet.add(d.id);
-      result.push(d);
-    }
-  }
-
-  return result;
-}
-
-export function debounce(fn: FunctionType, delay: number) {
-  let timer: number | null = null;
-
-  return () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = setTimeout(fn, delay);
-    } else {
-      timer = setTimeout(fn, delay);
-    }
-  };
-}
-
-export function throttle(fn: FunctionType, delay: number) {
-  let valid = true;
-
-  return () => {
-    if (!valid) {
-      return false;
-    }
-    valid = false;
-    setTimeout(() => {
-      fn();
-      valid = true;
-    }, delay);
-  };
-}
-
-export function transformObjectToParamsString(object: KVObject): string {
-  const params = [];
-  const keys = Object.keys(object).sort();
-
-  for (const key of keys) {
-    const val = object[key];
-    if (val) {
-      if (typeof val === "object") {
-        params.push(...transformObjectToParamsString(val).split("&"));
-      } else {
-        params.push(`${key}=${val}`);
-      }
-    }
-  }
-
-  return params.join("&");
-}
-
-export function transformParamsStringToObject(paramsString: string): KVObject {
-  const object: KVObject = {};
-  const params = paramsString.split("&");
-
-  for (const p of params) {
-    const [key, val] = p.split("=");
-    if (key && val) {
-      object[key] = val;
-    }
-  }
-
-  return object;
-}
-
-export function filterObjectNullKeys(object: KVObject): KVObject {
-  if (!object) {
-    return {};
-  }
-
-  const finalObject: KVObject = {};
-  const keys = Object.keys(object).sort();
-
-  for (const key of keys) {
-    const val = object[key];
-    if (typeof val === "object") {
-      const temp = filterObjectNullKeys(JSON.parse(JSON.stringify(val)));
-      if (temp && Object.keys(temp).length > 0) {
-        finalObject[key] = temp;
-      }
-    } else {
-      if (val) {
-        finalObject[key] = val;
-      }
-    }
-  }
-
-  return finalObject;
-}
-
-export async function copyTextToClipboard(text: string) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (error: unknown) {
-      console.warn("Copy to clipboard failed.", error);
-    }
-  } else {
-    console.warn("Copy to clipboard failed, methods not supports.");
-  }
-}
-
-export function getImageSize(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve) => {
-    const imgEl = new Image();
-
-    imgEl.onload = () => {
-      const { width, height } = imgEl;
-
-      if (width > 0 && height > 0) {
-        resolve({ width, height });
-      } else {
-        resolve({ width: 0, height: 0 });
-      }
-    };
-
-    imgEl.onerror = () => {
-      resolve({ width: 0, height: 0 });
-    };
-
-    imgEl.className = "hidden";
-    imgEl.src = src;
-    document.body.appendChild(imgEl);
-    imgEl.remove();
-  });
-}
-
 export const getElementBounding = (element: HTMLElement, relativeEl?: HTMLElement) => {
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
   const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft;
@@ -236,7 +94,7 @@ export const getElementBounding = (element: HTMLElement, relativeEl?: HTMLElemen
   };
 
   if ((relativeEl.tagName !== "BODY" && relativeElPosition === "relative") || relativeElPosition === "sticky") {
-    return assign(bounding, {
+    return Object.assign(bounding, {
       top: elementRect.top - relativeElRect.top,
       left: elementRect.left - relativeElRect.left,
     });
@@ -257,14 +115,36 @@ export const getElementBounding = (element: HTMLElement, relativeEl?: HTMLElemen
   };
 
   if (isElementFixed(element)) {
-    return assign(bounding, {
+    return Object.assign(bounding, {
       top: elementRect.top,
       left: elementRect.left,
     });
   }
 
-  return assign(bounding, {
+  return Object.assign(bounding, {
     top: elementRect.top + scrollTop,
     left: elementRect.left + scrollLeft,
   });
 };
+
+export const parseHTMLToRawText = (htmlStr: string): string => {
+  const tempEl = document.createElement("div");
+  tempEl.className = "memo-content-text";
+  tempEl.innerHTML = htmlStr;
+  const text = tempEl.innerText;
+  return text;
+};
+
+export function absolutifyLink(rel: string): string {
+  const anchor = document.createElement("a");
+  anchor.setAttribute("href", rel);
+  return anchor.href;
+}
+
+export function getSystemColorScheme() {
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  } else {
+    return "light";
+  }
+}

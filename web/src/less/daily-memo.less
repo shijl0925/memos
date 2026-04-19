@@ -1,7 +1,4 @@
-@import "./mixin.less";
-
 .daily-memo-wrapper {
-  .flex(row, flex-start, flex-start);
   @apply flex flex-row justify-start items-start relative w-full flex-nowrap pb-6;
 
   &:last-child {
@@ -11,21 +8,23 @@
   }
 
   > .split-line {
-    @apply h-full px-px bg-gray-50 absolute top-1 left-6 z-0 -ml-px;
+    @apply h-full px-px bg-gray-50 dark:bg-zinc-600 absolute top-1 left-6 z-0 -ml-px;
   }
 
   > .time-wrapper {
-    @apply mt-px mr-4 w-12 h-7 shrink-0 text-xs leading-6 text-center font-mono rounded-lg bg-gray-100 border-2 border-white text-gray-600 z-10;
+    @apply mt-px mr-4 w-12 h-7 shrink-0 text-xs leading-6 text-center font-mono rounded-lg bg-gray-100 dark:bg-zinc-600 border-2 border-white dark:border-zinc-800 text-gray-600 dark:text-gray-300 z-10;
   }
 
-  > .memo-content-container {
-    @apply flex flex-col justify-start items-start w-full p-0 text-base;
+  > .memo-container {
+    @apply w-full overflow-x-hidden flex flex-col justify-start items-start;
 
-    > .images-container {
-      @apply flex flex-col justify-start items-start mt-1 w-full;
+    .memo-content-text {
+      @apply mt-1;
+    }
 
-      > img {
-        @apply w-full h-auto rounded mb-2 last:mb-0;
+    > .resource-wrapper {
+      > .images-wrapper {
+        @apply !grid-cols-2;
       }
     }
   }

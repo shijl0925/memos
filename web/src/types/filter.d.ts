@@ -1,4 +1,4 @@
-type MemoFilterRalation = "AND" | "OR";
+type MemoFilterRelation = "AND" | "OR";
 
 interface BaseFilter {
   type: FilterType;
@@ -6,7 +6,7 @@ interface BaseFilter {
     operator: string;
     value: string;
   };
-  relation: MemoFilterRalation;
+  relation: MemoFilterRelation;
 }
 
 interface TagFilter extends BaseFilter {
@@ -33,6 +33,22 @@ interface TextFilter extends BaseFilter {
   };
 }
 
-type FilterType = "TEXT" | "TYPE" | "TAG";
+interface DisplayTimeFilter extends BaseFilter {
+  type: "DISPLAY_TIME";
+  value: {
+    operator: "BEFORE" | "AFTER";
+    value: string;
+  };
+}
 
-type Filter = BaseFilter | TagFilter | TypeFilter | TextFilter;
+interface VisibilityFilter extends BaseFilter {
+  type: "VISIBILITY";
+  value: {
+    operator: "IS" | "IS_NOT";
+    value: string;
+  };
+}
+
+type FilterType = "TEXT" | "TYPE" | "TAG" | "DISPLAY_TIME" | "VISIBILITY";
+
+type Filter = BaseFilter | TagFilter | TypeFilter | TextFilter | DisplayTimeFilter | VisibilityFilter;

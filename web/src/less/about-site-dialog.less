@@ -1,28 +1,12 @@
-@import "./mixin.less";
-
 .about-site-dialog {
-  @apply px-4;
-
   > .dialog-container {
     @apply w-112 max-w-full;
 
     > .dialog-content-container {
-      @apply leading-relaxed;
+      @apply flex flex-col justify-start items-start;
 
       > p {
         @apply my-1;
-
-        &.updated-time-text {
-          @apply flex flex-row justify-start items-center w-full text-sm mt-3 pt-2 border-t-2 border-t-gray-200 text-gray-600 whitespace-pre-wrap font-mono;
-        }
-      }
-
-      .pre-text {
-        @apply font-mono;
-      }
-
-      a {
-        @apply cursor-pointer underline-offset-2 underline text-blue-600;
       }
     }
   }

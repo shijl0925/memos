@@ -1,0 +1,255 @@
+{
+  "common": {
+    "about": "Om",
+    "email": "E-post",
+    "password": "Lösenord",
+    "repeat-password-short": "Upprepa",
+    "repeat-password": "Uprepa lösenordet",
+    "new-password": "Nytt lösenord",
+    "repeat-new-password": "Upprepa det nya lösenordet",
+    "username": "Användarnamn",
+    "nickname": "Smeknamn",
+    "save": "Spara",
+    "close": "Stäng",
+    "cancel": "Avbryt",
+    "create": "Skapa",
+    "change": "Ändra",
+    "confirm": "Bekräfta",
+    "reset": "Återställ",
+    "language": "Språk",
+    "version": "Version",
+    "pin": "Fäst",
+    "unpin": "Ta bort fäst",
+    "edit": "Redigera",
+    "restore": "Återställ",
+    "delete": "Radera",
+    "null": "Null",
+    "share": "Dela",
+    "archive": "Arkivera",
+    "basic": "Grundläggande",
+    "admin": "Admin",
+    "explore": "Utforska",
+    "sign-in": "Logga in",
+    "sign-up": "Bli medlem",
+    "sign-out": "Logga ut",
+    "back-to-home": "Tillbaka hem",
+    "type": "Typ",
+    "shortcuts": "Genvägar",
+    "title": "Titel",
+    "filter": "Filter",
+    "tags": "Taggar",
+    "yourself": "Själv",
+    "archived-at": "Arkiverad på",
+    "changed": "Ändrad",
+    "update-on": "Uppdatering på",
+    "fold": "Vik ihop",
+    "expand": "Expandera",
+    "image": "Bild",
+    "link": "Länk",
+    "vacuum": "Vacuum",
+    "select": "Select"
+  },
+  "slogan": "En öppen källkod, self-hosted antecknings hubb med kunskapshantering och socialisering",
+  "auth": {
+    "signup-as-host": "Registera dig som värd",
+    "host-tip": "Du registerar dig som webbplatsvärd.",
+    "not-host-tip": "Om du inte har ett konto, kontakta webbplatsens värd."
+  },
+  "sidebar": {
+    "daily-review": "Daglig återblick",
+    "resources": "Resurser",
+    "setting": "Inställningar",
+    "archived": "Arkiverade"
+  },
+  "daily-review": {
+    "oops-nothing": "Oj, det finns inget här."
+  },
+  "resources": {
+    "description": "Visa dina statiska resurser i anteckningarn. t.ex bilder.",
+    "no-resources": "Inga resurser.",
+    "fetching-data": "hämtar data...",
+    "upload": "Ladda upp",
+    "preview": "Förhandsvisa",
+    "copy-link": "Kopiera länk",
+    "delete-resource": "Ta bort resurs",
+    "warning-text": "Är du säker på att du vill ta bort den här resursen? DENNA ÅTGÄRD ÄR OÅTERSTÄLLBAR❗",
+    "linked-amount": "Länkat antecknings belopp",
+    "rename": "Döp om",
+    "clear-unused-resources": "Rensa outnytjade resurser",
+    "warning-text-unused": "Är du säker på att du vill ta bort dessa oanvända resurser? DENNA ÅTGÄRD ÄR OÅTERSTÄLLBAR❗",
+    "no-unused-resources": "Inga oanvända resurser",
+    "name": "Name"
+  },
+  "archived": {
+    "archived-memos": "Arkiverade anteckningar",
+    "no-archived-memos": "Inga arkiverade anteckningar.",
+    "fetching-data": "hämtar data..."
+  },
+  "editor": {
+    "editing": "Redigerar...",
+    "cancel-edit": "Avbryt redigering",
+    "save": "Spara",
+    "placeholder": "Några tankar...",
+    "only-image-supported": "Endast bildfiler stöds.",
+    "cant-empty": "Innehållet får inte vara tomt",
+    "local": "Lokal",
+    "resources": "Resurser"
+  },
+  "memo": {
+    "view-detail": "Visa detaljer",
+    "copy": "Kopiera",
+    "visibility": {
+      "private": "Endast synlig för dig",
+      "protected": "Synlig för medlemmar",
+      "public": "Synlig för alla"
+    }
+  },
+  "memo-list": {
+    "fetching-data": "hämtar data...",
+    "fetch-more": "Klicka här för att hämta mer"
+  },
+  "shortcut-list": {
+    "shortcut-title": "Genvägs titel",
+    "create-shortcut": "Skapa genväg",
+    "edit-shortcut": "Ändra genväg",
+    "eligible-memo": "kvalificerad anteckning",
+    "fill-previous": "Vänligen fyll i tidigare filtervärde",
+    "title-required": "Titel krävs",
+    "value-required": "Filtervärde krävs"
+  },
+  "filter": {
+    "new-filter": "Nytt filter",
+    "type": {
+      "tag": "Tag",
+      "type": "Type",
+      "text": "Text",
+      "display-time": "Display Time",
+      "visibility": "Visibility"
+    },
+    "operator": {
+      "contains": "Innehåller",
+      "not-contains": "Innehåller inte",
+      "is": "Är",
+      "is-not": "Är inte",
+      "before": "Innan",
+      "after": "Efter"
+    },
+    "value": {
+      "not-tagged": "Inga taggar",
+      "linked": "Har länkar"
+    },
+    "text-placeholder": "Börjar med ^ för att använda regex"
+  },
+  "tag-list": {
+    "tip-text": "Ange `#tag ` för att skapa"
+  },
+  "search": {
+    "quickly-filter": "Filtrera snabbt"
+  },
+  "setting": {
+    "my-account": "Mitt konto",
+    "preference": "Preferens",
+    "member": "Medlem",
+    "member-list": "Medlemslista",
+    "system": "System",
+    "account-section": {
+      "title": "Kontoinformation",
+      "update-information": "Uppdatera informationen",
+      "change-password": "Ändra lösenord"
+    },
+    "preference-section": {
+      "theme": "Tema",
+      "default-memo-visibility": "Standard synlighet för anteckningar",
+      "enable-folding-memo": "Aktivera vikbara anteckningar",
+      "editor-font-style": "Redigerare teckensnitt",
+      "mobile-editor-style": "Mobilredigerade stil",
+      "default-memo-sort-option": "Anteckning visningstid",
+      "created_ts": "Skapade tid",
+      "updated_ts": "Upodaterad tid"
+    },
+    "member-section": {
+      "create-a-member": "Skapa en medlem"
+    },
+    "system-section": {
+      "server-name": "Server Name",
+      "customize-server": {
+        "title": "Customize Server",
+        "default": "Default is memos",
+        "icon-url": "Icon URL"
+      },
+      "database-file-size": "Databas filstorlek",
+      "allow-user-signup": "Tillåt användarregistrering",
+      "additional-style": "Ytterligare stil",
+      "additional-script": "Ytterligare skript",
+      "additional-style-placeholder": "Ytterligare CSS kod",
+      "additional-script-placeholder": "Ytterligare JavaScript kod"
+    },
+    "apperance-option": {
+      "system": "Follow system",
+      "light": "Alltid ljus",
+      "dark": "Alltid mörk"
+    }
+  },
+  "amount-text": {
+    "memo_one": "ANTECKNING",
+    "memo_other": "ANTECKNINGAR",
+    "tag_one": "TAGG",
+    "tag_other": "TAGGAR",
+    "day_one": "DAG",
+    "day_other": "DAGAR"
+  },
+  "message": {
+    "no-memos": "inga anteckningar 🌃",
+    "memos-ready": "alla anteckningar är redo 🎉",
+    "restored-successfully": "Återställdes framgångsrikt",
+    "memo-updated-datetime": "Anteckning skapad datum och tid ändrad",
+    "invalid-created-datetime": "Ogiltig skapad datumtid.",
+    "change-memo-created-time": "Ändra anteckning skapade tid",
+    "memo-not-found": "Anteckning hittades inte.",
+    "fill-all": "Var god fyll i alla fält.",
+    "password-not-match": "Lösenorden matchar inte.",
+    "new-password-not-match": "Nya lösenord matchar inte.",
+    "image-load-failed": "Bildladdning misslyckades",
+    "fill-form": "Vänligen fyll i detta formulär",
+    "login-failed": "Inloggningen misslyckades",
+    "signup-failed": "Registrering misslyckades",
+    "user-not-found": "Användaren hittades inte",
+    "password-changed": "Lösenord ändrat",
+    "private-only": "Denna anteckning är privat.",
+    "copied": "Kopierad",
+    "succeed-copy-content": "Innehållet kopierat till urklipp.",
+    "succeed-copy-link": "Länk kopioerat till urklipp.",
+    "change-resource-filename": "Ändra resursfilnamn",
+    "resource-filename-updated": "Resursfilnamn ändrat.",
+    "invalid-resource-filename": "Ogiltligt filnamn.",
+    "click-to-save-the-image": "Klicka för att spara bilden",
+    "generating-the-screenshot": "Genererar skärmdumpen...",
+    "count-selected-resources": "Totalt valt",
+    "too-short": "För kort",
+    "too-long": "För långt",
+    "not-allow-space": "Tillåt inte mellanslag",
+    "not-allow-chinese": "Tillåt inte kinesiska",
+    "succeed-vacuum-database": "Succeed to vacuum database",
+    "succeed-update-additional-style": "Succeed to update additional style",
+    "succeed-copy-resource-link": "Succeed to copy resource link to clipboard",
+    "succeed-update-customized-profile": "Succeed to update customized profile",
+    "succeed-update-additional-script": "Succeed to update additional script",
+    "update-succeed": "Update succeed"
+  },
+  "days": {
+    "monday": "Måndag",
+    "mon": "Mån",
+    "tuesday": "Tisdag",
+    "tue": "Tis",
+    "wednesday": "Onsdag",
+    "wed": "Ons",
+    "thursday": "Torsdag",
+    "thu": "Tors",
+    "friday": "Fredag",
+    "fri": "Fre",
+    "saturday": "Lördag",
+    "sat": "Lör",
+    "sunday": "Söndag",
+    "sun": "Sön"
+  }
+}

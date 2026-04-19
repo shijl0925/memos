@@ -1,6 +1,7 @@
 package common
 
 import (
+	"net/mail"
 	"strings"
 
 	"github.com/google/uuid"
@@ -16,6 +17,21 @@ func HasPrefixes(src string, prefixes ...string) bool {
 	return false
 }
 
+// ValidateEmail validates the email.
+func ValidateEmail(email string) bool {
+	if _, err := mail.ParseAddress(email); err != nil {
+		return false
+	}
+	return true
+}
+
 func GenUUID() string {
 	return uuid.New().String()
+}
+
+func Min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }

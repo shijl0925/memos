@@ -1,10 +1,12 @@
-INSERT INTO 
+INSERT INTO
   shortcut (
-    `title`, 
-    `creator_id`
+    `title`,
+    `creator_id`,
+    `payload`
   )
 VALUES
   (
-    'All my memos', 
-    101
+    'inbox',
+    101,
+    '[{"type":"TYPE","value":{"operator":"IS","value":"NOT_TAGGED"},"relation":"AND"}]'
   );

@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { memoService, shortcutService } from "../services";
-import { useAppSelector } from "../store";
+import { useLocationStore, useMemoStore, useShortcutStore, useUserStore } from "../store/module";
+import Icon from "./Icon";
 import SearchBar from "./SearchBar";
-import { toggleSiderbar } from "./Sidebar";
+import { toggleSidebar } from "./Sidebar";
 import "../less/memos-header.less";
 
 let prevRequestTimestamp = Date.now();
 
-interface Props {}
-
-const MemosHeader: React.FC<Props> = () => {
-  const query = useAppSelector((state) => state.location.query);
-  const shortcuts = useAppSelector((state) => state.shortcut.shortcuts);
+const MemosHeader = () => {
+  const locationStore = useLocationStore();
+  const memoStore = useMemoStore();
+  const shortcutStore = useShortcutStore();
+  const userStore = useUserStore();
+  const user = userStore.state.user;
+  const query = locationStore.state.query;
+  const shortcuts = shortcutStore.state.shortcuts;
   const [titleText, setTitleText] = useState("MEMOS");
 
   useEffect(() => {
@@ -20,7 +23,7 @@ const MemosHeader: React.FC<Props> = () => {
       return;
     }
 
-    const shortcut = shortcutService.getShortcutById(query?.shortcutId);
+    const shortcut = shortcutStore.getShortcutById(query?.shortcutId);
     if (shortcut) {
       setTitleText(shortcut.title);
     }
@@ -28,23 +31,28 @@ const MemosHeader: React.FC<Props> = () => {
 
   const handleTitleTextClick = useCallback(() => {
     const now = Date.now();
-    if (now - prevRequestTimestamp > 10 * 1000) {
+    if (now - prevRequestTimestamp > 1 * 1000) {
       prevRequestTimestamp = now;
-      memoService.fetchAllMemos().catch(() => {
+      memoStore.fetchMemos().catch(() => {
         // do nth
       });
     }
   }, []);
 
   return (
-    <div className="section-header-container memos-header-container">
+    <div className="memos-header-container">
       <div className="title-container">
-        <div className="action-btn" onClick={toggleSiderbar}>
-          <img src="/icons/menu.svg" className="icon-img" alt="" />
+        <div className="action-btn" onClick={() => toggleSidebar(true)}>
+          <Icon.Menu className="icon-img" />
         </div>
         <span className="title-text" onClick={handleTitleTextClick}>
           {titleText}
         </span>
+        {user && (
+          <a className="dark:text-white" href={"/u/" + user.id + "/rss.xml"} target="_blank" rel="noreferrer">
+            <Icon.Rss className="w-4 h-auto opacity-40 hover:opacity-60" />
+          </a>
+        )}
       </div>
       <SearchBar />
     </div>

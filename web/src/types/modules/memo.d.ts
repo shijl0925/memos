@@ -1,5 +1,7 @@
 type MemoId = number;
 
+type Visibility = "PUBLIC" | "PROTECTED" | "PRIVATE";
+
 interface Memo {
   id: MemoId;
 
@@ -9,16 +11,34 @@ interface Memo {
   rowStatus: RowStatus;
 
   content: string;
+  visibility: Visibility;
   pinned: boolean;
+  displayTs: TimeStamp;
+
+  creator: User;
+  resourceList: Resource[];
 }
 
 interface MemoCreate {
   content: string;
-  createdTs?: TimeStamp;
+  resourceIdList: ResourceId[];
+  visibility?: Visibility;
 }
 
 interface MemoPatch {
   id: MemoId;
-  content?: string;
+  createdTs?: TimeStamp;
   rowStatus?: RowStatus;
+  content?: string;
+  resourceIdList?: ResourceId[];
+  visibility?: Visibility;
+}
+
+interface MemoFind {
+  creatorId?: UserId;
+  rowStatus?: RowStatus;
+  pinned?: boolean;
+  visibility?: Visibility;
+  offset?: number;
+  limit?: number;
 }

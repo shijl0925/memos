@@ -1,5 +1,5 @@
 type UserId = number;
-type UserRole = "OWNER" | "USER";
+type UserRole = "HOST" | "USER";
 
 interface User {
   id: UserId;
@@ -8,21 +8,33 @@ interface User {
   updatedTs: TimeStamp;
   rowStatus: RowStatus;
 
+  username: string;
   role: UserRole;
   email: string;
-  name: string;
+  nickname: string;
   openId: string;
+  userSettingList: UserSetting[];
+
+  setting: Setting;
+  localSetting: LocalSetting;
 }
 
 interface UserCreate {
-  email: string;
+  username: string;
   password: string;
-  name: string;
   role: UserRole;
 }
 
 interface UserPatch {
-  name?: string;
+  id: UserId;
+  rowStatus?: RowStatus;
+  username?: string;
+  email?: string;
+  nickname?: string;
   password?: string;
   resetOpenId?: boolean;
+}
+
+interface UserDelete {
+  id: UserId;
 }

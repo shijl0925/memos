@@ -1,32 +1,29 @@
 # Build frontend dist.
-FROM node:14.18.2-alpine3.14 AS frontend
+FROM node:18.12.1-alpine3.16 AS frontend
 WORKDIR /frontend-build
 
 COPY ./web/ .
 
-RUN yarn
-RUN yarn build
+RUN yarn && yarn build
 
 # Build backend exec file.
-FROM golang:1.16.12-alpine3.15 AS backend
+FROM golang:1.19.3-alpine3.16 AS backend
 WORKDIR /backend-build
 
-RUN apk --no-cache add gcc musl-dev
+RUN apk update && apk add --no-cache gcc musl-dev
 
 COPY . .
+COPY --from=frontend /frontend-build/dist ./server/dist
 
-RUN go build \
-    -o memos \
-    ./bin/server/main.go
+RUN go build -o memos ./bin/server/main.go
 
 # Make workspace with above generated files.
-FROM alpine:3.14.3 AS monolithic
+FROM alpine:3.16 AS monolithic
 WORKDIR /usr/local/memos
 
 COPY --from=backend /backend-build/memos /usr/local/memos/
-COPY --from=frontend /frontend-build/dist /usr/local/memos/web/dist
 
 # Directory to store the data, which can be referenced as the mounting point.
 RUN mkdir -p /var/opt/memos
 
-ENTRYPOINT ["./memos"]
+ENTRYPOINT ["./memos", "--mode", "prod", "--port", "5230"]

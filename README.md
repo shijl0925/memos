@@ -1,85 +1,82 @@
-<h1 align="center">✍️ Memos</h1>
-
-<p align="center">An open source, self-hosted knowledge base that works with a SQLite db file.</p>
+<p align="center"><a href="https://usememos.com"><img height="64px" src="https://raw.githubusercontent.com/usememos/memos/main/resources/logo-full.webp" alt="✍️ memos" /></a></p>
 
 <p align="center">
-  <img alt="GitHub stars" src="https://img.shields.io/github/stars/usememos/memos" />
-  <img alt="Docker pull" src="https://img.shields.io/docker/pulls/neosmemo/memos.svg" />
-  <img alt="Go report" src="https://goreportcard.com/badge/github.com/usememos/memos" />
+  <a href="https://github.com/usememos/memos/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/usememos/memos" /></a>
+  <a href="https://hub.docker.com/r/neosmemo/memos"><img alt="Docker pull" src="https://img.shields.io/docker/pulls/neosmemo/memos.svg" /></a>
+  <a href="https://discord.gg/tfPJa4UmAv"><img alt="Discord" src="https://img.shields.io/badge/discord-chat-5865f2?logo=discord&logoColor=f5f5f5" /></a>
 </p>
 
 <p align="center">
-  <a href="https://memos.onrender.com/">Live Demo</a> •
-  <a href="https://github.com/usememos/memos/discussions">Discussions</a>
+  <a href="https://demo.usememos.com/">Live Demo</a> •
+  Discuss in <a href="https://t.me/+-_tNF1k70UU4ZTc9">Telegram</a> / <b><a href="https://discord.gg/tfPJa4UmAv">Discord 🏂</a></b>
 </p>
 
-![demo](https://raw.githubusercontent.com/usememos/memos/main/resources/demo.png)
+![demo](./resources/demo.webp#gh-light-mode-only)
 
-## 🎯 Intentions
+![demo-dark](./resources/demo-dark.webp#gh-dark-mode-only)
 
-- ✍️ Write down the light-card memos very easily;
-- 🏗️ Build the fragmented knowledge management tool for yourself;
-- 📒 For noting your 📅 daily/weekly plans, 💡 fantastic ideas, 📕 reading thoughts...
+## Features
 
-## ✨ Features
+- 🦄 Open source and free forever;
+- 🚀 Support for self-hosting with `Docker` in seconds;
+- 📜 Plain textarea first and support some useful Markdown syntax;
+- 👥 Set memo private or public to others;
+- 🧑‍💻 RESTful API for self-service.
 
-- 🦄 Fully open source;
-- 👍 Write in the plain textarea without any burden;
-- 🤠 Great UI and never miss any detail;
-- 🚀 Super quick self-hosted with `Docker` and `SQLite`;
+## Deploy with Docker in seconds
 
-## ⚓️ Deploy with Docker
+### Docker Run
 
 ```docker
-docker run --name memos --publish 5230:5230 --volume ~/.memos/:/var/opt/memos -e mode=prod -e port=5230 neosmemo/memos:0.1.3
+docker run -d --name memos -p 5230:5230 -v ~/.memos/:/var/opt/memos neosmemo/memos:latest
 ```
 
-Memos should now be running at [http://localhost:5230](http://localhost:5230). If the `~/.memos/` does not have a `memos_prod.db` file, then `memos` will auto generate it.
+> `~/.memos/` will be used as the data directory in your machine. And `/var/opt/memos` is the directory of the volume in docker and should not be modified.
 
-## 🏗 Development
+### Docker Compose
 
-Memos is built with a curated tech stack. It is optimized for developer experience and is very easy to start working on the code:
+Example docker compose YAML file: [`docker-compose.yaml`](./docker-compose.yaml).
 
-1. It has no external dependency.
-2. It requires zero config.
-3. 1 command to start backend and 1 command to start frontend, both with live reload support.
+You can upgrade memos with the following command.
 
-### Tech Stack
+```sh
+docker-compose down && docker image rm neosmemo/memos:latest && docker-compose up -d
+```
 
-<img alt="tech stack" src="https://raw.githubusercontent.com/usememos/memos/main/resources/tech-stack.png" width="360" />
+### Other guides
 
-### Prerequisites
+- [Deploy on render.com](./docs/deploy-with-render.md)
+- [Deploy on fly.io](https://github.com/hu3rror/memos-on-fly)
 
-- [Go](https://golang.org/doc/install) (1.16 or later)
-- [Air](https://github.com/cosmtrek/air#installation) for backend live reload
-- [yarn](https://yarnpkg.com/getting-started/install)
+## Contribute
 
-### Steps
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated. 🥰
 
-1. pull source code
+See more in [development guide](./docs/development.md).
 
-   ```bash
-   git clone https://github.com/usememos/memos
-   ```
+### Products made by Community
 
-2. start backend using air(with live reload)
+- [Moe Memos](https://memos.moe/) - Third party client for iOS and Android
+- [lmm214/memos-bber](https://github.com/lmm214/memos-bber) - Chrome extension
+- [Rabithua/memos_wmp](https://github.com/Rabithua/memos_wmp) - WeChat MiniProgram
+- [qazxcdswe123/telegramMemoBot](https://github.com/qazxcdswe123/telegramMemoBot) - Telegram bot
+- [eallion/memos.top](https://github.com/eallion/memos.top) - A static page rendered with the Memos API
+- [eindex/logseq-memos-sync](https://github.com/EINDEX/logseq-memos-sync) - A Logseq plugin
 
-   ```bash
-   air -c scripts/.air.toml
-   ```
+### User stories
 
-3. start frontend dev server
+- [Memos - A Twitter Like Notes App You can Self Host](https://noted.lol/memos/)
 
-   ```bash
-   cd web && yarn && yarn dev
-   ```
+### Join the community to build memos together!
 
-Memos should now be running at [http://localhost:3000](http://localhost:3000) and change either frontend or backend code would trigger live reload.
+<a href="https://github.com/usememos/memos/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=usememos/memos" />
+</a>
 
-## 🌟 Star history
+## License
+
+[MIT License](https://github.com/usememos/memos/blob/main/LICENSE).
+
+## Star history
 
 [![Star History Chart](https://api.star-history.com/svg?repos=usememos/memos&type=Date)](https://star-history.com/#usememos/memos&Date)
-
----
-
-Just enjoy it.

@@ -1,4 +1,5 @@
-import { IMAGE_URL_REG, LINK_REG, MEMO_LINK_REG, TAG_REG } from "./consts";
+import { TAG_REG, LINK_REG } from "../labs/marked/parser";
+import dayjs from "dayjs";
 
 export const relationConsts = [
   { text: "And", value: "AND" },
@@ -7,62 +8,96 @@ export const relationConsts = [
 
 export const filterConsts = {
   TAG: {
-    text: "Tag",
+    text: "filter.type.tag",
     value: "TAG",
     operators: [
       {
-        text: "Contains",
+        text: "filter.operator.contains",
         value: "CONTAIN",
       },
       {
-        text: "Does not contain",
+        text: "filter.operator.not-contains",
         value: "NOT_CONTAIN",
       },
     ],
   },
   TYPE: {
-    text: "Type",
+    text: "filter.type.type",
     value: "TYPE",
     operators: [
       {
-        text: "Is",
+        text: "filter.operator.is",
         value: "IS",
       },
       {
-        text: "Is not",
+        text: "filter.operator.is-not",
         value: "IS_NOT",
       },
     ],
     values: [
       {
-        text: "Connected",
-        value: "CONNECTED",
-      },
-      {
-        text: "No tags",
+        text: "filter.value.not-tagged",
         value: "NOT_TAGGED",
       },
       {
-        text: "Has links",
+        text: "filter.value.linked",
         value: "LINKED",
-      },
-      {
-        text: "Has images",
-        value: "IMAGED",
       },
     ],
   },
   TEXT: {
-    text: "Text",
+    text: "filter.type.text",
     value: "TEXT",
     operators: [
       {
-        text: "Contain",
+        text: "filter.operator.contains",
         value: "CONTAIN",
       },
       {
-        text: "Does not contain",
+        text: "filter.operator.not-contains",
         value: "NOT_CONTAIN",
+      },
+    ],
+  },
+  DISPLAY_TIME: {
+    text: "filter.type.display-time",
+    value: "DISPLAY_TIME",
+    operators: [
+      {
+        text: "filter.operator.before",
+        value: "BEFORE",
+      },
+      {
+        text: "filter.operator.after",
+        value: "AFTER",
+      },
+    ],
+  },
+  VISIBILITY: {
+    text: "filter.type.visibility",
+    value: "VISIBILITY",
+    operators: [
+      {
+        text: "filter.operator.is",
+        value: "IS",
+      },
+      {
+        text: "filter.operator.is-not",
+        value: "IS_NOT",
+      },
+    ],
+    values: [
+      {
+        text: "memo.visibility.public",
+        value: "PUBLIC",
+      },
+      {
+        text: "memo.visibility.protected",
+        value: "PROTECTED",
+      },
+      {
+        text: "memo.visibility.private",
+        value: "PRIVATE",
       },
     ],
   },
@@ -121,7 +156,7 @@ export const checkShouldShowMemo = (memo: Memo, filter: Filter) => {
   if (type === "TAG") {
     let contained = true;
     const tagsSet = new Set<string>();
-    for (const t of Array.from(memo.content.match(TAG_REG) ?? [])) {
+    for (const t of Array.from(memo.content.match(new RegExp(TAG_REG, "g")) ?? [])) {
       const tag = t.replace(TAG_REG, "$1").trim();
       const items = tag.split("/");
       let temp = "";
@@ -144,21 +179,34 @@ export const checkShouldShowMemo = (memo: Memo, filter: Filter) => {
       matched = true;
     } else if (value === "LINKED" && memo.content.match(LINK_REG) !== null) {
       matched = true;
-    } else if (value === "IMAGED" && memo.content.match(IMAGE_URL_REG) !== null) {
-      matched = true;
-    } else if (value === "CONNECTED" && memo.content.match(MEMO_LINK_REG) !== null) {
-      matched = true;
     }
     if (operator === "IS_NOT") {
       matched = !matched;
     }
     shouldShow = matched;
   } else if (type === "TEXT") {
-    let contained = memo.content.includes(value);
-    if (operator === "NOT_CONTAIN") {
-      contained = !contained;
+    if (value.startsWith("^")) {
+      const reg = new RegExp(value.slice(1));
+      shouldShow = operator === "NOT_CONTAIN" ? !reg.test(memo.content) : reg.test(memo.content);
+    } else {
+      let contained = memo.content.toLowerCase().includes(value.toLowerCase());
+      if (operator === "NOT_CONTAIN") {
+        contained = !contained;
+      }
+      shouldShow = contained;
     }
-    shouldShow = contained;
+  } else if (type === "DISPLAY_TIME") {
+    if (operator === "BEFORE") {
+      return memo.displayTs < dayjs(value).valueOf();
+    } else {
+      return memo.displayTs > dayjs(value).valueOf();
+    }
+  } else if (type === "VISIBILITY") {
+    let matched = memo.visibility === value;
+    if (operator === "IS_NOT") {
+      matched = !matched;
+    }
+    shouldShow = matched;
   }
 
   return shouldShow;

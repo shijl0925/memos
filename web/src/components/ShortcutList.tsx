@@ -1,19 +1,20 @@
 import { useEffect } from "react";
-import { locationService, shortcutService } from "../services";
-import { useAppSelector } from "../store";
-import { UNKNOWN_ID } from "../helpers/consts";
+import { useTranslation } from "react-i18next";
+import { useLocationStore, useShortcutStore } from "../store/module";
 import * as utils from "../helpers/utils";
 import useToggle from "../hooks/useToggle";
 import useLoading from "../hooks/useLoading";
+import Icon from "./Icon";
 import toastHelper from "./Toast";
 import showCreateShortcutDialog from "./CreateShortcutDialog";
 import "../less/shortcut-list.less";
 
-interface Props {}
-
-const ShortcutList: React.FC<Props> = () => {
-  const query = useAppSelector((state) => state.location.query);
-  const shortcuts = useAppSelector((state) => state.shortcut.shortcuts);
+const ShortcutList = () => {
+  const { t } = useTranslation();
+  const locationStore = useLocationStore();
+  const shortcutStore = useShortcutStore();
+  const query = locationStore.state.query;
+  const shortcuts = shortcutStore.state.shortcuts;
   const loadingState = useLoading();
 
   const pinnedShortcuts = shortcuts
@@ -25,7 +26,7 @@ const ShortcutList: React.FC<Props> = () => {
   const sortedShortcuts = pinnedShortcuts.concat(unpinnedShortcuts);
 
   useEffect(() => {
-    shortcutService
+    shortcutStore
       .getMyAllShortcuts()
       .catch(() => {
         // do nth
@@ -38,10 +39,10 @@ const ShortcutList: React.FC<Props> = () => {
   return (
     <div className="shortcuts-wrapper">
       <p className="title-text">
-        <span className="normal-text">Shortcuts</span>
-        <span className="btn" onClick={() => showCreateShortcutDialog()}>
-          <img src="/icons/add.svg" alt="add shortcut" />
-        </span>
+        <span className="normal-text">{t("common.shortcuts")}</span>
+        <button className="btn" onClick={() => showCreateShortcutDialog()}>
+          <Icon.Plus className="icon-img" />
+        </button>
       </p>
       <div className="shortcuts-container">
         {sortedShortcuts.map((s) => {
@@ -59,16 +60,16 @@ interface ShortcutContainerProps {
 
 const ShortcutContainer: React.FC<ShortcutContainerProps> = (props: ShortcutContainerProps) => {
   const { shortcut, isActive } = props;
+  const { t } = useTranslation();
+  const locationStore = useLocationStore();
+  const shortcutStore = useShortcutStore();
   const [showConfirmDeleteBtn, toggleConfirmDeleteBtn] = useToggle(false);
 
   const handleShortcutClick = () => {
     if (isActive) {
-      locationService.setMemoShortcut(UNKNOWN_ID);
+      locationStore.setMemoShortcut(undefined);
     } else {
-      if (!["/"].includes(locationService.getState().pathname)) {
-        locationService.setPathname("/");
-      }
-      locationService.setMemoShortcut(shortcut.id);
+      locationStore.setMemoShortcut(shortcut.id);
     }
   };
 
@@ -77,9 +78,14 @@ const ShortcutContainer: React.FC<ShortcutContainerProps> = (props: ShortcutCont
 
     if (showConfirmDeleteBtn) {
       try {
-        await shortcutService.deleteShortcutById(shortcut.id);
+        await shortcutStore.deleteShortcutById(shortcut.id);
+        if (locationStore.getState().query?.shortcutId === shortcut.id) {
+          // need clear shortcut filter
+          locationStore.setMemoShortcut(undefined);
+        }
       } catch (error: any) {
-        toastHelper.error(error.message);
+        console.error(error);
+        toastHelper.error(error.response.data.message);
       }
     } else {
       toggleConfirmDeleteBtn();
@@ -99,7 +105,7 @@ const ShortcutContainer: React.FC<ShortcutContainerProps> = (props: ShortcutCont
         id: shortcut.id,
         rowStatus: shortcut.rowStatus === "ARCHIVED" ? "NORMAL" : "ARCHIVED",
       };
-      await shortcutService.patchShortcut(shortcutPatch);
+      await shortcutStore.patchShortcut(shortcutPatch);
     } catch (error) {
       // do nth
     }
@@ -113,27 +119,27 @@ const ShortcutContainer: React.FC<ShortcutContainerProps> = (props: ShortcutCont
     <>
       <div className={`shortcut-container ${isActive ? "active" : ""}`} onClick={handleShortcutClick}>
         <div className="shortcut-text-container">
-          {/* <span className="icon-text">#</span> */}
           <span className="shortcut-text">{shortcut.title}</span>
         </div>
         <div className="btns-container">
           <span className="action-btn toggle-btn">
-            <img className="icon-img" src={`/icons/more${isActive ? "-white" : ""}.svg`} />
+            <Icon.MoreHorizontal className="icon-img" />
           </span>
           <div className="action-btns-wrapper">
             <div className="action-btns-container">
               <span className="btn" onClick={handlePinShortcutBtnClick}>
-                {shortcut.rowStatus === "ARCHIVED" ? "Unpin" : "Pin"}
+                {shortcut.rowStatus === "ARCHIVED" ? t("common.unpin") : t("common.pin")}
               </span>
               <span className="btn" onClick={handleEditShortcutBtnClick}>
-                Edit
+                {t("common.edit")}
               </span>
               <span
                 className={`btn delete-btn ${showConfirmDeleteBtn ? "final-confirm" : ""}`}
                 onClick={handleDeleteMemoClick}
                 onMouseLeave={handleDeleteBtnMouseLeave}
               >
-                {showConfirmDeleteBtn ? "Delete!" : "Delete"}
+                {t("common.delete")}
+                {showConfirmDeleteBtn ? "!" : ""}
               </span>
             </div>
           </div>

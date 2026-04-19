@@ -1,91 +1,69 @@
-@import "./mixin.less";
-
 .search-bar-container {
-  @apply relative w-40;
+  @apply relative w-auto;
+
+  &:hover,
+  &:active {
+    > .quickly-action-wrapper {
+      @apply flex;
+    }
+  }
+
+  &.is-focus {
+    > .quickly-action-wrapper {
+      @apply flex;
+    }
+  }
 
   > .search-bar-inputer {
-    .flex(row, flex-start, center);
-    @apply w-full py-2 px-4 rounded-lg flex flex-row justify-start items-center bg-zinc-200;
+    @apply h-9 flex flex-row justify-start items-center w-full py-2 px-3 sm:px-4 rounded-full sm:rounded-lg bg-zinc-200 dark:bg-zinc-700;
 
     > .icon-img {
-      @apply mr-2 w-4 h-auto opacity-80;
+      @apply w-4 h-auto opacity-30 dark:text-gray-200;
     }
 
     > .text-input {
-      @apply grow text-sm;
-    }
-
-    &:hover {
-      + .quickly-action-wrapper {
-        display: flex;
-      }
+      @apply flex ml-2 w-24 grow text-sm outline-none bg-transparent dark:text-gray-200;
     }
   }
 
   > .quickly-action-wrapper {
-    @apply hidden absolute top-9 -right-2 p-2 w-80 z-10;
+    @apply hidden absolute top-9 -right-2 p-2 w-60 z-10;
 
     > .quickly-action-container {
-      .flex(column, flex-start, flex-start);
-      width: 100%;
-      background-color: white;
-      padding: 12px 16px;
-      border-radius: 8px;
-      box-shadow: 0 0 8px 0 rgb(0 0 0 / 20%);
+      @apply flex flex-col justify-start items-start w-full bg-white dark:bg-zinc-700 px-4 py-3 rounded-lg;
+      box-shadow: 0 0 4px 0 rgb(0 0 0 / 20%);
 
       > .title-text {
-        color: gray;
-        font-size: 12px;
+        @apply text-gray-600 dark:text-gray-400 text-xs;
       }
 
       > .types-container {
-        .flex(row, flex-start, flex-start);
-        width: 100%;
-        font-size: 13px;
-        margin-top: 8px;
+        @apply flex flex-row justify-start items-start w-full text-xs mt-2;
 
         > .section-text {
-          color: gray;
-          margin-right: 4px;
-          flex-shrink: 0;
-          line-height: 26px;
+          @apply text-gray-600 dark:text-gray-400 mr-1 shrink-0 leading-6;
         }
 
         > .values-container {
-          .flex(row, flex-start, flex-start);
-          flex-wrap: wrap;
-          user-select: none;
+          @apply flex flex-row justify-start items-start flex-wrap select-none;
 
           > div {
-            .flex(row, flex-start, center);
-            line-height: 26px;
+            @apply flex flex-row justify-start items-center leading-6;
 
             .type-item {
-              cursor: pointer;
-              padding: 0 4px;
-              border-radius: 6px;
-
-              &:hover {
-                background-color: @bg-whitegray;
-              }
+              @apply cursor-pointer px-2 rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-600;
 
               &.selected {
-                background-color: @text-green;
-                color: white;
+                @apply !bg-green-600 text-white;
               }
             }
 
             .split-text {
-              color: lightgray;
-              margin: 0 2px;
+              @apply text-gray-400 mx-1;
             }
           }
         }
       }
-    }
-
-    &:hover {
-      display: flex;
     }
   }
 }
