@@ -8,7 +8,10 @@
 
 1. **路由层改造（中）**
    - 将原 `gin` 路由注册方式迁移到 `gin-ninja` 的分组+typed handler 风格。
-   - 示例：原 `gin` 常见写法是 `r.GET("/api/memo", handler)`（`handler` 通常为 `func(*gin.Context)`，`r` 可为 `*gin.Engine` 或 `*gin.RouterGroup`）；迁移后可写为 `ninja.Get(router, "/api/memo", listMemos)`，其中 `ninja` 及相关类型来自项目实际选用的 `gin-ninja` 包导入，`router` 为 `gin-ninja` 的 `*ninja.Router`，`listMemos` 通常为 `func(ctx *ninja.Context, in *ListMemosRequest) (*ListMemosResponse, error)`。
+   - 示例。
+     - 旧写法：`r.GET("/api/memo", handler)`，其中 `handler` 通常为 `func(*gin.Context)`，`r` 可为 `*gin.Engine` 或 `*gin.RouterGroup`。
+     - 新写法：`ninja.Get(router, "/api/memo", listMemos)`。
+     - 说明：`ninja` 及相关类型来自项目实际选用的 `gin-ninja` 包导入，`router` 为 `gin-ninja` 的 `*ninja.Router`，`listMemos` 通常为 `func(ctx *ninja.Context, in *ListMemosRequest) (*ListMemosResponse, error)`。
    - 需要逐个 API 校对 URL、Method、参数绑定和中间件挂载顺序。
 
 2. **参数绑定与校验（中）**
