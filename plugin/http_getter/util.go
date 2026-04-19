@@ -32,16 +32,16 @@ func validateOutboundURL(urlStr string) (*url.URL, error) {
 		return nil, err
 	}
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return nil, fmt.Errorf("unsupported outbound url scheme")
+		return nil, fmt.Errorf("unsupported outbound URL scheme")
 	}
 	hostname := parsedURL.Hostname()
 	if hostname == "" {
-		return nil, fmt.Errorf("missing outbound url host")
+		return nil, fmt.Errorf("missing outbound URL host")
 	}
 
 	if ip := net.ParseIP(hostname); ip != nil {
 		if !isPublicIP(ip) {
-			return nil, fmt.Errorf("outbound url host is not public")
+			return nil, fmt.Errorf("outbound URL host is not public")
 		}
 		return parsedURL, nil
 	}
@@ -51,11 +51,11 @@ func validateOutboundURL(urlStr string) (*url.URL, error) {
 		return nil, err
 	}
 	if len(ips) == 0 {
-		return nil, fmt.Errorf("outbound url host resolution returned no address")
+		return nil, fmt.Errorf("outbound URL host resolution returned no address")
 	}
 	for _, ip := range ips {
 		if !isPublicIP(ip) {
-			return nil, fmt.Errorf("outbound url host resolved to a non-public address")
+			return nil, fmt.Errorf("outbound URL host resolved to a non-public address")
 		}
 	}
 	return parsedURL, nil

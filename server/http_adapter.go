@@ -174,7 +174,7 @@ func newEchoContext(context echo.Context) Context {
 func unwrapEchoContext(context Context) echo.Context {
 	echoContext, ok := context.(echoContext)
 	if !ok {
-		panic("unsupported context adapter")
+		panic("server context adapter expected echoContext")
 	}
 	return echoContext.context
 }

@@ -27,7 +27,7 @@ func (s *Server) registerTagRoutes(g Group) {
 			return badRequestError("Malformatted post tag request", err)
 		}
 		if tagUpsert.Name == "" {
-			return badRequestError("Tag name shouldn't be empty", nil)
+			return badRequestError("Tag name should not be empty", nil)
 		}
 
 		tagUpsert.CreatorID = userID
@@ -133,7 +133,7 @@ func (s *Server) registerTagRoutes(g Group) {
 		if err != nil {
 			return badRequestError("Invalid tag name", err)
 		} else if tagName == "" {
-			return badRequestError("Tag name cannot be empty", nil)
+			return badRequestError("Tag name should not be empty", nil)
 		}
 
 		tagDelete := &api.TagDelete{
