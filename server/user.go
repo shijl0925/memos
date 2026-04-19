@@ -109,10 +109,10 @@ func (s *Server) registerUserRoutes(g *gin.RouterGroup) {
 			return
 		}
 		if currentUser == nil {
-			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("Current session user not found with ID: %d", currentUserID), err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("Current session user not found with ID: %d", currentUserID), nil)
 			return
 		} else if currentUser.Role != api.Owner {
-			abortWithError(c, http.StatusForbidden, "Access forbidden for current session user", err)
+			abortWithError(c, http.StatusForbidden, "Access forbidden for current session user", nil)
 			return
 		}
 

@@ -72,7 +72,7 @@ func (s *Server) registerAuthRoutes(g *gin.RouterGroup) {
 			return
 		}
 		if ownerUser != nil {
-			abortWithError(c, http.StatusUnauthorized, "Site Owner existed, please contact the site owner to signin account firstly.", err)
+			abortWithError(c, http.StatusUnauthorized, "Site Owner existed, please contact the site owner to signin account firstly.", nil)
 			return
 		}
 
