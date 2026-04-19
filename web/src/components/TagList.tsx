@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useAppSelector } from "../store";
-import { locationService, memoService } from "../services";
+import { useTranslation } from "react-i18next";
+import { useLocationStore, useTagStore } from "../store/module";
 import useToggle from "../hooks/useToggle";
-import Only from "./common/OnlyWhen";
-import * as utils from "../helpers/utils";
+import Icon from "./Icon";
+import showCreateTagDialog from "./CreateTagDialog";
 import "../less/tag-list.less";
 
 interface Tag {
@@ -12,26 +12,29 @@ interface Tag {
   subTags: Tag[];
 }
 
-interface Props {}
-
-const TagList: React.FC<Props> = () => {
-  const { memos, tags: tagsText } = useAppSelector((state) => state.memo);
-  const query = useAppSelector((state) => state.location.query);
+const TagList = () => {
+  const { t } = useTranslation();
+  const locationStore = useLocationStore();
+  const tagStore = useTagStore();
+  const tagsText = tagStore.state.tags;
+  const query = locationStore.state.query;
   const [tags, setTags] = useState<Tag[]>([]);
 
   useEffect(() => {
-    memoService.updateTagsState();
-  }, [memos]);
+    tagStore.fetchTags();
+  }, []);
 
   useEffect(() => {
     const sortedTags = Array.from(tagsText).sort();
     const root: KVObject<any> = {
       subTags: [],
     };
+
     for (const tag of sortedTags) {
       const subtags = tag.split("/");
       let tempObj = root;
       let tagText = "";
+
       for (let i = 0; i < subtags.length; i++) {
         const key = subtags[i];
         if (i === 0) {
@@ -61,21 +64,26 @@ const TagList: React.FC<Props> = () => {
         tempObj = obj;
       }
     }
+
     setTags(root.subTags as Tag[]);
   }, [tagsText]);
 
   return (
     <div className="tags-wrapper">
-      <p className="title-text">Tags</p>
+      <div className="w-full flex flex-row justify-start items-center px-4 mb-1">
+        <span className="text-sm leading-6 font-mono text-gray-400">{t("common.tags")}</span>
+        <button
+          onClick={() => showCreateTagDialog()}
+          className="flex flex-col justify-center items-center w-5 h-5 bg-gray-200 dark:bg-zinc-700 rounded ml-2 hover:shadow"
+        >
+          <Icon.Plus className="w-4 h-4 text-gray-400" />
+        </button>
+      </div>
       <div className="tags-container">
         {tags.map((t, idx) => (
           <TagItemContainer key={t.text + "-" + idx} tag={t} tagQuery={query?.tag} />
         ))}
-        <Only when={tags.length < 5}>
-          <p className="tag-tip-container">
-            Enter <span className="code-text">#tag </span> to create a tag
-          </p>
-        </Only>
+        {tags.length <= 3 && <p className="tip-text">{t("tag-list.tip-text")}</p>}
       </div>
     </div>
   );
@@ -87,6 +95,7 @@ interface TagItemContainerProps {
 }
 
 const TagItemContainer: React.FC<TagItemContainerProps> = (props: TagItemContainerProps) => {
+  const locationStore = useLocationStore();
   const { tag, tagQuery } = props;
   const isActive = tagQuery === tag.text;
   const hasSubTags = tag.subTags.length > 0;
@@ -94,13 +103,9 @@ const TagItemContainer: React.FC<TagItemContainerProps> = (props: TagItemContain
 
   const handleTagClick = () => {
     if (isActive) {
-      locationService.setTagQuery("");
+      locationStore.setTagQuery(undefined);
     } else {
-      utils.copyTextToClipboard(`#${tag.text} `);
-      if (!["/"].includes(locationService.getState().pathname)) {
-        locationService.setPathname("/");
-      }
-      locationService.setTagQuery(tag.text);
+      locationStore.setTagQuery(tag.text);
     }
   };
 
@@ -119,14 +124,14 @@ const TagItemContainer: React.FC<TagItemContainerProps> = (props: TagItemContain
         <div className="btns-container">
           {hasSubTags ? (
             <span className={`action-btn toggle-btn ${showSubTags ? "shown" : ""}`} onClick={handleToggleBtnClick}>
-              <img className="icon-img" src="/icons/arrow-right.svg" />
+              <Icon.ChevronRight className="icon-img" />
             </span>
           ) : null}
         </div>
       </div>
 
       {hasSubTags ? (
-        <div className={`subtags-container ${showSubTags ? "" : "hidden"}`}>
+        <div className={`subtags-container ${showSubTags ? "" : "!hidden"}`}>
           {tag.subTags.map((st, idx) => (
             <TagItemContainer key={st.text + "-" + idx} tag={st} tagQuery={tagQuery} />
           ))}

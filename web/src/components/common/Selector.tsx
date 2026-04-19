@@ -1,8 +1,10 @@
 import { memo, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import useToggle from "../../hooks/useToggle";
+import Icon from "../Icon";
 import "../../less/common/selector.less";
 
-interface TVObject {
+interface SelectorItem {
   text: string;
   value: string;
 }
@@ -10,22 +12,23 @@ interface TVObject {
 interface Props {
   className?: string;
   value: string;
-  dataSource: TVObject[];
+  dataSource: SelectorItem[];
   handleValueChanged?: (value: string) => void;
 }
 
 const nullItem = {
-  text: "Select",
+  text: "common.select",
   value: "",
 };
 
 const Selector: React.FC<Props> = (props: Props) => {
   const { className, dataSource, handleValueChanged, value } = props;
+  const { t } = useTranslation();
   const [showSelector, toggleSelectorStatus] = useToggle(false);
 
-  const seletorElRef = useRef<HTMLDivElement>(null);
+  const selectorElRef = useRef<HTMLDivElement>(null);
 
-  let currentItem = nullItem;
+  let currentItem = { text: t(nullItem.text), value: nullItem.value };
   for (const d of dataSource) {
     if (d.value === value) {
       currentItem = d;
@@ -36,7 +39,7 @@ const Selector: React.FC<Props> = (props: Props) => {
   useEffect(() => {
     if (showSelector) {
       const handleClickOutside = (event: MouseEvent) => {
-        if (!seletorElRef.current?.contains(event.target as Node)) {
+        if (!selectorElRef.current?.contains(event.target as Node)) {
           toggleSelectorStatus(false);
         }
       };
@@ -47,7 +50,7 @@ const Selector: React.FC<Props> = (props: Props) => {
     }
   }, [showSelector]);
 
-  const handleItemClick = (item: TVObject) => {
+  const handleItemClick = (item: SelectorItem) => {
     if (handleValueChanged) {
       handleValueChanged(item.value);
     }
@@ -60,28 +63,32 @@ const Selector: React.FC<Props> = (props: Props) => {
   };
 
   return (
-    <div className={`selector-wrapper ${className ?? ""}`} ref={seletorElRef}>
+    <div className={`selector-wrapper ${className ?? ""}`} ref={selectorElRef}>
       <div className={`current-value-container ${showSelector ? "active" : ""}`} onClick={handleCurrentValueClick}>
         <span className="value-text">{currentItem.text}</span>
         <span className="arrow-text">
-          <img className="icon-img" src="/icons/arrow-right.svg" />
+          <Icon.ChevronDown className="icon-img" />
         </span>
       </div>
 
       <div className={`items-wrapper ${showSelector ? "" : "!hidden"}`}>
-        {dataSource.map((d) => {
-          return (
-            <div
-              className={`item-container ${d.value === value ? "selected" : ""}`}
-              key={d.value}
-              onClick={() => {
-                handleItemClick(d);
-              }}
-            >
-              {d.text}
-            </div>
-          );
-        })}
+        {dataSource.length > 0 ? (
+          dataSource.map((d) => {
+            return (
+              <div
+                className={`item-container ${d.value === value ? "selected" : ""}`}
+                key={d.value}
+                onClick={() => {
+                  handleItemClick(d);
+                }}
+              >
+                {d.text}
+              </div>
+            );
+          })
+        ) : (
+          <p className="tip-text">{t("common.null")}</p>
+        )}
       </div>
     </div>
   );

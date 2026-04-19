@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
-import { useAppSelector } from "../store";
+import { useTranslation } from "react-i18next";
+import { useMemoStore } from "../store/module";
 import toImage from "../labs/html2image";
 import useToggle from "../hooks/useToggle";
 import { DAILY_TIMESTAMP } from "../helpers/consts";
 import * as utils from "../helpers/utils";
-import { showDialog } from "./Dialog";
+import Icon from "./Icon";
+import { generateDialog } from "./Dialog";
 import DatePicker from "./common/DatePicker";
 import showPreviewImageDialog from "./PreviewImageDialog";
 import DailyMemo from "./DailyMemo";
@@ -14,11 +16,13 @@ interface Props extends DialogProps {
   currentDateStamp: DateStamp;
 }
 
-const monthChineseStrArray = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dev"];
+const monthChineseStrArray = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
 const weekdayChineseStrArray = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const DailyReviewDialog: React.FC<Props> = (props: Props) => {
-  const memos = useAppSelector((state) => state.memo.memos);
+  const { t } = useTranslation();
+  const memoStore = useMemoStore();
+  const memos = memoStore.state.memos;
   const [currentDateStamp, setCurrentDateStamp] = useState(utils.getDateStampByDate(utils.getDateString(props.currentDateStamp)));
   const [showDatePicker, toggleShowDatePicker] = useToggle(false);
   const memosElRef = useRef<HTMLDivElement>(null);
@@ -27,10 +31,10 @@ const DailyReviewDialog: React.FC<Props> = (props: Props) => {
     .filter(
       (m) =>
         m.rowStatus === "NORMAL" &&
-        utils.getTimeStampByDate(m.createdTs) >= currentDateStamp &&
-        utils.getTimeStampByDate(m.createdTs) < currentDateStamp + DAILY_TIMESTAMP
+        utils.getTimeStampByDate(m.displayTs) >= currentDateStamp &&
+        utils.getTimeStampByDate(m.displayTs) < currentDateStamp + DAILY_TIMESTAMP
     )
-    .sort((a, b) => utils.getTimeStampByDate(a.createdTs) - utils.getTimeStampByDate(b.createdTs));
+    .sort((a, b) => utils.getTimeStampByDate(a.displayTs) - utils.getTimeStampByDate(b.displayTs));
 
   const handleShareBtnClick = () => {
     if (!memosElRef.current) {
@@ -40,7 +44,6 @@ const DailyReviewDialog: React.FC<Props> = (props: Props) => {
     toggleShowDatePicker(false);
 
     toImage(memosElRef.current, {
-      backgroundColor: "#ffffff",
       pixelRatio: window.devicePixelRatio * 2,
     })
       .then((url) => {
@@ -60,21 +63,22 @@ const DailyReviewDialog: React.FC<Props> = (props: Props) => {
     <>
       <div className="dialog-header-container">
         <p className="title-text" onClick={() => toggleShowDatePicker()}>
-          <span className="icon-text">📅</span> Daily Review
+          <span className="icon-text">📅</span> {t("sidebar.daily-review")}
         </p>
         <div className="btns-container">
-          <span className="btn-text" onClick={() => setCurrentDateStamp(currentDateStamp - DAILY_TIMESTAMP)}>
-            <img className="icon-img" src="/icons/arrow-left.svg" />
-          </span>
-          <span className="btn-text" onClick={() => setCurrentDateStamp(currentDateStamp + DAILY_TIMESTAMP)}>
-            <img className="icon-img" src="/icons/arrow-right.svg" />
-          </span>
-          <span className="btn-text share-btn" onClick={handleShareBtnClick}>
-            <img className="icon-img" src="/icons/share.svg" />
-          </span>
-          <span className="btn-text" onClick={() => props.destroy()}>
-            <img className="icon-img" src="/icons/close.svg" />
-          </span>
+          <button className="btn-text" onClick={() => setCurrentDateStamp(currentDateStamp - DAILY_TIMESTAMP)}>
+            <Icon.ChevronLeft className="icon-img" />
+          </button>
+          <button className="btn-text" onClick={() => setCurrentDateStamp(currentDateStamp + DAILY_TIMESTAMP)}>
+            <Icon.ChevronRight className="icon-img" />
+          </button>
+          <button className="btn-text share" onClick={handleShareBtnClick}>
+            <Icon.Share2 size={16} />
+          </button>
+          <span className="split-line">/</span>
+          <button className="btn-text" onClick={() => props.destroy()}>
+            <Icon.X className="icon-img" />
+          </button>
         </div>
         <DatePicker
           className={`date-picker ${showDatePicker ? "" : "!hidden"}`}
@@ -93,7 +97,7 @@ const DailyReviewDialog: React.FC<Props> = (props: Props) => {
         </div>
         {dailyMemos.length === 0 ? (
           <div className="tip-container">
-            <p className="tip-text">Oops, there is nothing.</p>
+            <p className="tip-text">{t("daily-review.oops-nothing")}</p>
           </div>
         ) : (
           <div className="dailymemos-wrapper">
@@ -108,10 +112,10 @@ const DailyReviewDialog: React.FC<Props> = (props: Props) => {
 };
 
 export default function showDailyReviewDialog(datestamp: DateStamp = Date.now()): void {
-  showDialog(
+  generateDialog(
     {
       className: "daily-review-dialog",
-      useAppContext: true,
+      dialogName: "daily-review-dialog",
     },
     DailyReviewDialog,
     { currentDateStamp: datestamp }

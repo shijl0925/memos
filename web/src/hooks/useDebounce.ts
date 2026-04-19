@@ -1,27 +1,12 @@
-import { useCallback, useRef } from "react";
+import { DependencyList, useEffect } from "react";
+import useTimeoutFn from "./useTimeoutFn";
 
-/**
- * useDebounce: useRef + useCallback
- * @param func function
- * @param delay delay duration
- * @param deps depends
- * @returns debounced function
- */
-export default function useDebounce<T extends (...args: any[]) => any>(func: T, delay: number, deps: any[] = []): T {
-  const timer = useRef<number>();
+export type UseDebounceReturn = [() => boolean | null, () => void];
 
-  const cancel = useCallback(() => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-    }
-  }, []);
+export default function useDebounce(fn: () => any, ms = 0, deps: DependencyList = []): UseDebounceReturn {
+  const [isReady, cancel, reset] = useTimeoutFn(fn, ms);
 
-  const run = useCallback((...args: any) => {
-    cancel();
-    timer.current = window.setTimeout(() => {
-      func(...args);
-    }, delay);
-  }, deps);
+  useEffect(reset, deps);
 
-  return run as T;
+  return [isReady, cancel];
 }

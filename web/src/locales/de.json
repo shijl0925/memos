@@ -1,0 +1,252 @@
+{
+  "common": {
+    "about": "Über Memos",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "repeat-password-short": "Wiederholen",
+    "repeat-password": "Wiederhole das Passwort",
+    "new-password": "Neues Passwort",
+    "repeat-new-password": "Neues Passwort wiederholen",
+    "username": "Nutzername",
+    "nickname": "Nickname",
+    "save": "Speichern",
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "create": "Erstellen",
+    "change": "Ändern",
+    "confirm": "Bestätigen",
+    "reset": "Zurücksetzen",
+    "language": "Sprache",
+    "version": "Version",
+    "pin": "Anpinnen",
+    "unpin": "Pin lösen",
+    "edit": "Bearbeiten",
+    "restore": "Wiederherstellen",
+    "delete": "Löschen",
+    "null": "Null",
+    "share": "Teilen",
+    "archive": "Archivieren",
+    "basic": "Allgemeines",
+    "admin": "Administration",
+    "explore": "Erkunden",
+    "sign-in": "Anmelden",
+    "sign-up": "Registrieren",
+    "sign-out": "Abmelden",
+    "back-to-home": "Zurück zur Startseite",
+    "type": "Typ",
+    "shortcuts": "Verknüpfungen",
+    "title": "Titel",
+    "filter": "Filter",
+    "tags": "Tags",
+    "yourself": "Du selbst",
+    "archived-at": "Archiviert am",
+    "changed": "Verändert",
+    "update-on": "Verändert am",
+    "fold": "Einklappen",
+    "expand": "Erweitern",
+    "image": "Bild",
+    "link": "Link",
+    "vacuum": "Aufräumen",
+    "select": "Auswählen"
+  },
+  "slogan": "Eine quelloffene, selbst gehostete Sammlung an Memos zur Wissensverwaltung und Vernetzung.",
+  "auth": {
+    "signup-as-host": "Als Host registrieren",
+    "host-tip": "Du registrierst dich als Host dieser Seite.",
+    "not-host-tip": "Kontaktiere den Host dieser Seite, wenn du noch kein Konto hast."
+  },
+  "sidebar": {
+    "daily-review": "Tagesbilanz",
+    "resources": "Ressourcen",
+    "setting": "Einstellung",
+    "archived": "Archiviert"
+  },
+  "daily-review": {
+    "oops-nothing": "Ups, hier ist nichts."
+  },
+  "resources": {
+    "no-resources": "Keine Ressourcen.",
+    "fetching-data": "Lade Daten...",
+    "upload": "Hochladen",
+    "preview": "Vorschau",
+    "copy-link": "Link kopieren",
+    "delete-resource": "Ressource löschen",
+    "warning-text": "Möchtest du diese Ressource wirklich löschen? Dies kann nicht rückgängig gemacht werden❗",
+    "linked-amount": "Anzahl verlinkter Memos",
+    "rename": "Umbenennen",
+    "clear-unused-resources": "Lösche ungenutzte Ressourcen",
+    "warning-text-unused": "Möchtest du diese ungenutzte Ressource wirklich löschen? Dies kann nicht rückgängig gemacht werden❗",
+    "no-unused-resources": "Keine ungenutzten Ressourcen",
+    "name": "Name"
+  },
+  "archived": {
+    "archived-memos": "Archivierte Memos",
+    "no-archived-memos": "Keine archivierten Memos",
+    "fetching-data": "Lade Daten..."
+  },
+  "editor": {
+    "cancel-edit": "Bearbeiten abbrechen",
+    "save": "Speichern",
+    "placeholder": "Ein Gedanke...",
+    "only-image-supported": "Nur Bilder werden unterstützt.",
+    "cant-empty": "Inhalt kann nicht leer sein",
+    "local": "Lokal",
+    "resources": "Ressourcen"
+  },
+  "memo": {
+    "view-detail": "Details anzeigen",
+    "copy": "Kopieren",
+    "visibility": {
+      "private": "Nur für dich sichtbar",
+      "protected": "Für Mitglieder sichtbar",
+      "public": "Für alle sichtbar"
+    }
+  },
+  "memo-list": {
+    "fetching-data": "Lade Daten...",
+    "fetch-more": "Klicke hier, um mehr zu laden"
+  },
+  "shortcut-list": {
+    "shortcut-title": "Titel der Verknüpfung",
+    "create-shortcut": "Verknüpfung erstellen",
+    "edit-shortcut": "Verknüpfung bearbeiten",
+    "fill-previous": "Bitte vorherigen Filterwert ausfüllen",
+    "title-required": "Titel wird benötigt",
+    "value-required": "Filterwert wird benötigt"
+  },
+  "filter": {
+    "new-filter": "Neuer Filter",
+    "type": {
+      "tag": "Tag",
+      "type": "Typ",
+      "text": "Text",
+      "display-time": "angezeigte Zeit",
+      "visibility": "Sichtbarkeit"
+    },
+    "operator": {
+      "contains": "enthält",
+      "not-contains": "enthält nicht",
+      "is": "ist",
+      "is-not": "ist nicht",
+      "before": "vor",
+      "after": "nach"
+    },
+    "value": {
+      "not-tagged": "Keine Tags",
+      "linked": "Hat Links"
+    },
+    "text-placeholder": "Beginne einen Regex mit ^"
+  },
+  "tag-list": {
+    "tip-text": "Erstelle einen Tag mit `#tag`"
+  },
+  "search": {
+    "quickly-filter": "Schnellfilter"
+  },
+  "setting": {
+    "my-account": "Mein Konto",
+    "preference": "Einstellungen",
+    "member": "Mitglieder",
+    "member-list": "Mitgliederliste",
+    "system": "System",
+    "account-section": {
+      "title": "Konto-Informationen",
+      "update-information": "Informationen ändern",
+      "change-password": "Passwort ändern"
+    },
+    "preference-section": {
+      "theme": "Erscheinungsbild",
+      "default-memo-visibility": "Standard Sichtbarkeit von Memos",
+      "enable-folding-memo": "Einklappen von Memos aktivieren",
+      "editor-font-style": "Textstil des Editors",
+      "mobile-editor-style": "Stil des mobilen Editors",
+      "default-memo-sort-option": "Angezeigter Memo-Zeitpunkt",
+      "created_ts": "Erstellungszeitpunkt",
+      "updated_ts": "Änderungszeitpunkt"
+    },
+    "member-section": {
+      "create-a-member": "Mitglied hinzufügen"
+    },
+    "system-section": {
+      "server-name": "Servername",
+      "customize-server": {
+        "title": "Server bearbeiten",
+        "default": "Standard: \"memos\"",
+        "icon-url": "Icon-URL"
+      },
+      "database-file-size": "Dateigröße der Datenbank",
+      "allow-user-signup": "Erlaube Registrierung neuer Mitglieder",
+      "additional-style": "Zusätzlicher Stil",
+      "additional-script": "Zusätzliches Skript",
+      "additional-style-placeholder": "Zusätzliches CSS",
+      "additional-script-placeholder": "Zusätzliches JavaScript"
+    },
+    "apperance-option": {
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    }
+  },
+  "amount-text": {
+    "memo_one": "MEMO",
+    "memo_other": "MEMOS",
+    "tag_one": "TAG",
+    "tag_other": "TAGS",
+    "day_one": "TAG",
+    "day_other": "TAGE"
+  },
+  "message": {
+    "no-memos": "Keine Memos 🌃",
+    "memos-ready": "Alle Memos geladen 🎉",
+    "restored-successfully": "Erfolgreich wiederhergestellt",
+    "memo-updated-datetime": "Erstellungszeitpunkt geändert.",
+    "invalid-created-datetime": "Ungültiger Erstellungszeitpunkt",
+    "change-memo-created-time": "Erstellungszeitpunkt ändern",
+    "memo-not-found": "Memo nicht gefunden.",
+    "fill-all": "Bitte alle Felder ausfüllen.",
+    "password-not-match": "Passwörter stimmen nicht überein",
+    "new-password-not-match": "Neue Passwörter stimmen nicht überein.",
+    "image-load-failed": "Laden des Bildes fehlgeschlagen",
+    "fill-form": "Bitte das Formular ausfüllen",
+    "login-failed": "Anmeldung fehlgeschlagen",
+    "signup-failed": "Registrierung fehlgeschlagen",
+    "user-not-found": "Nutzer nicht gefunden",
+    "password-changed": "Passwort geändert",
+    "private-only": "Dieses Memo ist privat.",
+    "copied": "Kopiert",
+    "succeed-copy-content": "Inhalt erfolgreich kopiert",
+    "succeed-copy-link": "Link erfolgreich kopiert",
+    "change-resource-filename": "Dateinamen der Ressource ändern",
+    "resource-filename-updated": "Dateiname der Ressource geändert.",
+    "invalid-resource-filename": "Ungültiger Dateiname.",
+    "click-to-save-the-image": "Klicken um Bild zu speichern",
+    "generating-the-screenshot": "Erstelle Screenshot...",
+    "count-selected-resources": "Insgesamt markiert",
+    "too-short": "Zu kurz",
+    "too-long": "Zu lang",
+    "not-allow-space": "Keine Leerzeichen erlaubt",
+    "not-allow-chinese": "Keine chinesischen Zeichen erlaubt",
+    "succeed-vacuum-database": "Aufräumen der Datenbank erfolgreich",
+    "succeed-update-additional-style": "Zusätzlicher Stil wurde erfolgreich aktualisiert",
+    "succeed-copy-resource-link": "Link zur Ressource wurde erfolgreich kopiert",
+    "succeed-update-customized-profile": "Server-Einstlelungen wurden erfolgreich gespeichert",
+    "succeed-update-additional-script": "Zusätzliches Skript wurde erfolgreich aktualisiert",
+    "update-succeed": "Update erfolgreich"
+  },
+  "days": {
+    "monday": "Montag",
+    "mon": "Mo",
+    "tuesday": "Dienstag",
+    "tue": "Di",
+    "wednesday": "Mittwoch",
+    "wed": "Mi",
+    "thursday": "Donnerstag",
+    "thu": "Do",
+    "friday": "Freitag",
+    "fri": "Fr",
+    "saturday": "Samstag",
+    "sat": "Sa",
+    "sunday": "Sonntag",
+    "sun": "So"
+  }
+}

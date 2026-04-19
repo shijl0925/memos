@@ -1,80 +1,122 @@
-import { memoService } from "../../services";
-import * as utils from "../../helpers/utils";
-import toastHelper from "../Toast";
+import { Select, Switch, Option } from "@mui/joy";
+import { useTranslation } from "react-i18next";
+import { useGlobalStore, useUserStore } from "../../store/module";
+import { VISIBILITY_SELECTOR_ITEMS, MEMO_DISPLAY_TS_OPTION_SELECTOR_ITEMS } from "../../helpers/consts";
+import AppearanceSelect from "../AppearanceSelect";
+import LocaleSelect from "../LocaleSelect";
 import "../../less/settings/preferences-section.less";
+import React from "react";
 
-interface Props {}
+const PreferencesSection = () => {
+  const { t } = useTranslation();
+  const globalStore = useGlobalStore();
+  const userStore = useUserStore();
+  const { appearance, locale } = globalStore.state;
+  const { setting, localSetting } = userStore.state.user as User;
+  const visibilitySelectorItems = VISIBILITY_SELECTOR_ITEMS.map((item) => {
+    return {
+      value: item.value,
+      text: t(`memo.visibility.${item.text.toLowerCase()}`),
+    };
+  });
 
-const PreferencesSection: React.FC<Props> = () => {
-  const handleExportBtnClick = async () => {
-    const formatedMemos = memoService.getState().memos.map((m) => {
-      return {
-        content: m.content,
-        createdTs: m.createdTs,
-      };
-    });
+  const memoDisplayTsOptionSelectorItems = MEMO_DISPLAY_TS_OPTION_SELECTOR_ITEMS.map((item) => {
+    return {
+      value: item.value,
+      text: t(`setting.preference-section.${item.value}`),
+    };
+  });
 
-    const jsonStr = JSON.stringify(formatedMemos);
-    const element = document.createElement("a");
-    element.setAttribute("href", "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr));
-    element.setAttribute("download", `memos-${utils.getDateTimeString(Date.now())}.json`);
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+  const handleLocaleSelectChange = async (locale: Locale) => {
+    await userStore.upsertUserSetting("locale", locale);
+    globalStore.setLocale(locale);
   };
 
-  const handleImportBtnClick = async () => {
-    const fileInputEl = document.createElement("input");
-    fileInputEl.type = "file";
-    fileInputEl.accept = "application/JSON";
-    fileInputEl.onchange = () => {
-      if (fileInputEl.files?.length && fileInputEl.files.length > 0) {
-        const reader = new FileReader();
-        reader.readAsText(fileInputEl.files[0]);
-        reader.onload = async (event) => {
-          const memoList = JSON.parse(event.target?.result as string) as Memo[];
-          if (!Array.isArray(memoList)) {
-            toastHelper.error("Unexpected data type.");
-          }
+  const handleAppearanceSelectChange = async (appearance: Appearance) => {
+    await userStore.upsertUserSetting("appearance", appearance);
+    globalStore.setAppearance(appearance);
+  };
 
-          let succeedAmount = 0;
+  const handleDefaultMemoVisibilityChanged = async (value: string) => {
+    await userStore.upsertUserSetting("memoVisibility", value);
+  };
 
-          for (const memo of memoList) {
-            const content = memo.content || "";
-            const createdTs = (memo as any).createdAt || memo.createdTs || Date.now();
+  const handleMemoDisplayTsOptionChanged = async (value: string) => {
+    await userStore.upsertUserSetting("memoDisplayTsOption", value);
+  };
 
-            try {
-              const memoCreate = {
-                content,
-                createdTs: Math.floor(utils.getTimeStampByDate(createdTs) / 1000),
-              };
-              await memoService.createMemo(memoCreate);
-              succeedAmount++;
-            } catch (error) {
-              // do nth
-            }
-          }
+  const handleIsFoldingEnabledChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
+    userStore.upsertLocalSetting({ ...localSetting, enableFoldMemo: event.target.checked });
+  };
 
-          await memoService.fetchAllMemos();
-          toastHelper.success(`${succeedAmount} memos successfully imported.`);
-        };
-      }
-    };
-    fileInputEl.click();
+  const handlePowerfulEditorEnabledChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
+    userStore.upsertLocalSetting({ ...localSetting, enablePowerfulEditor: event.target.checked });
+  };
+
+  const handleDoubleClickEnabledChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
+    userStore.upsertLocalSetting({ ...localSetting, enableDoubleClickEditing: event.target.checked });
   };
 
   return (
     <div className="section-container preferences-section-container">
-      <p className="title-text">Others</p>
-      <div className="btns-container">
-        <button className="btn" onClick={handleExportBtnClick}>
-          Export data as JSON
-        </button>
-        <button className="btn" onClick={handleImportBtnClick}>
-          Import from JSON
-        </button>
+      <p className="title-text">{t("common.basic")}</p>
+      <div className="form-label selector">
+        <span className="normal-text">{t("common.language")}</span>
+        <LocaleSelect value={locale} onChange={handleLocaleSelectChange} />
       </div>
+      <div className="form-label selector">
+        <span className="normal-text">{t("setting.preference-section.theme")}</span>
+        <AppearanceSelect value={appearance} onChange={handleAppearanceSelectChange} />
+      </div>
+      <p className="title-text">{t("setting.preference")}</p>
+      <div className="form-label selector">
+        <span className="normal-text">{t("setting.preference-section.default-memo-visibility")}</span>
+        <Select
+          className="!min-w-[10rem] w-auto text-sm"
+          value={setting.memoVisibility}
+          onChange={(_, visibility) => {
+            if (visibility) {
+              handleDefaultMemoVisibilityChanged(visibility);
+            }
+          }}
+        >
+          {visibilitySelectorItems.map((item) => (
+            <Option key={item.value} value={item.value} className="whitespace-nowrap">
+              {item.text}
+            </Option>
+          ))}
+        </Select>
+      </div>
+      <label className="form-label selector">
+        <span className="normal-text">{t("setting.preference-section.default-memo-sort-option")}</span>
+        <Select
+          className="!min-w-[10rem] w-auto text-sm"
+          value={setting.memoDisplayTsOption}
+          onChange={(_, value) => {
+            if (value) {
+              handleMemoDisplayTsOptionChanged(value);
+            }
+          }}
+        >
+          {memoDisplayTsOptionSelectorItems.map((item) => (
+            <Option key={item.value} value={item.value} className="whitespace-nowrap">
+              {item.text}
+            </Option>
+          ))}
+        </Select>
+      </label>
+      <label className="form-label selector">
+        <span className="normal-text">{t("setting.preference-section.enable-folding-memo")}</span>
+        <Switch className="ml-2" checked={localSetting.enableFoldMemo} onChange={handleIsFoldingEnabledChanged} />
+      </label>
+      <label className="form-label selector">
+        <span className="normal-text">{t("setting.preference-section.enable-powerful-editor")}</span>
+        <Switch className="ml-2" checked={localSetting.enablePowerfulEditor} onChange={handlePowerfulEditorEnabledChanged} />
+      </label>
+      <label className="form-label selector">
+        <span className="normal-text">{t("setting.preference-section.enable-double-click")}</span>
+        <Switch className="ml-2" checked={localSetting.enableDoubleClickEditing} onChange={handleDoubleClickEnabledChanged} />
+      </label>
     </div>
   );
 };

@@ -1,37 +1,123 @@
-import { useCallback, useState } from "react";
-import { useAppSelector } from "../store";
-import { locationService } from "../services";
-import MenuBtnsPopup from "./MenuBtnsPopup";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocationStore, useMemoStore, useTagStore, useUserStore } from "../store/module";
+import { getMemoStats } from "../helpers/api";
+import * as utils from "../helpers/utils";
+import Icon from "./Icon";
+import Dropdown from "./common/Dropdown";
+import showArchivedMemoDialog from "./ArchivedMemoDialog";
+import showAboutSiteDialog from "./AboutSiteDialog";
 import "../less/user-banner.less";
 
-interface Props {}
+const UserBanner = () => {
+  const { t } = useTranslation();
+  const locationStore = useLocationStore();
+  const userStore = useUserStore();
+  const memoStore = useMemoStore();
+  const tagStore = useTagStore();
+  const { user, owner } = userStore.state;
+  const { memos } = memoStore.state;
+  const tags = tagStore.state.tags;
+  const [username, setUsername] = useState("Memos");
+  const [memoAmount, setMemoAmount] = useState(0);
+  const [createdDays, setCreatedDays] = useState(0);
+  const isVisitorMode = userStore.isVisitorMode();
 
-const UserBanner: React.FC<Props> = () => {
-  const user = useAppSelector((state) => state.user.user);
-  const [shouldShowPopupBtns, setShouldShowPopupBtns] = useState(false);
+  useEffect(() => {
+    if (isVisitorMode) {
+      if (!owner) {
+        return;
+      }
+      setUsername(owner.nickname || owner.username);
+      setCreatedDays(Math.ceil((Date.now() - utils.getTimeStampByDate(owner.createdTs)) / 1000 / 3600 / 24));
+    } else if (user) {
+      setUsername(user.nickname || user.username);
+      setCreatedDays(Math.ceil((Date.now() - utils.getTimeStampByDate(user.createdTs)) / 1000 / 3600 / 24));
+    }
+  }, [isVisitorMode, user, owner]);
 
-  const username = user ? user.name : "Memos";
+  useEffect(() => {
+    getMemoStats(userStore.getCurrentUserId())
+      .then(({ data: { data } }) => {
+        setMemoAmount(data.length);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }, [memos]);
 
   const handleUsernameClick = useCallback(() => {
-    locationService.pushHistory("/");
-    locationService.clearQuery();
+    locationStore.clearQuery();
   }, []);
 
-  const handlePopupBtnClick = () => {
-    setShouldShowPopupBtns(true);
+  const handleArchivedBtnClick = () => {
+    showArchivedMemoDialog();
+  };
+
+  const handleAboutBtnClick = () => {
+    showAboutSiteDialog();
+  };
+
+  const handleSignOutBtnClick = async () => {
+    await userStore.doSignOut();
+    window.location.href = "/auth";
   };
 
   return (
-    <div className="user-banner-container">
-      <div className="username-container" onClick={handleUsernameClick}>
-        <span className="username-text">{username}</span>
-        {user?.role === "OWNER" ? <span className="tag">MOD</span> : null}
+    <>
+      <div className="user-banner-container">
+        <div className="username-container" onClick={handleUsernameClick}>
+          <span className="username-text">{username}</span>
+          {!isVisitorMode && user?.role === "HOST" ? <span className="tag">MOD</span> : null}
+        </div>
+        <Dropdown
+          trigger={<Icon.MoreHorizontal className="ml-2 w-5 h-auto cursor-pointer dark:text-gray-200" />}
+          actionsClassName="min-w-36"
+          actions={
+            <>
+              {!userStore.isVisitorMode() && (
+                <>
+                  <button
+                    className="w-full px-3 whitespace-nowrap text-left leading-10 cursor-pointer rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    onClick={handleArchivedBtnClick}
+                  >
+                    <span className="mr-1">🗃️</span> {t("sidebar.archived")}
+                  </button>
+                </>
+              )}
+              <button
+                className="w-full px-3 whitespace-nowrap text-left leading-10 cursor-pointer rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                onClick={handleAboutBtnClick}
+              >
+                <span className="mr-1">🤠</span> {t("common.about")}
+              </button>
+              {!userStore.isVisitorMode() && (
+                <button
+                  className="w-full px-3 whitespace-nowrap text-left leading-10 cursor-pointer rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  onClick={handleSignOutBtnClick}
+                >
+                  <span className="mr-1">👋</span> {t("common.sign-out")}
+                </button>
+              )}
+            </>
+          }
+        />
       </div>
-      <span className="action-btn menu-popup-btn" onClick={handlePopupBtnClick}>
-        <img src="/icons/more.svg" className="icon-img" />
-      </span>
-      <MenuBtnsPopup shownStatus={shouldShowPopupBtns} setShownStatus={setShouldShowPopupBtns} />
-    </div>
+      <div className="amount-text-container">
+        <div className="status-text memos-text">
+          <span className="amount-text">{memoAmount}</span>
+          <span className="type-text">{t("amount-text.memo", { count: memoAmount })}</span>
+        </div>
+        <div className="status-text tags-text">
+          <span className="amount-text">{tags.length}</span>
+          <span className="type-text">{t("amount-text.tag", { count: tags.length })}</span>
+        </div>
+        <div className="status-text duration-text">
+          <span className="amount-text">{createdDays}</span>
+          <span className="type-text">{t("amount-text.day", { count: createdDays })}</span>
+        </div>
+      </div>
+    </>
   );
 };
 

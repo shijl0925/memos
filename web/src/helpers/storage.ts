@@ -4,9 +4,18 @@
 interface StorageData {
   // Editor content cache
   editorContentCache: string;
-  shouldSplitMemoWord: boolean;
-  shouldHideImageUrl: boolean;
-  shouldUseMarkdownParser: boolean;
+  // Editing memo id cache
+  editingMemoIdCache: MemoId;
+  // Editing memo visibility
+  editingMemoVisibilityCache: Visibility;
+  // locale
+  locale: Locale;
+  // appearance
+  appearance: Appearance;
+  // local setting
+  localSetting: LocalSetting;
+  // skipped version
+  skippedVersion: string;
 }
 
 type StorageKey = keyof StorageData;
@@ -51,13 +60,4 @@ export function remove(keys: StorageKey[]) {
       console.error("Remove storage failed in ", key, error);
     }
   }
-}
-
-export function emitStorageChangedEvent() {
-  const iframeEl = document.createElement("iframe");
-  iframeEl.style.display = "none";
-  document.body.appendChild(iframeEl);
-
-  iframeEl.contentWindow?.localStorage.setItem("t", Date.now().toString());
-  iframeEl.remove();
 }

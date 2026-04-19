@@ -1,33 +1,41 @@
 import convertResourceToDataURL from "./convertResourceToDataURL";
 
-const getCloneStyledElement = async (element: HTMLElement) => {
-  const clonedElementContainer = document.createElement(element.tagName);
-  clonedElementContainer.innerHTML = element.innerHTML;
+const applyStyles = async (sourceElement: HTMLElement, clonedElement: HTMLElement) => {
+  if (!sourceElement || !clonedElement) {
+    return;
+  }
 
-  const applyStyles = async (sourceElement: HTMLElement, clonedElement: HTMLElement) => {
-    if (!sourceElement || !clonedElement) {
-      return;
+  if (sourceElement.tagName === "IMG") {
+    const url = sourceElement.getAttribute("src") ?? "";
+    let covertFailed = false;
+    try {
+      (clonedElement as HTMLImageElement).src = await convertResourceToDataURL(url);
+    } catch (error) {
+      covertFailed = true;
     }
-
-    const sourceStyles = window.getComputedStyle(sourceElement);
-
-    if (sourceElement.tagName === "IMG") {
+    // NOTE: Get image blob from backend to avoid CORS error.
+    if (covertFailed) {
       try {
-        const url = await convertResourceToDataURL(sourceElement.getAttribute("src") ?? "");
-        (clonedElement as HTMLImageElement).src = url;
+        (clonedElement as HTMLImageElement).src = await convertResourceToDataURL(`/o/get/image?url=${url}`);
       } catch (error) {
         // do nth
       }
     }
+  }
 
-    for (const item of sourceStyles) {
-      clonedElement.style.setProperty(item, sourceStyles.getPropertyValue(item), sourceStyles.getPropertyPriority(item));
-    }
+  const sourceStyles = window.getComputedStyle(sourceElement);
+  for (const item of sourceStyles) {
+    clonedElement.style.setProperty(item, sourceStyles.getPropertyValue(item), sourceStyles.getPropertyPriority(item));
+  }
 
-    for (let i = 0; i < clonedElement.childElementCount; i++) {
-      await applyStyles(sourceElement.children[i] as HTMLElement, clonedElement.children[i] as HTMLElement);
-    }
-  };
+  for (let i = 0; i < clonedElement.childElementCount; i++) {
+    await applyStyles(sourceElement.children[i] as HTMLElement, clonedElement.children[i] as HTMLElement);
+  }
+};
+
+const getCloneStyledElement = async (element: HTMLElement) => {
+  const clonedElementContainer = document.createElement(element.tagName);
+  clonedElementContainer.innerHTML = element.innerHTML;
 
   await applyStyles(element, clonedElementContainer);
 

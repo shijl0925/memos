@@ -1,13 +1,13 @@
 package profile
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
-	"github.com/usememos/memos/common"
+	"github.com/usememos/memos/server/version"
 )
 
 // Profile is the configuration to start main server.
@@ -16,6 +16,8 @@ type Profile struct {
 	Mode string `json:"mode"`
 	// Port is the binding port for server
 	Port int `json:"port"`
+	// Data is the data directory
+	Data string `json:"data"`
 	// DSN points to where Memos stores its own data
 	DSN string `json:"dsn"`
 	// Version is the current version of server
@@ -36,42 +38,37 @@ func checkDSN(dataDir string) (string, error) {
 	dataDir = strings.TrimRight(dataDir, "/")
 
 	if _, err := os.Stat(dataDir); err != nil {
-		error := fmt.Errorf("unable to access -data %s, err %w", dataDir, err)
-		return "", error
+		return "", fmt.Errorf("unable to access data folder %s, err %w", dataDir, err)
 	}
 
 	return dataDir, nil
 }
 
-// GetDevProfile will return a profile for dev.
-func GetProfile() *Profile {
-	mode := os.Getenv("mode")
-	if mode != "dev" && mode != "prod" {
-		mode = "dev"
+// GetDevProfile will return a profile for dev or prod.
+func GetProfile() (*Profile, error) {
+	profile := Profile{}
+	flag.StringVar(&profile.Mode, "mode", "dev", "mode of server")
+	flag.IntVar(&profile.Port, "port", 8081, "port of server")
+	flag.StringVar(&profile.Data, "data", "", "data directory")
+	flag.Parse()
+
+	if profile.Mode != "dev" && profile.Mode != "prod" {
+		profile.Mode = "dev"
 	}
 
-	port, err := strconv.Atoi(os.Getenv("port"))
-	if err != nil {
-		port = 8080
+	if profile.Mode == "prod" && profile.Data == "" {
+		profile.Data = "/var/opt/memos"
 	}
 
-	data := ""
-	if mode == "prod" {
-		data = "/var/opt/memos"
-	}
-
-	dataDir, err := checkDSN(data)
+	dataDir, err := checkDSN(profile.Data)
 	if err != nil {
 		fmt.Printf("Failed to check dsn: %s, err: %+v\n", dataDir, err)
-		os.Exit(1)
+		return nil, err
 	}
 
-	dsn := fmt.Sprintf("%s/memos_%s.db", dataDir, mode)
+	profile.Data = dataDir
+	profile.DSN = fmt.Sprintf("%s/memos_%s.db", dataDir, profile.Mode)
+	profile.Version = version.GetCurrentVersion(profile.Mode)
 
-	return &Profile{
-		Mode:    mode,
-		Port:    port,
-		DSN:     dsn,
-		Version: common.Version,
-	}
+	return &profile, nil
 }

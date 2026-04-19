@@ -4,20 +4,22 @@ export const UNKNOWN_ID = -1;
 // default animation duration
 export const ANIMATION_DURATION = 200;
 
-// toast animation duration
-export const TOAST_ANIMATION_DURATION = 400;
-
 // millisecond in a day
 export const DAILY_TIMESTAMP = 3600 * 24 * 1000;
 
-// tag regex
-export const TAG_REG = /#(.+?) /g;
+export const VISIBILITY_SELECTOR_ITEMS = [
+  { text: "PRIVATE", value: "PRIVATE" },
+  { text: "PROTECTED", value: "PROTECTED" },
+  { text: "PUBLIC", value: "PUBLIC" },
+];
 
-// URL regex
-export const LINK_REG = /(https?:\/\/[^\s<\\*>']+)/g;
+export const MEMO_DISPLAY_TS_OPTION_SELECTOR_ITEMS = [
+  { text: "created_ts", value: "created_ts" },
+  { text: "updated_ts", value: "updated_ts" },
+];
 
-// image regex
-export const IMAGE_URL_REG = /!\[.*?\]\((.+?)\)/g;
+// space width for tab action in editor
+export const TAB_SPACE_WIDTH = 2;
 
-// linked memo regex
-export const MEMO_LINK_REG = /\[@(.+?)\]\((.+?)\)/g;
+// default fetch memo amount
+export const DEFAULT_MEMO_LIMIT = 30;

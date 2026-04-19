@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useUserStore } from "../store/module";
 import { validate, ValidatorConfig } from "../helpers/validator";
-import { userService } from "../services";
-import { showDialog } from "./Dialog";
+import Icon from "./Icon";
+import { generateDialog } from "./Dialog";
 import toastHelper from "./Toast";
-import "../less/change-password-dialog.less";
 
 const validateConfig: ValidatorConfig = {
   minLength: 4,
-  maxLength: 24,
+  maxLength: 320,
   noSpace: true,
   noChinese: true,
 };
 
-interface Props extends DialogProps {}
+type Props = DialogProps;
 
 const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
+  const { t } = useTranslation();
+  const userStore = useUserStore();
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordAgain, setNewPasswordAgain] = useState("");
 
@@ -38,54 +41,69 @@ const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
 
   const handleSaveBtnClick = async () => {
     if (newPassword === "" || newPasswordAgain === "") {
-      toastHelper.error("Please fill in all fields.");
+      toastHelper.error(t("message.fill-all"));
       return;
     }
 
     if (newPassword !== newPasswordAgain) {
-      toastHelper.error("New passwords do not match.");
+      toastHelper.error(t("message.new-password-not-match"));
       setNewPasswordAgain("");
       return;
     }
 
     const passwordValidResult = validate(newPassword, validateConfig);
     if (!passwordValidResult.result) {
-      toastHelper.error("Password " + passwordValidResult.reason);
+      toastHelper.error(`${t("common.password")} ${t(passwordValidResult.reason as string)}`);
       return;
     }
 
     try {
-      await userService.patchUser({
+      const user = userStore.getState().user as User;
+      await userStore.patchUser({
+        id: user.id,
         password: newPassword,
       });
-      toastHelper.info("Password changed.");
+      toastHelper.info(t("message.password-changed"));
       handleCloseBtnClick();
     } catch (error: any) {
-      toastHelper.error(error);
+      console.error(error);
+      toastHelper.error(error.response.data.message);
     }
   };
 
   return (
     <>
-      <div className="dialog-header-container">
-        <p className="title-text">Change Password</p>
+      <div className="dialog-header-container !w-64">
+        <p className="title-text">{t("setting.account-section.change-password")}</p>
         <button className="btn close-btn" onClick={handleCloseBtnClick}>
-          <img className="icon-img" src="/icons/close.svg" />
+          <Icon.X />
         </button>
       </div>
       <div className="dialog-content-container">
-        <label className="form-label input-form-label">
-          <input type="password" placeholder="New passworld" value={newPassword} onChange={handleNewPasswordChanged} />
-        </label>
-        <label className="form-label input-form-label">
-          <input type="password" placeholder="Repeat the new password" value={newPasswordAgain} onChange={handleNewPasswordAgainChanged} />
-        </label>
-        <div className="btns-container">
-          <span className="btn cancel-btn" onClick={handleCloseBtnClick}>
-            Cancel
+        <p className="text-sm mb-1">{t("common.new-password")}</p>
+        <input
+          type="password"
+          autoComplete="new-password"
+          className="input-text"
+          placeholder={t("common.repeat-new-password")}
+          value={newPassword}
+          onChange={handleNewPasswordChanged}
+        />
+        <p className="text-sm mb-1 mt-2">{t("common.repeat-new-password")}</p>
+        <input
+          type="password"
+          autoComplete="new-password"
+          className="input-text"
+          placeholder={t("common.repeat-new-password")}
+          value={newPasswordAgain}
+          onChange={handleNewPasswordAgainChanged}
+        />
+        <div className="mt-4 w-full flex flex-row justify-end items-center space-x-2">
+          <span className="btn-text" onClick={handleCloseBtnClick}>
+            {t("common.cancel")}
           </span>
-          <span className="btn confirm-btn" onClick={handleSaveBtnClick}>
-            Save
+          <span className="btn-primary" onClick={handleSaveBtnClick}>
+            {t("common.save")}
           </span>
         </div>
       </div>
@@ -94,9 +112,10 @@ const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
 };
 
 function showChangePasswordDialog() {
-  showDialog(
+  generateDialog(
     {
       className: "change-password-dialog",
+      dialogName: "change-password-dialog",
     },
     ChangePasswordDialog
   );

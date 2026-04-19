@@ -1,83 +1,118 @@
 import { forwardRef, ReactNode, useCallback, useEffect, useImperativeHandle, useRef } from "react";
-import useRefresh from "../../hooks/useRefresh";
-import Only from "../common/OnlyWhen";
 import "../../less/editor.less";
 
 export interface EditorRefActions {
-  element: HTMLTextAreaElement;
   focus: FunctionType;
-  insertText: (text: string) => void;
+  scrollToCursor: FunctionType;
+  insertText: (text: string, prefix?: string, suffix?: string) => void;
+  removeText: (start: number, length: number) => void;
   setContent: (text: string) => void;
   getContent: () => string;
+  getSelectedContent: () => string;
+  getCursorPosition: () => number;
+  setCursorPosition: (startPos: number, endPos?: number) => void;
 }
 
-interface EditorProps {
+interface Props {
   className: string;
   initialContent: string;
   placeholder: string;
-  showConfirmBtn: boolean;
-  showCancelBtn: boolean;
+  fullscreen: boolean;
   tools?: ReactNode;
-  onConfirmBtnClick: (content: string) => void;
-  onCancelBtnClick: () => void;
   onContentChange: (content: string) => void;
+  onPaste: (event: React.ClipboardEvent) => void;
 }
 
-// eslint-disable-next-line react/display-name
-const Editor = forwardRef((props: EditorProps, ref: React.ForwardedRef<EditorRefActions>) => {
-  const {
-    className,
-    initialContent,
-    placeholder,
-    showConfirmBtn,
-    showCancelBtn,
-    onConfirmBtnClick: handleConfirmBtnClickCallback,
-    onCancelBtnClick: handleCancelBtnClickCallback,
-    onContentChange: handleContentChangeCallback,
-  } = props;
+const Editor = forwardRef(function Editor(props: Props, ref: React.ForwardedRef<EditorRefActions>) {
+  const { className, initialContent, placeholder, fullscreen, onPaste, onContentChange: handleContentChangeCallback } = props;
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const refresh = useRefresh();
 
   useEffect(() => {
     if (editorRef.current && initialContent) {
       editorRef.current.value = initialContent;
+      handleContentChangeCallback(initialContent);
     }
   }, []);
 
   useEffect(() => {
+    if (editorRef.current && !fullscreen) {
+      updateEditorHeight();
+    }
+  }, [editorRef.current?.value, fullscreen]);
+
+  const updateEditorHeight = () => {
     if (editorRef.current) {
       editorRef.current.style.height = "auto";
       editorRef.current.style.height = (editorRef.current.scrollHeight ?? 0) + "px";
     }
-  }, [editorRef.current?.value]);
+  };
 
   useImperativeHandle(
     ref,
     () => ({
-      element: editorRef.current as HTMLTextAreaElement,
       focus: () => {
         editorRef.current?.focus();
       },
-      insertText: (rawText: string) => {
+      scrollToCursor: () => {
+        editorRef.current?.blur();
+        editorRef.current?.focus();
+      },
+      insertText: (content = "", prefix = "", suffix = "") => {
+        if (!editorRef.current) {
+          return;
+        }
+
+        const cursorPosition = editorRef.current.selectionStart;
+        const endPosition = editorRef.current.selectionEnd;
+        const prevValue = editorRef.current.value;
+        const value =
+          prevValue.slice(0, cursorPosition) +
+          prefix +
+          (content || prevValue.slice(cursorPosition, endPosition)) +
+          suffix +
+          prevValue.slice(endPosition);
+
+        editorRef.current.value = value;
+        editorRef.current.focus();
+        editorRef.current.selectionEnd = endPosition + prefix.length + content.length;
+        handleContentChangeCallback(editorRef.current.value);
+        updateEditorHeight();
+      },
+      removeText: (start: number, length: number) => {
         if (!editorRef.current) {
           return;
         }
 
         const prevValue = editorRef.current.value;
-        editorRef.current.value =
-          prevValue.slice(0, editorRef.current.selectionStart) + rawText + prevValue.slice(editorRef.current.selectionStart);
+        const value = prevValue.slice(0, start) + prevValue.slice(start + length);
+        editorRef.current.value = value;
+        editorRef.current.focus();
+        editorRef.current.selectionEnd = start;
         handleContentChangeCallback(editorRef.current.value);
-        refresh();
+        updateEditorHeight();
       },
       setContent: (text: string) => {
         if (editorRef.current) {
           editorRef.current.value = text;
+          editorRef.current.focus();
           handleContentChangeCallback(editorRef.current.value);
-          refresh();
+          updateEditorHeight();
         }
       },
       getContent: (): string => {
         return editorRef.current?.value ?? "";
+      },
+      getCursorPosition: (): number => {
+        return editorRef.current?.selectionStart ?? 0;
+      },
+      getSelectedContent: () => {
+        const start = editorRef.current?.selectionStart;
+        const end = editorRef.current?.selectionEnd;
+        return editorRef.current?.value.slice(start, end) ?? "";
+      },
+      setCursorPosition: (startPos: number, endPos?: number) => {
+        const _endPos = isNaN(endPos as number) ? startPos : (endPos as number);
+        editorRef.current?.setSelectionRange(startPos, _endPos);
       },
     }),
     []
@@ -85,30 +120,7 @@ const Editor = forwardRef((props: EditorProps, ref: React.ForwardedRef<EditorRef
 
   const handleEditorInput = useCallback(() => {
     handleContentChangeCallback(editorRef.current?.value ?? "");
-    refresh();
-  }, []);
-
-  const handleEditorKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    event.stopPropagation();
-
-    if (event.code === "Enter") {
-      if (event.metaKey || event.ctrlKey) {
-        handleCommonConfirmBtnClick();
-      }
-    }
-  }, []);
-
-  const handleCommonConfirmBtnClick = useCallback(() => {
-    if (!editorRef.current) {
-      return;
-    }
-
-    handleConfirmBtnClickCallback(editorRef.current.value);
-    editorRef.current.value = "";
-  }, []);
-
-  const handleCommonCancelBtnClick = useCallback(() => {
-    handleCancelBtnClickCallback();
+    updateEditorHeight();
   }, []);
 
   return (
@@ -118,26 +130,9 @@ const Editor = forwardRef((props: EditorProps, ref: React.ForwardedRef<EditorRef
         rows={1}
         placeholder={placeholder}
         ref={editorRef}
+        onPaste={onPaste}
         onInput={handleEditorInput}
-        onKeyDown={handleEditorKeyDown}
       ></textarea>
-      <div className="common-tools-wrapper">
-        <div className="common-tools-container">
-          <Only when={props.tools !== undefined}>{props.tools}</Only>
-        </div>
-        <div className="btns-container">
-          <Only when={showCancelBtn}>
-            <button className="action-btn cancel-btn" onClick={handleCommonCancelBtnClick}>
-              Cancel editting
-            </button>
-          </Only>
-          <Only when={showConfirmBtn}>
-            <button className="action-btn confirm-btn" disabled={editorRef.current?.value === ""} onClick={handleCommonConfirmBtnClick}>
-              Save <span className="icon-text">✍️</span>
-            </button>
-          </Only>
-        </div>
-      </div>
     </div>
   );
 });

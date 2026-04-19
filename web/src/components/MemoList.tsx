@@ -1,24 +1,28 @@
-import { useEffect, useRef, useState } from "react";
-import { memoService, shortcutService } from "../services";
-import { useAppSelector } from "../store";
-import { IMAGE_URL_REG, LINK_REG, MEMO_LINK_REG, TAG_REG } from "../helpers/consts";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocationStore, useMemoStore, useShortcutStore, useUserStore } from "../store/module";
+import { TAG_REG, LINK_REG } from "../labs/marked/parser";
 import * as utils from "../helpers/utils";
+import { DEFAULT_MEMO_LIMIT } from "../helpers/consts";
 import { checkShouldShowMemoWithFilters } from "../helpers/filter";
-import Memo from "./Memo";
 import toastHelper from "./Toast";
+import Memo from "./Memo";
 import "../less/memo-list.less";
 
-interface Props {}
+const MemoList = () => {
+  const { t } = useTranslation();
+  const userStore = useUserStore();
+  const memoStore = useMemoStore();
+  const shortcutStore = useShortcutStore();
+  const locationStore = useLocationStore();
+  const query = locationStore.state.query;
+  const memoDisplayTsOption = userStore.state.user?.setting.memoDisplayTsOption;
+  const { memos, isFetching } = memoStore.state;
+  const [isComplete, setIsComplete] = useState<boolean>(false);
 
-const MemoList: React.FC<Props> = () => {
-  const query = useAppSelector((state) => state.location.query);
-  const memos = useAppSelector((state) => state.memo.memos);
-  const [isFetching, setFetchStatus] = useState(true);
-  const wrapperElement = useRef<HTMLDivElement>(null);
-
-  const { tag: tagQuery, duration, type: memoType, text: textQuery, shortcutId } = query ?? {};
-  const shortcut = shortcutId ? shortcutService.getShortcutById(shortcutId) : null;
-  const showMemoFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || shortcut);
+  const { tag: tagQuery, duration, type: memoType, text: textQuery, shortcutId, visibility } = query ?? {};
+  const shortcut = shortcutId ? shortcutStore.getShortcutById(shortcutId) : null;
+  const showMemoFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || shortcut || visibility);
 
   const shownMemos =
     showMemoFilter || shortcut
@@ -31,10 +35,9 @@ const MemoList: React.FC<Props> = () => {
               shouldShow = checkShouldShowMemoWithFilters(memo, filters);
             }
           }
-
           if (tagQuery) {
             const tagsSet = new Set<string>();
-            for (const t of Array.from(memo.content.match(TAG_REG) ?? [])) {
+            for (const t of Array.from(memo.content.match(new RegExp(TAG_REG, "g")) ?? [])) {
               const tag = t.replace(TAG_REG, "$1").trim();
               const items = tag.split("/");
               let temp = "";
@@ -51,7 +54,7 @@ const MemoList: React.FC<Props> = () => {
           if (
             duration &&
             duration.from < duration.to &&
-            (utils.getTimeStampByDate(memo.createdTs) < duration.from || utils.getTimeStampByDate(memo.createdTs) > duration.to)
+            (utils.getTimeStampByDate(memo.displayTs) < duration.from || utils.getTimeStampByDate(memo.displayTs) > duration.to)
           ) {
             shouldShow = false;
           }
@@ -60,14 +63,13 @@ const MemoList: React.FC<Props> = () => {
               shouldShow = false;
             } else if (memoType === "LINKED" && memo.content.match(LINK_REG) === null) {
               shouldShow = false;
-            } else if (memoType === "IMAGED" && memo.content.match(IMAGE_URL_REG) === null) {
-              shouldShow = false;
-            } else if (memoType === "CONNECTED" && memo.content.match(MEMO_LINK_REG) === null) {
-              shouldShow = false;
             }
           }
-          if (textQuery && !memo.content.includes(textQuery)) {
+          if (textQuery && !memo.content.toLowerCase().includes(textQuery.toLowerCase())) {
             shouldShow = false;
+          }
+          if (visibility) {
+            shouldShow = memo.visibility === visibility;
           }
 
           return shouldShow;
@@ -76,40 +78,87 @@ const MemoList: React.FC<Props> = () => {
 
   const pinnedMemos = shownMemos.filter((m) => m.pinned);
   const unpinnedMemos = shownMemos.filter((m) => !m.pinned);
+  const memoSort = (mi: Memo, mj: Memo) => {
+    return mj.displayTs - mi.displayTs;
+  };
+  pinnedMemos.sort(memoSort);
+  unpinnedMemos.sort(memoSort);
   const sortedMemos = pinnedMemos.concat(unpinnedMemos).filter((m) => m.rowStatus === "NORMAL");
 
   useEffect(() => {
-    memoService
-      .fetchAllMemos()
-      .then(() => {
-        setFetchStatus(false);
-        memoService.updateTagsState();
+    memoStore
+      .fetchMemos()
+      .then((fetchedMemos) => {
+        if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
+          setIsComplete(true);
+        } else {
+          setIsComplete(false);
+        }
       })
-      .catch(() => {
-        toastHelper.error("😭 Fetching failed, please try again later.");
+      .catch((error) => {
+        console.error(error);
+        toastHelper.error(error.response.data.message);
       });
-  }, []);
+  }, [memoDisplayTsOption]);
 
   useEffect(() => {
-    wrapperElement.current?.scrollTo({ top: 0 });
+    const pageWrapper = document.body.querySelector(".page-wrapper");
+    if (pageWrapper) {
+      pageWrapper.scrollTo(0, 0);
+    }
   }, [query]);
 
+  useEffect(() => {
+    if (isFetching || isComplete) {
+      return;
+    }
+    if (sortedMemos.length < DEFAULT_MEMO_LIMIT) {
+      handleFetchMoreClick();
+    }
+  }, [isFetching, isComplete, query, sortedMemos.length]);
+
+  const handleFetchMoreClick = async () => {
+    try {
+      const fetchedMemos = await memoStore.fetchMemos(DEFAULT_MEMO_LIMIT, memos.length);
+      if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
+        setIsComplete(true);
+      } else {
+        setIsComplete(false);
+      }
+    } catch (error: any) {
+      console.error(error);
+      toastHelper.error(error.response.data.message);
+    }
+  };
+
   return (
-    <div className={`memo-list-container ${isFetching ? "" : "completed"}`} ref={wrapperElement}>
+    <div className="memo-list-container">
       {sortedMemos.map((memo) => (
-        <Memo key={`${memo.id}-${memo.updatedTs}`} memo={memo} />
+        <Memo key={`${memo.id}-${memo.displayTs}`} memo={memo} />
       ))}
-      <div className="status-text-container">
-        <p className="status-text">
-          {isFetching
-            ? "Fetching data..."
-            : sortedMemos.length === 0
-            ? "Oops, there is nothing"
-            : showMemoFilter
-            ? ""
-            : "Fetching completed 🎉"}
-        </p>
-      </div>
+      {isFetching ? (
+        <div className="status-text-container fetching-tip">
+          <p className="status-text">{t("memo-list.fetching-data")}</p>
+        </div>
+      ) : (
+        <div className="status-text-container">
+          <p className="status-text">
+            {isComplete ? (
+              sortedMemos.length === 0 ? (
+                t("message.no-memos")
+              ) : (
+                t("message.memos-ready")
+              )
+            ) : (
+              <>
+                <span className="cursor-pointer hover:text-green-600" onClick={handleFetchMoreClick}>
+                  {t("memo-list.fetch-more")}
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

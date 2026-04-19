@@ -1,62 +1,71 @@
-import { useAppSelector } from "../store";
-import { locationService, shortcutService } from "../services";
+import { useTranslation } from "react-i18next";
+import { useLocationStore, useShortcutStore } from "../store/module";
 import * as utils from "../helpers/utils";
 import { getTextWithMemoType } from "../helpers/filter";
+import Icon from "./Icon";
 import "../less/memo-filter.less";
 
-interface FilterProps {}
-
-const MemoFilter: React.FC<FilterProps> = () => {
-  const query = useAppSelector((state) => state.location.query);
-  useAppSelector((state) => state.shortcut.shortcuts);
-  const { tag: tagQuery, duration, type: memoType, text: textQuery, shortcutId } = query;
-  const shortcut = shortcutId ? shortcutService.getShortcutById(shortcutId) : null;
-  const showFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || shortcut);
+const MemoFilter = () => {
+  const { t } = useTranslation();
+  const locationStore = useLocationStore();
+  const shortcutStore = useShortcutStore();
+  const query = locationStore.state.query;
+  const { tag: tagQuery, duration, type: memoType, text: textQuery, shortcutId, visibility } = query;
+  const shortcut = shortcutId ? shortcutStore.getShortcutById(shortcutId) : null;
+  const showFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || shortcut || visibility);
 
   return (
     <div className={`filter-query-container ${showFilter ? "" : "!hidden"}`}>
-      <span className="tip-text">Filter:</span>
+      <span className="mx-2 text-gray-400">{t("common.filter")}:</span>
       <div
-        className={"filter-item-container " + (shortcut ? "" : "hidden")}
+        className={"filter-item-container " + (shortcut ? "" : "!hidden")}
         onClick={() => {
-          locationService.setMemoShortcut(undefined);
+          locationStore.setMemoShortcut(undefined);
         }}
       >
-        <span className="icon-text">🎯</span> {shortcut?.title}
+        <Icon.Target className="icon-text" /> {shortcut?.title}
       </div>
       <div
-        className={"filter-item-container " + (tagQuery ? "" : "hidden")}
+        className={"filter-item-container " + (tagQuery ? "" : "!hidden")}
         onClick={() => {
-          locationService.setTagQuery(undefined);
+          locationStore.setTagQuery(undefined);
         }}
       >
-        <span className="icon-text">🏷️</span> {tagQuery}
+        <Icon.Tag className="icon-text" /> {tagQuery}
       </div>
       <div
-        className={"filter-item-container " + (memoType ? "" : "hidden")}
+        className={"filter-item-container " + (memoType ? "" : "!hidden")}
         onClick={() => {
-          locationService.setMemoTypeQuery(undefined);
+          locationStore.setMemoTypeQuery(undefined);
         }}
       >
-        <span className="icon-text">📦</span> {getTextWithMemoType(memoType as MemoSpecType)}
+        <Icon.Box className="icon-text" /> {t(getTextWithMemoType(memoType as MemoSpecType))}
+      </div>
+      <div
+        className={"filter-item-container " + (visibility ? "" : "!hidden")}
+        onClick={() => {
+          locationStore.setMemoVisibilityQuery(undefined);
+        }}
+      >
+        <Icon.Eye className="icon-text" /> {visibility}
       </div>
       {duration && duration.from < duration.to ? (
         <div
           className="filter-item-container"
           onClick={() => {
-            locationService.setFromAndToQuery();
+            locationStore.setFromAndToQuery();
           }}
         >
-          <span className="icon-text">🗓️</span> {utils.getDateString(duration.from)} to {utils.getDateString(duration.to)}
+          <Icon.Calendar className="icon-text" /> {utils.getDateString(duration.from)} to {utils.getDateString(duration.to)}
         </div>
       ) : null}
       <div
-        className={"filter-item-container " + (textQuery ? "" : "hidden")}
+        className={"filter-item-container " + (textQuery ? "" : "!hidden")}
         onClick={() => {
-          locationService.setTextQuery("");
+          locationStore.setTextQuery(undefined);
         }}
       >
-        <span className="icon-text">🔍</span> {textQuery}
+        <Icon.Search className="icon-text" /> {textQuery}
       </div>
     </div>
   );

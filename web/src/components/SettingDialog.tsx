@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { useAppSelector } from "../store";
-import { showDialog } from "./Dialog";
+import { useTranslation } from "react-i18next";
+import { useUserStore } from "../store/module";
+import Icon from "./Icon";
+import { generateDialog } from "./Dialog";
 import MyAccountSection from "./Settings/MyAccountSection";
 import PreferencesSection from "./Settings/PreferencesSection";
 import MemberSection from "./Settings/MemberSection";
+import SystemSection from "./Settings/SystemSection";
 import "../less/setting-dialog.less";
 
-interface Props extends DialogProps {}
+type Props = DialogProps;
 
-type SettingSection = "my-account" | "preferences" | "member";
+type SettingSection = "my-account" | "preferences" | "member" | "system";
 
 interface State {
   selectedSection: SettingSection;
@@ -16,7 +19,9 @@ interface State {
 
 const SettingDialog: React.FC<Props> = (props: Props) => {
   const { destroy } = props;
-  const user = useAppSelector((state) => state.user.user);
+  const { t } = useTranslation();
+  const userStore = useUserStore();
+  const user = userStore.state.user;
   const [state, setState] = useState<State>({
     selectedSection: "my-account",
   });
@@ -30,33 +35,39 @@ const SettingDialog: React.FC<Props> = (props: Props) => {
   return (
     <div className="dialog-content-container">
       <button className="btn close-btn" onClick={destroy}>
-        <img className="icon-img" src="/icons/close.svg" />
+        <Icon.X className="icon-img" />
       </button>
       <div className="section-selector-container">
-        <span className="section-title">Basic</span>
+        <span className="section-title">{t("common.basic")}</span>
         <div className="section-items-container">
           <span
             onClick={() => handleSectionSelectorItemClick("my-account")}
             className={`section-item ${state.selectedSection === "my-account" ? "selected" : ""}`}
           >
-            <span className="icon-text">🤠</span> My account
+            <span className="icon-text">🤠</span> {t("setting.my-account")}
           </span>
           <span
             onClick={() => handleSectionSelectorItemClick("preferences")}
             className={`section-item ${state.selectedSection === "preferences" ? "selected" : ""}`}
           >
-            <span className="icon-text">🏟</span> Preferences
+            <span className="icon-text">🏟</span> {t("setting.preference")}
           </span>
         </div>
-        {user?.role === "OWNER" ? (
+        {user?.role === "HOST" ? (
           <>
-            <span className="section-title">Admin</span>
+            <span className="section-title">{t("common.admin")}</span>
             <div className="section-items-container">
               <span
                 onClick={() => handleSectionSelectorItemClick("member")}
                 className={`section-item ${state.selectedSection === "member" ? "selected" : ""}`}
               >
-                <span className="icon-text">👤</span> Member
+                <span className="icon-text">👤</span> {t("setting.member")}
+              </span>
+              <span
+                onClick={() => handleSectionSelectorItemClick("system")}
+                className={`section-item ${state.selectedSection === "system" ? "selected" : ""}`}
+              >
+                <span className="icon-text">🛠️</span> {t("setting.system")}
               </span>
             </div>
           </>
@@ -69,6 +80,8 @@ const SettingDialog: React.FC<Props> = (props: Props) => {
           <PreferencesSection />
         ) : state.selectedSection === "member" ? (
           <MemberSection />
+        ) : state.selectedSection === "system" ? (
+          <SystemSection />
         ) : null}
       </div>
     </div>
@@ -76,10 +89,10 @@ const SettingDialog: React.FC<Props> = (props: Props) => {
 };
 
 export default function showSettingDialog(): void {
-  showDialog(
+  generateDialog(
     {
       className: "setting-dialog",
-      useAppContext: true,
+      dialogName: "setting-dialog",
     },
     SettingDialog,
     {}

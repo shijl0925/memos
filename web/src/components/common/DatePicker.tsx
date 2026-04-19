@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { DAILY_TIMESTAMP } from "../../helpers/consts";
+import Icon from "../Icon";
 import "../../less/common/date-picker.less";
 
 interface DatePickerProps {
   className?: string;
   datestamp: DateStamp;
-  handleDateStampChange: (datastamp: DateStamp) => void;
+  handleDateStampChange: (datestamp: DateStamp) => void;
 }
 
 const DatePicker: React.FC<DatePickerProps> = (props: DatePickerProps) => {
@@ -55,20 +56,20 @@ const DatePicker: React.FC<DatePickerProps> = (props: DatePickerProps) => {
     <div className={`date-picker-wrapper ${className}`}>
       <div className="date-picker-header">
         <span className="btn-text" onClick={() => handleChangeMonthBtnClick(-1)}>
-          <img className="icon-img" src="/icons/arrow-left.svg" />
+          <Icon.ChevronLeft className="icon-img" />
         </span>
         <span className="normal-text">
           {firstDate.getFullYear()}/{firstDate.getMonth() + 1}
         </span>
         <span className="btn-text" onClick={() => handleChangeMonthBtnClick(1)}>
-          <img className="icon-img" src="/icons/arrow-right.svg" />
+          <Icon.ChevronRight className="icon-img" />
         </span>
       </div>
       <div className="date-picker-day-container">
         <div className="date-picker-day-header">
           <span className="day-item">Mon</span>
           <span className="day-item">Tue</span>
-          <span className="day-item">Web</span>
+          <span className="day-item">Wed</span>
           <span className="day-item">Thu</span>
           <span className="day-item">Fri</span>
           <span className="day-item">Sat</span>

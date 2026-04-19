@@ -16,7 +16,7 @@ type Shortcut struct {
 
 type ShortcutCreate struct {
 	// Standard fields
-	CreatorID int
+	CreatorID int `json:"-"`
 
 	// Domain specific fields
 	Title   string `json:"title"`
@@ -24,9 +24,10 @@ type ShortcutCreate struct {
 }
 
 type ShortcutPatch struct {
-	ID int
+	ID int `json:"-"`
 
 	// Standard fields
+	UpdatedTs *int64
 	RowStatus *RowStatus `json:"rowStatus"`
 
 	// Domain specific fields
@@ -45,5 +46,8 @@ type ShortcutFind struct {
 }
 
 type ShortcutDelete struct {
-	ID int
+	ID *int
+
+	// Standard fields
+	CreatorID *int
 }
