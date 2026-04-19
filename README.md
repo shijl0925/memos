@@ -8,6 +8,7 @@
 
 1. **路由层改造（中）**
    - 将原 `gin` 路由注册方式迁移到 `gin-ninja` 的分组/注解风格。
+   - 示例：`r.GET("/api/memo", handler)` 可迁移为在 `MemoController` 上声明 `@Get("/api/memo")`（或框架等价声明方式），由框架统一注册。
    - 需要逐个 API 校对 URL、Method、参数绑定和中间件挂载顺序。
 
 2. **参数绑定与校验（中）**
