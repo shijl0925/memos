@@ -15,12 +15,7 @@ type HTMLMeta struct {
 }
 
 func GetHTMLMeta(urlStr string) (*HTMLMeta, error) {
-	requestURL, err := validateOutboundURL(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := defaultHTTPClient.Get(requestURL.String())
+	response, err := doValidatedOutboundGet(urlStr)
 	if err != nil {
 		return nil, err
 	}

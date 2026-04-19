@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -17,9 +18,19 @@ const (
 	headerCacheControl          = "Cache-Control"
 	headerContentSecurityPolicy = "Content-Security-Policy"
 	headerContentType           = "Content-Type"
+	headerXForwardedFor         = "X-Forwarded-For"
+	headerXRealIP               = "X-Real-IP"
 	mimeApplicationJSONCharset  = "application/json; charset=UTF-8"
 	mimeApplicationXMLCharset   = "application/xml; charset=UTF-8"
 	mimeTextPlain               = "text/plain; charset=UTF-8"
+	defaultAppDriver            = appDriverEcho
+)
+
+type appDriver string
+
+const (
+	appDriverEcho appDriver = "echo"
+	appDriverGin  appDriver = "gin"
 )
 
 type Context interface {
@@ -127,6 +138,17 @@ func internalError(message string, err error) error {
 
 func writeJSON(c Context, data any) error {
 	return c.JSON(http.StatusOK, composeResponse(data))
+}
+
+func newApp(driver appDriver) App {
+	switch driver {
+	case appDriverGin:
+		return newGinApp()
+	case "", appDriverEcho:
+		fallthrough
+	default:
+		return newEchoApp()
+	}
 }
 
 func echoSkipper(skipper func(Context) bool) func(echo.Context) bool {
@@ -364,15 +386,30 @@ func (c echoContext) Scheme() string {
 }
 
 func getSession(name string, ctx Context) (*sessions.Session, error) {
-	return session.Get(name, unwrapEchoContext(ctx))
+	switch typedCtx := ctx.(type) {
+	case echoContext:
+		return session.Get(name, typedCtx.context)
+	case ginContext:
+		storeValue, ok := typedCtx.context.Get(ginSessionStoreContextKey)
+		if !ok {
+			return nil, errors.New("session store not configured")
+		}
+		store, ok := storeValue.(*sessions.CookieStore)
+		if !ok {
+			return nil, errors.New("unexpected session store type")
+		}
+		return store.Get(typedCtx.Request(), name)
+	default:
+		return nil, errors.New("unsupported server context type")
+	}
 }
 
 func getClientIP(ctx Context) string {
 	request := ctx.Request()
-	if realIP := request.Header.Get(echo.HeaderXRealIP); realIP != "" {
+	if realIP := request.Header.Get(headerXRealIP); realIP != "" {
 		return realIP
 	}
-	if forwardedFor := request.Header.Get(echo.HeaderXForwardedFor); forwardedFor != "" {
+	if forwardedFor := request.Header.Get(headerXForwardedFor); forwardedFor != "" {
 		return forwardedFor
 	}
 	return request.RemoteAddr

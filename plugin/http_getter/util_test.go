@@ -1,9 +1,40 @@
 package getter
 
 import (
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return fn(request)
+}
+
+func withTestHTTPClient(t *testing.T, fn roundTripFunc) {
+	t.Helper()
+
+	originalClient := defaultHTTPClient
+	defaultHTTPClient = &http.Client{
+		Transport: fn,
+	}
+	t.Cleanup(func() {
+		defaultHTTPClient = originalClient
+	})
+}
+
+func newTestResponse(request *http.Request, contentType, body string) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{contentType},
+		},
+		Body:    io.NopCloser(strings.NewReader(body)),
+		Request: request,
+	}
+}
 
 func TestValidateOutboundURL(t *testing.T) {
 	tests := []struct {

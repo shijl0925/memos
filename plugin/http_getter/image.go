@@ -12,12 +12,7 @@ type Image struct {
 }
 
 func GetImage(urlStr string) (*Image, error) {
-	requestURL, err := validateOutboundURL(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := defaultHTTPClient.Get(requestURL.String())
+	response, err := doValidatedOutboundGet(urlStr)
 	if err != nil {
 		return nil, err
 	}

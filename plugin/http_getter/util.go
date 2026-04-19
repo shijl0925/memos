@@ -53,6 +53,22 @@ func getMediatype(response *http.Response) (string, error) {
 	return mediatype, nil
 }
 
+func doValidatedOutboundGet(urlStr string) (*http.Response, error) {
+	requestURL, err := validateOutboundURL(urlStr)
+	if err != nil {
+		return nil, err
+	}
+
+	request := (&http.Request{
+		Method: http.MethodGet,
+		URL:    requestURL,
+		Host:   requestURL.Host,
+		Header: make(http.Header),
+	}).WithContext(context.Background())
+
+	return defaultHTTPClient.Do(request)
+}
+
 func validateOutboundURL(urlStr string) (*url.URL, error) {
 	parsedURL, err := url.ParseRequestURI(urlStr)
 	if err != nil {
