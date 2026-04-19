@@ -1,33 +1,28 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/usememos/memos/api"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 )
 
-func (s *Server) registerSystemRoutes(g *echo.Group) {
-	g.GET("/ping", func(c echo.Context) error {
+func (s *Server) registerSystemRoutes(g *gin.RouterGroup) {
+	g.GET("/ping", func(c *gin.Context) {
 		data := s.Profile
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(data)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to compose system profile").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, data)
 	})
 
-	g.GET("/status", func(c echo.Context) error {
+	g.GET("/status", func(c *gin.Context) {
 		ownerUserType := api.Owner
 		ownerUserFind := api.UserFind{
 			Role: &ownerUserType,
 		}
 		ownerUser, err := s.Store.FindUser(&ownerUserFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find owner user").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find owner user", err)
+			return
 		}
 
 		if ownerUser != nil {
@@ -39,11 +34,6 @@ func (s *Server) registerSystemRoutes(g *echo.Group) {
 			Owner:   ownerUser,
 			Profile: s.Profile,
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(systemStatus)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode system status response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, systemStatus)
 	})
 }

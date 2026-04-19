@@ -5,18 +5,19 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 
-	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Server) registerAuthRoutes(g *echo.Group) {
-	g.POST("/auth/login", func(c echo.Context) error {
+func (s *Server) registerAuthRoutes(g *gin.RouterGroup) {
+	g.POST("/auth/login", func(c *gin.Context) {
 		login := &api.Login{}
-		if err := json.NewDecoder(c.Request().Body).Decode(login); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted login request").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(login); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted login request", err)
+			return
 		}
 
 		userFind := &api.UserFind{
@@ -24,42 +25,42 @@ func (s *Server) registerAuthRoutes(g *echo.Group) {
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to find user by email %s", login.Email)).SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to find user by email %s", login.Email), err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("User not found with email %s", login.Email))
+			abortWithError(c, http.StatusUnauthorized, fmt.Sprintf("User not found with email %s", login.Email), nil)
+			return
 		} else if user.RowStatus == api.Archived {
-			return echo.NewHTTPError(http.StatusForbidden, fmt.Sprintf("User has been archived with email %s", login.Email))
+			abortWithError(c, http.StatusForbidden, fmt.Sprintf("User has been archived with email %s", login.Email), nil)
+			return
 		}
 
 		// Compare the stored hashed password, with the hashed version of the password that was received.
 		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(login.Password)); err != nil {
 			// If the two passwords don't match, return a 401 status.
-			return echo.NewHTTPError(http.StatusUnauthorized, "Incorrect password").SetInternal(err)
+			abortWithError(c, http.StatusUnauthorized, "Incorrect password", err)
+			return
 		}
 
 		if err = setUserSession(c, user); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to set login session").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to set login session", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode user response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, user)
 	})
 
-	g.POST("/auth/logout", func(c echo.Context) error {
+	g.POST("/auth/logout", func(c *gin.Context) {
 		err := removeUserSession(c)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to set logout session").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to set logout session", err)
+			return
 		}
 
-		c.Response().WriteHeader(http.StatusOK)
-		return nil
+		c.Status(http.StatusOK)
 	})
 
-	g.POST("/auth/signup", func(c echo.Context) error {
+	g.POST("/auth/signup", func(c *gin.Context) {
 		// Don't allow to signup by this api if site owner existed.
 		ownerUserType := api.Owner
 		ownerUserFind := api.UserFind{
@@ -67,29 +68,35 @@ func (s *Server) registerAuthRoutes(g *echo.Group) {
 		}
 		ownerUser, err := s.Store.FindUser(&ownerUserFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find owner user").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find owner user", err)
+			return
 		}
 		if ownerUser != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Site Owner existed, please contact the site owner to signin account firstly.").SetInternal(err)
+			abortWithError(c, http.StatusUnauthorized, "Site Owner existed, please contact the site owner to signin account firstly.", err)
+			return
 		}
 
 		signup := &api.Signup{}
-		if err := json.NewDecoder(c.Request().Body).Decode(signup); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted signup request").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(signup); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted signup request", err)
+			return
 		}
 
 		// Validate signup form.
 		// We can do stricter checks later.
 		if len(signup.Email) < 6 {
-			return echo.NewHTTPError(http.StatusBadRequest, "Email is too short, minimum length is 6.")
+			abortWithError(c, http.StatusBadRequest, "Email is too short, minimum length is 6.", nil)
+			return
 		}
 		if len(signup.Password) < 6 {
-			return echo.NewHTTPError(http.StatusBadRequest, "Password is too short, minimum length is 6.")
+			abortWithError(c, http.StatusBadRequest, "Password is too short, minimum length is 6.", nil)
+			return
 		}
 
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(signup.Password), bcrypt.DefaultCost)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate password hash").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to generate password hash", err)
+			return
 		}
 
 		userCreate := &api.UserCreate{
@@ -101,18 +108,15 @@ func (s *Server) registerAuthRoutes(g *echo.Group) {
 		}
 		user, err := s.Store.CreateUser(userCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to create user", err)
+			return
 		}
 
 		err = setUserSession(c, user)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to set signup session").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to set signup session", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(user)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode created user response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, user)
 	})
 }

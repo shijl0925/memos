@@ -1,18 +1,16 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"regexp"
 
+	"github.com/gin-gonic/gin"
 	"github.com/usememos/memos/api"
-
-	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) registerTagRoutes(g *echo.Group) {
-	g.GET("/tag", func(c echo.Context) error {
-		userID := c.Get(getUserIDContextKey()).(int)
+func (s *Server) registerTagRoutes(g *gin.RouterGroup) {
+	g.GET("/tag", func(c *gin.Context) {
+		userID := getCurrentUserID(c)
 		contentSearch := "#"
 		normalRowStatus := api.Normal
 		memoFind := api.MemoFind{
@@ -23,14 +21,16 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 
 		memoList, err := s.Store.FindMemoList(&memoFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find memo list").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find memo list", err)
+			return
 		}
 
 		tagMapSet := make(map[string]bool)
 
 		r, err := regexp.Compile("#(.+?) ")
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to compile regexp").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to compile regexp", err)
+			return
 		}
 		for _, memo := range memoList {
 			for _, rawTag := range r.FindAllString(memo.Content, -1) {
@@ -43,11 +43,6 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 		for tag := range tagMapSet {
 			tagList = append(tagList, tag)
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(tagList)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode tags response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, tagList)
 	})
 }

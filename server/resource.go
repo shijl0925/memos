@@ -1,29 +1,29 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/usememos/memos/api"
-
-	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) registerResourceRoutes(g *echo.Group) {
-	g.POST("/resource", func(c echo.Context) error {
-		userID := c.Get(getUserIDContextKey()).(int)
+func (s *Server) registerResourceRoutes(g *gin.RouterGroup) {
+	g.POST("/resource", func(c *gin.Context) {
+		userID := getCurrentUserID(c)
 
-		err := c.Request().ParseMultipartForm(64 << 20)
+		err := c.Request.ParseMultipartForm(64 << 20)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Upload file overload max size").SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, "Upload file overload max size", err)
+			return
 		}
 
 		file, err := c.FormFile("file")
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Upload file not found").SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, "Upload file not found", err)
+			return
 		}
 
 		filename := file.Filename
@@ -31,13 +31,15 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 		size := file.Size
 		src, err := file.Open()
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to open file").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to open file", err)
+			return
 		}
 		defer src.Close()
 
 		fileBytes, err := ioutil.ReadAll(src)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read file").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to read file", err)
+			return
 		}
 
 		resourceCreate := &api.ResourceCreate{
@@ -50,92 +52,81 @@ func (s *Server) registerResourceRoutes(g *echo.Group) {
 
 		resource, err := s.Store.CreateResource(resourceCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create resource").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to create resource", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, resource)
 	})
 
-	g.GET("/resource", func(c echo.Context) error {
-		userID := c.Get(getUserIDContextKey()).(int)
+	g.GET("/resource", func(c *gin.Context) {
+		userID := getCurrentUserID(c)
 		resourceFind := &api.ResourceFind{
 			CreatorID: &userID,
 		}
 		list, err := s.Store.FindResourceList(resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch resource list").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to fetch resource list", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(list)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource list response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, list)
 	})
 
-	g.GET("/resource/:resourceId", func(c echo.Context) error {
+	g.GET("/resource/:resourceId", func(c *gin.Context) {
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+			return
 		}
 
-		userID := c.Get(getUserIDContextKey()).(int)
+		userID := getCurrentUserID(c)
 		resourceFind := &api.ResourceFind{
 			ID:        &resourceID,
 			CreatorID: &userID,
 		}
 		resource, err := s.Store.FindResource(resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch resource").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to fetch resource", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, resource)
 	})
 
-	g.GET("/resource/:resourceId/blob", func(c echo.Context) error {
+	g.GET("/resource/:resourceId/blob", func(c *gin.Context) {
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+			return
 		}
 
-		userID := c.Get(getUserIDContextKey()).(int)
+		userID := getCurrentUserID(c)
 		resourceFind := &api.ResourceFind{
 			ID:        &resourceID,
 			CreatorID: &userID,
 		}
 		resource, err := s.Store.FindResource(resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch resource").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to fetch resource", err)
+			return
 		}
 
-		c.Response().Writer.WriteHeader(http.StatusOK)
-		c.Response().Writer.Header().Set("Content-Type", resource.Type)
-		c.Response().Writer.Write(resource.Blob)
-		return nil
+		c.Data(http.StatusOK, resource.Type, resource.Blob)
 	})
 
-	g.DELETE("/resource/:resourceId", func(c echo.Context) error {
+	g.DELETE("/resource/:resourceId", func(c *gin.Context) {
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+			return
 		}
 
 		resourceDelete := &api.ResourceDelete{
 			ID: resourceID,
 		}
 		if err := s.Store.DeleteResource(resourceDelete); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete resource").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to delete resource", err)
+			return
 		}
 
 		c.JSON(http.StatusOK, true)
-		return nil
 	})
 }

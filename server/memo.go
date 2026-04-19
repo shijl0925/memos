@@ -6,116 +6,109 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
-
-	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) registerMemoRoutes(g *echo.Group) {
-	g.POST("/memo", func(c echo.Context) error {
-		userID := c.Get(getUserIDContextKey()).(int)
+func (s *Server) registerMemoRoutes(g *gin.RouterGroup) {
+	g.POST("/memo", func(c *gin.Context) {
+		userID := getCurrentUserID(c)
 		memoCreate := &api.MemoCreate{
 			CreatorID: userID,
 		}
-		if err := json.NewDecoder(c.Request().Body).Decode(memoCreate); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post memo request").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(memoCreate); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted post memo request", err)
+			return
 		}
 
 		memo, err := s.Store.CreateMemo(memoCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create memo").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to create memo", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, memo)
 	})
 
-	g.PATCH("/memo/:memoId", func(c echo.Context) error {
+	g.PATCH("/memo/:memoId", func(c *gin.Context) {
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId")), err)
+			return
 		}
 
 		memoPatch := &api.MemoPatch{
 			ID: memoID,
 		}
-		if err := json.NewDecoder(c.Request().Body).Decode(memoPatch); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted patch memo request").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(memoPatch); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted patch memo request", err)
+			return
 		}
 
 		memo, err := s.Store.PatchMemo(memoPatch)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to patch memo").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to patch memo", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, memo)
 	})
 
-	g.GET("/memo", func(c echo.Context) error {
-		userID := c.Get(getUserIDContextKey()).(int)
+	g.GET("/memo", func(c *gin.Context) {
+		userID := getCurrentUserID(c)
 		memoFind := &api.MemoFind{
 			CreatorID: &userID,
 		}
 
-		rowStatus := api.RowStatus(c.QueryParam("rowStatus"))
+		rowStatus := api.RowStatus(c.Query("rowStatus"))
 		if rowStatus != "" {
 			memoFind.RowStatus = &rowStatus
 		}
-		pinnedStr := c.QueryParam("pinned")
+		pinnedStr := c.Query("pinned")
 		if pinnedStr != "" {
 			pinned := pinnedStr == "true"
 			memoFind.Pinned = &pinned
 		}
-		tag := c.QueryParam("tag")
+		tag := c.Query("tag")
 		if tag != "" {
 			contentSearch := "#" + tag + " "
 			memoFind.ContentSearch = &contentSearch
 		}
-		if limit, err := strconv.Atoi(c.QueryParam("limit")); err == nil {
+		if limit, err := strconv.Atoi(c.Query("limit")); err == nil {
 			memoFind.Limit = limit
 		}
-		if offset, err := strconv.Atoi(c.QueryParam("offset")); err == nil {
+		if offset, err := strconv.Atoi(c.Query("offset")); err == nil {
 			memoFind.Offset = offset
 		}
 
 		list, err := s.Store.FindMemoList(memoFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch memo list").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to fetch memo list", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(list)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo list response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, list)
 	})
 
-	g.POST("/memo/:memoId/organizer", func(c echo.Context) error {
+	g.POST("/memo/:memoId/organizer", func(c *gin.Context) {
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId")), err)
+			return
 		}
 
-		userID := c.Get(getUserIDContextKey()).(int)
+		userID := getCurrentUserID(c)
 		memoOrganizerUpsert := &api.MemoOrganizerUpsert{
 			MemoID: memoID,
 			UserID: userID,
 		}
-		if err := json.NewDecoder(c.Request().Body).Decode(memoOrganizerUpsert); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post memo organizer request").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(memoOrganizerUpsert); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted post memo organizer request", err)
+			return
 		}
 
 		err = s.Store.UpsertMemoOrganizer(memoOrganizerUpsert)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to upsert memo organizer").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to upsert memo organizer", err)
+			return
 		}
 
 		memo, err := s.Store.FindMemo(&api.MemoFind{
@@ -123,23 +116,21 @@ func (s *Server) registerMemoRoutes(g *echo.Group) {
 		})
 		if err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Memo ID not found: %d", memoID)).SetInternal(err)
+				abortWithError(c, http.StatusNotFound, fmt.Sprintf("Memo ID not found: %d", memoID), err)
+				return
 			}
 
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to find memo by ID: %v", memoID)).SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to find memo by ID: %v", memoID), err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, memo)
 	})
 
-	g.GET("/memo/:memoId", func(c echo.Context) error {
+	g.GET("/memo/:memoId", func(c *gin.Context) {
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId")), err)
+			return
 		}
 
 		memoFind := &api.MemoFind{
@@ -148,23 +139,21 @@ func (s *Server) registerMemoRoutes(g *echo.Group) {
 		memo, err := s.Store.FindMemo(memoFind)
 		if err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Memo ID not found: %d", memoID)).SetInternal(err)
+				abortWithError(c, http.StatusNotFound, fmt.Sprintf("Memo ID not found: %d", memoID), err)
+				return
 			}
 
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to find memo by ID: %v", memoID)).SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to find memo by ID: %v", memoID), err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, memo)
 	})
 
-	g.DELETE("/memo/:memoId", func(c echo.Context) error {
+	g.DELETE("/memo/:memoId", func(c *gin.Context) {
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId")), err)
+			return
 		}
 
 		memoDelete := &api.MemoDelete{
@@ -173,15 +162,15 @@ func (s *Server) registerMemoRoutes(g *echo.Group) {
 
 		err = s.Store.DeleteMemo(memoDelete)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete memo ID: %v", memoID)).SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete memo ID: %v", memoID), err)
+			return
 		}
 
 		c.JSON(http.StatusOK, true)
-		return nil
 	})
 
-	g.GET("/memo/amount", func(c echo.Context) error {
-		userID := c.Get(getUserIDContextKey()).(int)
+	g.GET("/memo/amount", func(c *gin.Context) {
+		userID := getCurrentUserID(c)
 		normalRowStatus := api.Normal
 		memoFind := &api.MemoFind{
 			CreatorID: &userID,
@@ -190,13 +179,9 @@ func (s *Server) registerMemoRoutes(g *echo.Group) {
 
 		memoList, err := s.Store.FindMemoList(memoFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find memo list").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find memo list", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(len(memoList))); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo amount").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, len(memoList))
 	})
 }

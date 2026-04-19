@@ -8,154 +8,154 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/usememos/memos/api"
-
-	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) registerWebhookRoutes(g *echo.Group) {
-	g.GET("/test", func(c echo.Context) error {
-		return c.HTML(http.StatusOK, "<strong>Hello, World!</strong>")
+func (s *Server) registerWebhookRoutes(g *gin.RouterGroup) {
+	g.GET("/test", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte("<strong>Hello, World!</strong>"))
 	})
 
-	g.POST("/:openId/memo", func(c echo.Context) error {
+	g.POST("/:openId/memo", func(c *gin.Context) {
 		openID := c.Param("openId")
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find user by open_id", err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID))
+			abortWithError(c, http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID), nil)
+			return
 		}
 
 		memoCreate := &api.MemoCreate{
 			CreatorID: user.ID,
 		}
-		if err := json.NewDecoder(c.Request().Body).Decode(memoCreate); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post memo request by open api").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(memoCreate); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted post memo request by open api", err)
+			return
 		}
 
 		memo, err := s.Store.CreateMemo(memoCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create memo").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to create memo", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, memo)
 	})
 
-	g.PATCH("/:openId/memo/:memoId", func(c echo.Context) error {
+	g.PATCH("/:openId/memo/:memoId", func(c *gin.Context) {
 		openID := c.Param("openId")
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find user by open_id", err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID))
+			abortWithError(c, http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID), nil)
+			return
 		}
 
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("memoId is not a number: %s", c.Param("memoId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("memoId is not a number: %s", c.Param("memoId")), err)
+			return
 		}
 
 		memoPatch := &api.MemoPatch{
 			ID: memoID,
 		}
-		if err := json.NewDecoder(c.Request().Body).Decode(memoPatch); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted patch memo request by open api").SetInternal(err)
+		if err := json.NewDecoder(c.Request.Body).Decode(memoPatch); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Malformatted patch memo request by open api", err)
+			return
 		}
 
 		memo, err := s.Store.PatchMemo(memoPatch)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to patch memo").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to patch memo", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(memo)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, memo)
 	})
 
-	g.GET("/:openId/memo", func(c echo.Context) error {
+	g.GET("/:openId/memo", func(c *gin.Context) {
 		openID := c.Param("openId")
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find user by open_id", err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Not found user with openid: %s", openID))
+			abortWithError(c, http.StatusNotFound, fmt.Sprintf("Not found user with openid: %s", openID), nil)
+			return
 		}
 
 		memoFind := &api.MemoFind{
 			CreatorID: &user.ID,
 		}
-		rowStatus := api.RowStatus(c.QueryParam("rowStatus"))
+		rowStatus := api.RowStatus(c.Query("rowStatus"))
 		if rowStatus != "" {
 			memoFind.RowStatus = &rowStatus
 		}
-		pinnedStr := c.QueryParam("pinned")
+		pinnedStr := c.Query("pinned")
 		if pinnedStr != "" {
 			pinned := pinnedStr == "true"
 			memoFind.Pinned = &pinned
 		}
-		tag := c.QueryParam("tag")
+		tag := c.Query("tag")
 		if tag != "" {
 			contentSearch := tag + " "
 			memoFind.ContentSearch = &contentSearch
 		}
-		if limit, err := strconv.Atoi(c.QueryParam("limit")); err == nil {
+		if limit, err := strconv.Atoi(c.Query("limit")); err == nil {
 			memoFind.Limit = limit
 		}
-		if offset, err := strconv.Atoi(c.QueryParam("offset")); err == nil {
+		if offset, err := strconv.Atoi(c.Query("offset")); err == nil {
 			memoFind.Offset = offset
 		}
 
 		list, err := s.Store.FindMemoList(memoFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch memo list").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to fetch memo list", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(list)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode memo list response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, list)
 	})
 
-	g.POST("/:openId/resource", func(c echo.Context) error {
+	g.POST("/:openId/resource", func(c *gin.Context) {
 		openID := c.Param("openId")
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find user by open_id", err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID))
+			abortWithError(c, http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID), nil)
+			return
 		}
 
-		if err := c.Request().ParseMultipartForm(64 << 20); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Upload file overload max size").SetInternal(err)
+		if err := c.Request.ParseMultipartForm(64 << 20); err != nil {
+			abortWithError(c, http.StatusBadRequest, "Upload file overload max size", err)
+			return
 		}
 
 		file, err := c.FormFile("file")
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Upload file not found").SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, "Upload file not found", err)
+			return
 		}
 
 		filename := file.Filename
@@ -163,13 +163,15 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		size := file.Size
 		src, err := file.Open()
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to open file").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to open file", err)
+			return
 		}
 		defer src.Close()
 
 		fileBytes, err := ioutil.ReadAll(src)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read file").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to read file", err)
+			return
 		}
 
 		resourceCreate := &api.ResourceCreate{
@@ -182,27 +184,25 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 
 		resource, err := s.Store.CreateResource(resourceCreate)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create resource").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to create resource", err)
+			return
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(resource)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode resource response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, resource)
 	})
 
-	g.GET("/:openId/tag", func(c echo.Context) error {
+	g.GET("/:openId/tag", func(c *gin.Context) {
 		openID := c.Param("openId")
 		userFind := &api.UserFind{
 			OpenID: &openID,
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find user by open_id").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find user by open_id", err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID))
+			abortWithError(c, http.StatusNotFound, fmt.Sprintf("User openId not found: %s", openID), nil)
+			return
 		}
 
 		contentSearch := "#"
@@ -215,14 +215,16 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 
 		memoList, err := s.Store.FindMemoList(&memoFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find memo list").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to find memo list", err)
+			return
 		}
 
 		tagMapSet := make(map[string]bool)
 
 		r, err := regexp.Compile("#(.+?) ")
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to compile regexp").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to compile regexp", err)
+			return
 		}
 		for _, memo := range memoList {
 			for _, rawTag := range r.FindAllString(memo.Content, -1) {
@@ -235,18 +237,14 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		for tag := range tagMapSet {
 			tagList = append(tagList, tag)
 		}
-
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(tagList)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode tags response").SetInternal(err)
-		}
-		return nil
+		writeJSON(c, tagList)
 	})
 
-	g.GET("/r/:resourceId/:filename", func(c echo.Context) error {
+	g.GET("/r/:resourceId/:filename", func(c *gin.Context) {
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
+			abortWithError(c, http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+			return
 		}
 
 		filename := c.Param("filename")
@@ -256,12 +254,10 @@ func (s *Server) registerWebhookRoutes(g *echo.Group) {
 		}
 		resource, err := s.Store.FindResource(resourceFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch resource ID: %v", resourceID)).SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch resource ID: %v", resourceID), err)
+			return
 		}
 
-		c.Response().Writer.WriteHeader(http.StatusOK)
-		c.Response().Writer.Header().Set("Content-Type", resource.Type)
-		c.Response().Writer.Write(resource.Blob)
-		return nil
+		c.Data(http.StatusOK, resource.Type, resource.Blob)
 	})
 }

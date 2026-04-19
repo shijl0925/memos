@@ -8,9 +8,8 @@ import (
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -21,57 +20,54 @@ func getUserIDContextKey() string {
 	return userIDContextKey
 }
 
-func setUserSession(c echo.Context, user *api.User) error {
-	sess, _ := session.Get("session", c)
-	sess.Options = &sessions.Options{
+func setUserSession(c *gin.Context, user *api.User) error {
+	sess := sessions.Default(c)
+	sess.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   1000 * 3600 * 24 * 30,
 		HttpOnly: true,
-	}
-	sess.Values[userIDContextKey] = user.ID
-	err := sess.Save(c.Request(), c.Response())
-	if err != nil {
+	})
+	sess.Set(userIDContextKey, user.ID)
+	if err := sess.Save(); err != nil {
 		return fmt.Errorf("failed to set session, err: %w", err)
 	}
 	return nil
 }
 
-func removeUserSession(c echo.Context) error {
-	sess, _ := session.Get("session", c)
-	sess.Options = &sessions.Options{
+func removeUserSession(c *gin.Context) error {
+	sess := sessions.Default(c)
+	sess.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   0,
 		HttpOnly: true,
-	}
-	sess.Values[userIDContextKey] = nil
-	err := sess.Save(c.Request(), c.Response())
-	if err != nil {
+	})
+	sess.Delete(userIDContextKey)
+	if err := sess.Save(); err != nil {
 		return fmt.Errorf("failed to set session, err: %w", err)
 	}
 	return nil
 }
 
 // Use session to store user.id.
-func BasicAuthMiddleware(s *Server, next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+func BasicAuthMiddleware(s *Server) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		// Skips auth
-		if common.HasPrefixes(c.Path(), "/api/auth", "/api/ping", "/api/status") {
-			return next(c)
+		if common.HasPrefixes(c.Request.URL.Path, "/api/auth", "/api/ping", "/api/status") {
+			c.Next()
+			return
 		}
 
-		sess, err := session.Get("session", c)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing session").SetInternal(err)
-		}
-
-		userIDValue := sess.Values[userIDContextKey]
+		sess := sessions.Default(c)
+		userIDValue := sess.Get(userIDContextKey)
 		if userIDValue == nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing userID in session")
+			abortWithError(c, http.StatusUnauthorized, "Missing userID in session", nil)
+			return
 		}
 
 		userID, err := strconv.Atoi(fmt.Sprintf("%v", userIDValue))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to malformatted user id in the session.").SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, "Failed to malformatted user id in the session.", err)
+			return
 		}
 
 		// Even if there is no error, we still need to make sure the user still exists.
@@ -80,17 +76,19 @@ func BasicAuthMiddleware(s *Server, next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		user, err := s.Store.FindUser(userFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to find user by ID: %d", userID)).SetInternal(err)
+			abortWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to find user by ID: %d", userID), err)
+			return
 		}
 		if user == nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("Not found user ID: %d", userID))
+			abortWithError(c, http.StatusUnauthorized, fmt.Sprintf("Not found user ID: %d", userID), nil)
+			return
 		} else if user.RowStatus == api.Archived {
-			return echo.NewHTTPError(http.StatusForbidden, fmt.Sprintf("User has been archived with email %s", user.Email))
+			abortWithError(c, http.StatusForbidden, fmt.Sprintf("User has been archived with email %s", user.Email), nil)
+			return
 		}
 
 		// Stores userID into context.
 		c.Set(getUserIDContextKey(), userID)
-
-		return next(c)
+		c.Next()
 	}
 }
