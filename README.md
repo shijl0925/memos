@@ -2,13 +2,13 @@
 
 ## usememos/memos `v0.1.0` 迁移到 `gin-ninja` 改造难度评估
 
-结论：**中高难度（约 3~8 人日，受接口规模、测试覆盖率与历史技术债影响）**。
+结论：**中高难度（约 3~8 人天，受接口规模、测试覆盖率与历史技术债影响）**。
 
 ### 主要工作量来源
 
 1. **路由层改造（中）**
    - 将原 `gin` 路由注册方式迁移到 `gin-ninja` 的分组+typed handler 风格。
-   - 示例：`r.GET("/api/memo", handler)` 可迁移为 `ninja.Get(router, "/api/memo", listMemos)`，由框架统一完成参数绑定与文档生成。
+   - 示例：`r.GET("/api/memo", handler)` 可迁移为 `ninja.Get(router, "/api/memo", listMemos)`，其中 `listMemos` 通常为 `func(ctx *ninja.Context, in *Input) (*Output, error)` 形式。
    - 需要逐个 API 校对 URL、Method、参数绑定和中间件挂载顺序。
 
 2. **参数绑定与校验（中）**
