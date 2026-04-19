@@ -1,0 +1,48 @@
+@import "./mixin.less";
+
+.sidebar-wrapper {
+  @apply fixed sm:sticky top-0 left-0 hidden sm:!flex flex-col justify-start items-start w-64 h-screen py-4 pl-2 z-10 bg-white sm:bg-transparent shadow-2xl sm:shadow-none overflow-x-hidden overflow-y-auto transition-all;
+  .hide-scroll-bar();
+
+  > .close-container {
+    @apply w-full pr-6 my-2 flex sm:hidden flex-row justify-end items-center;
+
+    > .action-btn {
+      @apply p-1 bg-gray-100 rounded shadow;
+
+      > .icon-img {
+        @apply w-4 h-auto;
+      }
+    }
+  }
+
+  > .action-btns-container {
+    @apply w-full px-2 my-2 flex flex-col justify-start items-start shrink-0;
+
+    > .action-btn {
+      @apply leading-10 px-4 rounded-lg text-base hover:bg-white;
+
+      > .icon {
+        @apply mr-1;
+      }
+    }
+  }
+
+  > .status-text-container {
+    .flex(row, space-between, flex-start);
+    @apply w-full px-6 select-none shrink-0 pb-4;
+
+    > .status-text {
+      .flex(column, flex-start, flex-start);
+
+      > .amount-text {
+        @apply font-bold text-2xl opacity-80 leading-10;
+        color: @text-black;
+      }
+
+      > .type-text {
+        @apply text-gray-400 text-xs font-mono;
+      }
+    }
+  }
+}
