@@ -31,13 +31,13 @@ func TestValidateOutboundURL(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		_, err := validateOutboundURL(test.url)
-		if (err != nil) != test.wantErr {
-			t.Fatalf("%s: got err=%v, wantErr=%v", test.name, err, test.wantErr)
+	for _, tc := range tests {
+		_, err := validateOutboundURL(tc.url)
+		if (err != nil) != tc.wantErr {
+			t.Fatalf("%s: got err=%v, wantErr=%v", tc.name, err, tc.wantErr)
 		}
-		if test.errMessage != "" && (err == nil || !strings.Contains(err.Error(), test.errMessage)) {
-			t.Fatalf("%s: got err=%v, want substring=%q", test.name, err, test.errMessage)
+		if tc.errMessage != "" && (err == nil || !strings.Contains(err.Error(), tc.errMessage)) {
+			t.Fatalf("%s: got err=%v, want substring=%q", tc.name, err, tc.errMessage)
 		}
 	}
 }

@@ -146,7 +146,7 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return badRequestError("Malformatted post system setting request", err)
 		}
 		if err := systemSettingUpsert.Validate(); err != nil {
-			return badRequestError("system setting invalidate", err)
+			return badRequestError("Invalid system setting", err)
 		}
 
 		systemSetting, err := s.Store.UpsertSystemSetting(ctx, systemSettingUpsert)
