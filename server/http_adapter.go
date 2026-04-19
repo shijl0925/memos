@@ -1,13 +1,16 @@
 package server
 
 import (
+	"context"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 const (
@@ -40,11 +43,42 @@ type HandlerFunc func(Context) error
 
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
+type App interface {
+	Group(prefix string) Group
+	UseLogger(format string)
+	UseGzip()
+	UseCSRF(tokenLookup string, skipper func(Context) bool)
+	UseCORS()
+	UseSecure(config SecureConfig)
+	UseTimeout(timeout time.Duration, errorMessage string)
+	UseSession(secret string)
+	UseStatic(config StaticFileServerConfig)
+	Start(address string) error
+	Shutdown(ctx context.Context) error
+}
+
 type Group interface {
 	GET(path string, handler HandlerFunc)
 	POST(path string, handler HandlerFunc)
 	PATCH(path string, handler HandlerFunc)
 	DELETE(path string, handler HandlerFunc)
+	Use(middlewares ...MiddlewareFunc)
+}
+
+type SecureConfig struct {
+	Skipper            func(Context) bool
+	XSSProtection      string
+	ContentTypeNosniff string
+	XFrameOptions      string
+	HSTSPreloadEnabled bool
+}
+
+type StaticFileServerConfig struct {
+	PathPrefix  string
+	HTML5       bool
+	Filesystem  http.FileSystem
+	Skipper     func(Context) bool
+	Middlewares []MiddlewareFunc
 }
 
 type httpError struct {
@@ -97,8 +131,19 @@ func writeJSON(c Context, data any) error {
 
 func echoSkipper(skipper func(Context) bool) func(echo.Context) bool {
 	return func(c echo.Context) bool {
+		if skipper == nil {
+			return false
+		}
 		return skipper(newEchoContext(c))
 	}
+}
+
+func newEchoApp() App {
+	app := echo.New()
+	app.Debug = true
+	app.HideBanner = true
+	app.HidePort = true
+	return echoApp{app: app}
 }
 
 func toEchoMiddleware(middleware MiddlewareFunc) echo.MiddlewareFunc {
@@ -109,6 +154,83 @@ func toEchoMiddleware(middleware MiddlewareFunc) echo.MiddlewareFunc {
 			})(newEchoContext(c))
 		}
 	}
+}
+
+type echoApp struct {
+	app *echo.Echo
+}
+
+func (a echoApp) Group(prefix string) Group {
+	return newEchoGroup(a.app.Group(prefix))
+}
+
+func (a echoApp) UseLogger(format string) {
+	a.app.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: format,
+	}))
+}
+
+func (a echoApp) UseGzip() {
+	a.app.Use(middleware.Gzip())
+}
+
+func (a echoApp) UseCSRF(tokenLookup string, skipper func(Context) bool) {
+	a.app.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
+		Skipper:     echoSkipper(skipper),
+		TokenLookup: tokenLookup,
+	}))
+}
+
+func (a echoApp) UseCORS() {
+	a.app.Use(middleware.CORS())
+}
+
+func (a echoApp) UseSecure(config SecureConfig) {
+	a.app.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+		Skipper:            echoSkipper(config.Skipper),
+		XSSProtection:      config.XSSProtection,
+		ContentTypeNosniff: config.ContentTypeNosniff,
+		XFrameOptions:      config.XFrameOptions,
+		HSTSPreloadEnabled: config.HSTSPreloadEnabled,
+	}))
+}
+
+func (a echoApp) UseTimeout(timeout time.Duration, errorMessage string) {
+	a.app.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+		ErrorMessage: errorMessage,
+		Timeout:      timeout,
+	}))
+}
+
+func (a echoApp) UseSession(secret string) {
+	a.app.Use(session.Middleware(sessions.NewCookieStore([]byte(secret))))
+}
+
+func (a echoApp) UseStatic(config StaticFileServerConfig) {
+	staticMiddleware := middleware.StaticWithConfig(middleware.StaticConfig{
+		Skipper:    echoSkipper(config.Skipper),
+		HTML5:      config.HTML5,
+		Filesystem: config.Filesystem,
+	})
+
+	if config.PathPrefix == "" {
+		a.app.Use(staticMiddleware)
+		return
+	}
+
+	group := a.app.Group(config.PathPrefix)
+	for _, mw := range config.Middlewares {
+		group.Use(toEchoMiddleware(mw))
+	}
+	group.Use(staticMiddleware)
+}
+
+func (a echoApp) Start(address string) error {
+	return a.app.Start(address)
+}
+
+func (a echoApp) Shutdown(ctx context.Context) error {
+	return a.app.Shutdown(ctx)
 }
 
 func newEchoGroup(group *echo.Group) Group {
@@ -133,6 +255,12 @@ func (g echoGroup) PATCH(path string, handler HandlerFunc) {
 
 func (g echoGroup) DELETE(path string, handler HandlerFunc) {
 	g.group.DELETE(path, wrapEchoHandler(handler))
+}
+
+func (g echoGroup) Use(middlewares ...MiddlewareFunc) {
+	for _, middleware := range middlewares {
+		g.group.Use(toEchoMiddleware(middleware))
+	}
 }
 
 func wrapEchoHandler(handler HandlerFunc) echo.HandlerFunc {
