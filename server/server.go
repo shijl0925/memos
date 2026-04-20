@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/usememos/memos/api"
-	metric "github.com/usememos/memos/plugin/metrics"
 	"github.com/usememos/memos/server/profile"
 	"github.com/usememos/memos/store"
 	"github.com/usememos/memos/store/db"
@@ -19,10 +18,9 @@ type Server struct {
 	app App
 	db  *sql.DB
 
-	ID        string
-	Profile   *profile.Profile
-	Store     *store.Store
-	Collector *MetricCollector
+	ID      string
+	Profile *profile.Profile
+	Store   *store.Store
 }
 
 func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
@@ -36,8 +34,7 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 		db:      db.DBInstance,
 		Profile: profile,
 	}
-	storeInstance := store.New(db.DBInstance, profile)
-	s.Store = storeInstance
+	s.Store = store.New(db.DBInstance, profile)
 
 	s.app.UseLogger(`{"time":"${time_rfc3339}",` +
 		`"method":"${method}","uri":"${uri}",` +
@@ -71,9 +68,6 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 
 	embedFrontend(s.app)
 
-	// Register MetricCollector to server.
-	s.registerMetricCollector()
-
 	rootGroup := s.app.Group("")
 	s.registerRSSRoutes(rootGroup)
 
@@ -90,6 +84,9 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	s.registerShortcutRoutes(apiGroup)
 	s.registerResourceRoutes(apiGroup)
 	s.registerTagRoutes(apiGroup)
+	s.registerStorageRoutes(apiGroup)
+	s.registerIdentityProviderRoutes(apiGroup)
+	s.registerOpenAIRoutes(apiGroup)
 
 	return s, nil
 }
@@ -98,7 +95,6 @@ func (s *Server) Start(ctx context.Context) error {
 	if err := s.createServerStartActivity(ctx); err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	s.Collector.Identify(ctx)
 	return s.app.Start(fmt.Sprintf(":%d", s.Profile.Port))
 }
 
@@ -109,8 +105,6 @@ func (s *Server) Shutdown(ctx context.Context) {
 	if err := s.app.Shutdown(ctx); err != nil {
 		fmt.Printf("failed to shutdown server, error: %v\n", err)
 	}
-
-	// Close database connection
 	if err := s.db.Close(); err != nil {
 		fmt.Printf("failed to close database, error: %v\n", err)
 	}
@@ -123,7 +117,7 @@ func (s *Server) createServerStartActivity(ctx context.Context) error {
 		ServerID: s.ID,
 		Profile:  s.Profile,
 	}
-	payloadStr, err := json.Marshal(payload)
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
@@ -131,13 +125,10 @@ func (s *Server) createServerStartActivity(ctx context.Context) error {
 		CreatorID: api.UnknownID,
 		Type:      api.ActivityServerStart,
 		Level:     api.ActivityInfo,
-		Payload:   string(payloadStr),
+		Payload:   string(payloadBytes),
 	})
 	if err != nil || activity == nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	s.Collector.Collect(ctx, &metric.Metric{
-		Name: string(activity.Type),
-	})
 	return err
 }

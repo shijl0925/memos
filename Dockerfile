@@ -15,13 +15,15 @@ RUN apk update && apk add --no-cache gcc musl-dev
 COPY . .
 COPY --from=frontend /frontend-build/dist ./server/dist
 
-RUN go build -o memos ./bin/server/main.go
+RUN go build -o memos ./main.go
 
 # Make workspace with above generated files.
 FROM alpine:3.16 AS monolithic
 WORKDIR /usr/local/memos
 
 COPY --from=backend /backend-build/memos /usr/local/memos/
+
+EXPOSE 5230
 
 # Directory to store the data, which can be referenced as the mounting point.
 RUN mkdir -p /var/opt/memos

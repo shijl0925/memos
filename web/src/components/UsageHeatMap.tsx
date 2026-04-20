@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocationStore, useMemoStore, useUserStore } from "../store/module";
+import { useFilterStore, useMemoStore, useUserStore } from "../store/module";
 import { useTranslation } from "react-i18next";
 import { getMemoStats } from "../helpers/api";
 import { DAILY_TIMESTAMP } from "../helpers/consts";
@@ -7,7 +7,7 @@ import * as utils from "../helpers/utils";
 import "../less/usage-heat-map.less";
 
 const tableConfig = {
-  width: 12,
+  width: 10,
   height: 7,
 };
 
@@ -29,7 +29,7 @@ interface DailyUsageStat {
 
 const UsageHeatMap = () => {
   const { t } = useTranslation();
-  const locationStore = useLocationStore();
+  const filterStore = useFilterStore();
   const userStore = useUserStore();
   const memoStore = useMemoStore();
   const todayTimeStamp = utils.getDateStampByDate(Date.now());
@@ -87,26 +87,17 @@ const UsageHeatMap = () => {
   }, []);
 
   const handleUsageStatItemClick = useCallback((item: DailyUsageStat) => {
-    if (locationStore.getState().query?.duration?.from === item.timestamp) {
-      locationStore.setFromAndToQuery();
+    if (filterStore.getState().duration?.from === item.timestamp) {
+      filterStore.setFromAndToFilter();
       setCurrentStat(null);
     } else if (item.count > 0) {
-      locationStore.setFromAndToQuery(item.timestamp, item.timestamp + DAILY_TIMESTAMP);
+      filterStore.setFromAndToFilter(item.timestamp, item.timestamp + DAILY_TIMESTAMP);
       setCurrentStat(item);
     }
   }, []);
 
   return (
     <div className="usage-heat-map-wrapper" ref={containerElRef}>
-      <div className="day-tip-text-container">
-        <span className="tip-text">{t("days.sun")}</span>
-        <span className="tip-text"></span>
-        <span className="tip-text">{t("days.tue")}</span>
-        <span className="tip-text"></span>
-        <span className="tip-text">{t("days.thu")}</span>
-        <span className="tip-text"></span>
-        <span className="tip-text">{t("days.sat")}</span>
-      </div>
       <div className="usage-heat-map">
         {allStat.map((v, i) => {
           const count = v.count;
@@ -139,9 +130,18 @@ const UsageHeatMap = () => {
         })}
         {nullCell.map((_, i) => (
           <div className="stat-wrapper" key={i}>
-            <span className="null"></span>
+            <span className="stat-container null"></span>
           </div>
         ))}
+      </div>
+      <div className="day-tip-text-container">
+        <span className="tip-text">{t("days.sun")}</span>
+        <span className="tip-text"></span>
+        <span className="tip-text">{t("days.tue")}</span>
+        <span className="tip-text"></span>
+        <span className="tip-text">{t("days.thu")}</span>
+        <span className="tip-text"></span>
+        <span className="tip-text">{t("days.sat")}</span>
       </div>
     </div>
   );

@@ -1,14 +1,14 @@
 import { isNumber, last, toLower, uniq } from "lodash-es";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { getMatchedNodes } from "../labs/marked";
 import { deleteMemoResource, upsertMemoResource } from "../helpers/api";
 import { TAB_SPACE_WIDTH, UNKNOWN_ID, VISIBILITY_SELECTOR_ITEMS } from "../helpers/consts";
-import { useEditorStore, useLocationStore, useMemoStore, useResourceStore, useTagStore, useUserStore } from "../store/module";
+import { useEditorStore, useGlobalStore, useFilterStore, useMemoStore, useResourceStore, useTagStore, useUserStore } from "../store/module";
 import * as storage from "../helpers/storage";
 import Icon from "./Icon";
-import toastHelper from "./Toast";
-import Selector from "./common/Selector";
+import Selector from "./base/Selector";
 import Editor, { EditorRefActions } from "./Editor/Editor";
 import ResourceIcon from "./ResourceIcon";
 import showResourcesSelectorDialog from "./ResourcesSelectorDialog";
@@ -17,7 +17,6 @@ import "../less/memo-editor.less";
 
 const listItemSymbolList = ["- [ ] ", "- [x] ", "- [X] ", "* ", "- "];
 const emptyOlReg = /^(\d+)\. $/;
-const pairSymbols = ["[]", "()", '""', "''", "{}", "``", "”“", "‘‘", "【】", "（）", "《》"];
 
 const getEditorContentCache = (): string => {
   return storage.get(["editorContentCache"]).editorContentCache ?? "";
@@ -26,12 +25,6 @@ const getEditorContentCache = (): string => {
 const setEditorContentCache = (content: string) => {
   storage.set({
     editorContentCache: content,
-  });
-};
-
-const setEditingMemoVisibilityCache = (visibility: Visibility) => {
-  storage.set({
-    editingMemoVisibilityCache: visibility,
   });
 };
 
@@ -45,14 +38,17 @@ const MemoEditor = () => {
   const { t, i18n } = useTranslation();
   const userStore = useUserStore();
   const editorStore = useEditorStore();
-  const locationStore = useLocationStore();
+  const filterStore = useFilterStore();
   const memoStore = useMemoStore();
   const tagStore = useTagStore();
   const resourceStore = useResourceStore();
+  const {
+    state: { systemStatus },
+  } = useGlobalStore();
 
   const [state, setState] = useState<State>({
-    isUploadingResource: false,
     fullscreen: false,
+    isUploadingResource: false,
     isRequesting: false,
   });
   const [allowSave, setAllowSave] = useState<boolean>(false);
@@ -62,7 +58,6 @@ const MemoEditor = () => {
   const tagSelectorRef = useRef<HTMLDivElement>(null);
   const user = userStore.state.user as User;
   const setting = user.setting;
-  const localSetting = user.localSetting;
   const tags = tagStore.state.tags;
   const memoVisibilityOptionSelectorItems = VISIBILITY_SELECTOR_ITEMS.map((item) => {
     return {
@@ -72,12 +67,15 @@ const MemoEditor = () => {
   });
 
   useEffect(() => {
-    const { editingMemoIdCache, editingMemoVisibilityCache } = storage.get(["editingMemoIdCache", "editingMemoVisibilityCache"]);
+    if (systemStatus.disablePublicMemos) {
+      editorStore.setMemoVisibility("PRIVATE");
+    }
+  }, [systemStatus.disablePublicMemos]);
+
+  useEffect(() => {
+    const { editingMemoIdCache } = storage.get(["editingMemoIdCache"]);
     if (editingMemoIdCache) {
       editorStore.setEditMemoWithId(editingMemoIdCache);
-    }
-    if (editingMemoVisibilityCache) {
-      editorStore.setMemoVisibility(editingMemoVisibilityCache as "PUBLIC" | "PROTECTED" | "PRIVATE");
     } else {
       editorStore.setMemoVisibility(setting.memoVisibility);
     }
@@ -109,40 +107,13 @@ const MemoEditor = () => {
     }
 
     const isMetaKey = event.ctrlKey || event.metaKey;
-    const isShiftKey = event.shiftKey;
-    if (!isShiftKey && isMetaKey) {
+    if (isMetaKey) {
       if (event.key === "Enter") {
         handleSaveBtnClick();
         return;
       }
-      if (event.key === "b") {
-        event.preventDefault();
-        editorRef.current.insertText("", "**", "**");
-        return;
-      }
-      if (event.key === "i") {
-        event.preventDefault();
-        editorRef.current.insertText("", "*", "*");
-        return;
-      }
-      if (event.key === "e") {
-        event.preventDefault();
-        editorRef.current.insertText("", "`", "`");
-        return;
-      }
-      if (event.key === "k") {
-        event.preventDefault();
-        const selectedContent = editorRef.current.getSelectedContent();
-        editorRef.current.insertText("", "[", "](url)");
-        if (selectedContent) {
-          const startPos = editorRef.current.getCursorPosition() + 2;
-          const endPos = startPos + 3;
-          editorRef.current.setCursorPosition(startPos, endPos);
-        }
-      }
     }
-
-    if (!isShiftKey && event.key === "Enter") {
+    if (event.key === "Enter") {
       const cursorPosition = editorRef.current.getCursorPosition();
       const contentBeforeCursor = editorRef.current.getContent().slice(0, cursorPosition);
       const rowValue = last(contentBeforeCursor.split("\n"));
@@ -173,13 +144,12 @@ const MemoEditor = () => {
               }
             }
           }
-
           editorRef.current?.scrollToCursor();
         }
       }
       return;
     }
-    if (!isShiftKey && event.key === "Escape") {
+    if (event.key === "Escape") {
       if (state.fullscreen) {
         handleFullscreenBtnClick();
       }
@@ -190,57 +160,37 @@ const MemoEditor = () => {
       const tabSpace = " ".repeat(TAB_SPACE_WIDTH);
       const cursorPosition = editorRef.current.getCursorPosition();
       const selectedContent = editorRef.current.getSelectedContent();
-      if (isShiftKey) {
-        const beforeContent = editorRef.current.getContent().slice(0, cursorPosition);
-        for (let i = beforeContent.length - 1; i >= 0; i--) {
-          if (beforeContent[i] !== "\n") {
-            continue;
-          }
-          const rowStart = i + 1;
-          const isTabSpace = beforeContent.substring(rowStart, i + TAB_SPACE_WIDTH + 1) === tabSpace;
-          const isSpace = beforeContent.substring(rowStart, i + 2) === " ";
-          if (!isTabSpace && !isSpace) {
-            break;
-          }
-          const removeLength = isTabSpace ? TAB_SPACE_WIDTH : 1;
-          editorRef.current.removeText(rowStart, removeLength);
-          const startPos = cursorPosition - removeLength;
-          let endPos = startPos;
-          if (selectedContent) {
-            endPos += selectedContent.length;
-          }
-          editorRef.current.setCursorPosition(startPos, endPos);
-        }
-        return;
-      } else {
-        editorRef.current.insertText(tabSpace);
-        if (selectedContent) {
-          editorRef.current.setCursorPosition(cursorPosition + TAB_SPACE_WIDTH);
-        }
-        return;
+      editorRef.current.insertText(tabSpace);
+      if (selectedContent) {
+        editorRef.current.setCursorPosition(cursorPosition + TAB_SPACE_WIDTH);
       }
+      return;
+    }
+  };
+
+  const handleUploadResource = async (file: File) => {
+    setState((state) => {
+      return {
+        ...state,
+        isUploadingResource: true,
+      };
+    });
+
+    let resource = undefined;
+    try {
+      resource = await resourceStore.createResourceWithBlob(file);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response.data.message);
     }
 
-    if (localSetting.enablePowerfulEditor) {
-      for (const symbol of pairSymbols) {
-        if (event.key === symbol[0]) {
-          event.preventDefault();
-          editorRef.current.insertText("", symbol[0], symbol[1]);
-          return;
-        }
-      }
-      if (event.key === "Backspace") {
-        const cursor = editorRef.current.getCursorPosition();
-        const content = editorRef.current.getContent();
-        const deleteChar = content?.slice(cursor - 1, cursor);
-        const nextChar = content?.slice(cursor, cursor + 1);
-        if (pairSymbols.includes(`${deleteChar}${nextChar}`)) {
-          event.preventDefault();
-          editorRef.current.removeText(cursor - 1, 2);
-        }
-        return;
-      }
-    }
+    setState((state) => {
+      return {
+        ...state,
+        isUploadingResource: false,
+      };
+    });
+    return resource;
   };
 
   const uploadMultiFiles = async (files: FileList) => {
@@ -274,41 +224,6 @@ const MemoEditor = () => {
     }
   };
 
-  const handleUploadResource = async (file: File) => {
-    setState((state) => {
-      return {
-        ...state,
-        isUploadingResource: true,
-      };
-    });
-
-    let resource = undefined;
-
-    try {
-      resource = await resourceStore.createResourceWithBlob(file);
-    } catch (error: any) {
-      console.error(error);
-      toastHelper.error(error.response.data.message);
-    }
-
-    setState((state) => {
-      return {
-        ...state,
-        isUploadingResource: false,
-      };
-    });
-    return resource;
-  };
-
-  const scrollToEditingMemo = useCallback(() => {
-    if (editorState.editMemoId) {
-      const memoElements = document.getElementsByClassName(`memos-${editorState.editMemoId}`);
-      if (memoElements.length !== 0) {
-        memoElements[0].scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [editorState.editMemoId]);
-
   const handleSaveBtnClick = async () => {
     if (state.isRequesting) {
       return;
@@ -341,11 +256,11 @@ const MemoEditor = () => {
           visibility: editorState.memoVisibility,
           resourceIdList: editorState.resourceList.map((resource) => resource.id),
         });
-        locationStore.clearQuery();
+        filterStore.clearFilter();
       }
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.message);
+      toast.error(error.response.data.message);
     }
     setState((state) => {
       return {
@@ -369,10 +284,7 @@ const MemoEditor = () => {
     });
     editorStore.clearResourceList();
     setEditorContentCache("");
-    storage.remove(["editingMemoVisibilityCache"]);
     editorRef.current?.setContent("");
-
-    scrollToEditingMemo();
   };
 
   const handleCancelEdit = () => {
@@ -381,10 +293,7 @@ const MemoEditor = () => {
       editorStore.clearResourceList();
       editorRef.current?.setContent("");
       setEditorContentCache("");
-      storage.remove(["editingMemoVisibilityCache"]);
     }
-
-    scrollToEditingMemo();
   };
 
   const handleContentChange = (content: string) => {
@@ -439,11 +348,8 @@ const MemoEditor = () => {
     });
   };
 
-  const handleTagSelectorClick = useCallback((event: React.MouseEvent) => {
-    if (tagSelectorRef.current !== event.target && tagSelectorRef.current?.contains(event.target as Node)) {
-      editorRef.current?.insertText(`#${(event.target as HTMLElement).textContent} ` ?? "");
-      editorRef.current?.scrollToCursor();
-    }
+  const handleTagSelectorClick = useCallback((tag: string) => {
+    editorRef.current?.insertText(`#${tag} `);
   }, []);
 
   const handleDeleteResource = async (resourceId: ResourceId) => {
@@ -456,7 +362,6 @@ const MemoEditor = () => {
   const handleMemoVisibilityOptionChanged = async (value: string) => {
     const visibilityValue = value as Visibility;
     editorStore.setMemoVisibility(visibilityValue);
-    setEditingMemoVisibilityCache(visibilityValue);
   };
 
   const handleEditorFocus = () => {
@@ -495,12 +400,12 @@ const MemoEditor = () => {
         <div className="common-tools-container">
           <div className="action-btn tag-action">
             <Icon.Hash className="icon-img" />
-            <div ref={tagSelectorRef} className="tag-list" onClick={handleTagSelectorClick}>
+            <div ref={tagSelectorRef} className="tag-list">
               {tags.length > 0 ? (
                 tags.map((tag) => {
                   return (
-                    <span className="item-container" key={tag}>
-                      {tag}
+                    <span className="item-container" onClick={() => handleTagSelectorClick(tag)} key={tag}>
+                      #{tag}
                     </span>
                   );
                 })
@@ -552,7 +457,9 @@ const MemoEditor = () => {
         <Selector
           className="visibility-selector"
           value={editorState.memoVisibility}
+          tooltipTitle={t("memo.visibility.disabled")}
           dataSource={memoVisibilityOptionSelectorItems}
+          disabled={systemStatus.disablePublicMemos}
           handleValueChanged={handleMemoVisibilityOptionChanged}
         />
         <div className="buttons-container">

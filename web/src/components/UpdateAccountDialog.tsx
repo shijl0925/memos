@@ -1,22 +1,17 @@
 import { isEqual } from "lodash-es";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useUserStore } from "../store/module";
-import { validate, ValidatorConfig } from "../helpers/validator";
+import { convertFileToBase64 } from "../helpers/utils";
 import Icon from "./Icon";
 import { generateDialog } from "./Dialog";
-import toastHelper from "./Toast";
-
-const validateConfig: ValidatorConfig = {
-  minLength: 4,
-  maxLength: 320,
-  noSpace: true,
-  noChinese: true,
-};
+import UserAvatar from "./UserAvatar";
 
 type Props = DialogProps;
 
 interface State {
+  avatarUrl: string;
   username: string;
   nickname: string;
   email: string;
@@ -27,6 +22,7 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
   const userStore = useUserStore();
   const user = userStore.state.user as User;
   const [state, setState] = useState<State>({
+    avatarUrl: user.avatarUrl,
     username: user.username,
     nickname: user.nickname,
     email: user.email,
@@ -40,6 +36,29 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
     destroy();
   };
 
+  const handleAvatarChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const image = files[0];
+      if (image.size > 2 * 1024 * 1024) {
+        toast.error("Max file size is 2MB");
+        return;
+      }
+      try {
+        const base64 = await convertFileToBase64(image);
+        setState((state) => {
+          return {
+            ...state,
+            avatarUrl: base64,
+          };
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error(`Failed to convert image to base64`);
+      }
+    }
+  };
+
   const handleNicknameChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
     setState((state) => {
       return {
@@ -48,6 +67,7 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
       };
     });
   };
+
   const handleUsernameChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
     setState((state) => {
       return {
@@ -56,6 +76,7 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
       };
     });
   };
+
   const handleEmailChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
     setState((state) => {
       return {
@@ -67,13 +88,7 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
 
   const handleSaveBtnClick = async () => {
     if (state.username === "") {
-      toastHelper.error(t("message.fill-all"));
-      return;
-    }
-
-    const usernameValidResult = validate(state.username, validateConfig);
-    if (!usernameValidResult.result) {
-      toastHelper.error(t("common.username") + ": " + t(usernameValidResult.reason as string));
+      toast.error(t("message.fill-all"));
       return;
     }
 
@@ -82,6 +97,9 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
       const userPatch: UserPatch = {
         id: user.id,
       };
+      if (!isEqual(user.avatarUrl, state.avatarUrl)) {
+        userPatch.avatarUrl = state.avatarUrl;
+      }
       if (!isEqual(user.nickname, state.nickname)) {
         userPatch.nickname = state.nickname;
       }
@@ -92,11 +110,11 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
         userPatch.email = state.email;
       }
       await userStore.patchUser(userPatch);
-      toastHelper.info(t("message.update-succeed"));
+      toast.success(t("message.update-succeed"));
       handleCloseBtnClick();
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.error);
+      toast.error(error.response.data.error);
     }
   };
 
@@ -108,23 +126,30 @@ const UpdateAccountDialog: React.FC<Props> = ({ destroy }: Props) => {
           <Icon.X />
         </button>
       </div>
-      <div className="dialog-content-container">
-        <p className="text-sm mb-1">
-          {t("common.nickname")}
-          <span className="text-sm text-gray-400 ml-1">(Display in the banner)</span>
-        </p>
-        <input type="text" className="input-text" value={state.nickname} onChange={handleNicknameChanged} />
-        <p className="text-sm mb-1 mt-2">
+      <div className="dialog-content-container space-y-2">
+        <div className="w-full flex flex-row justify-start items-center">
+          <span className="text-sm mr-2">{t("common.avatar")}</span>
+          <label className="relative cursor-pointer hover:opacity-80">
+            <UserAvatar className="!w-12 !h-12" avatarUrl={state.avatarUrl} />
+            <input type="file" accept="image/*" className="absolute invisible w-full h-full inset-0" onChange={handleAvatarChanged} />
+          </label>
+        </div>
+        <p className="text-sm">
           {t("common.username")}
           <span className="text-sm text-gray-400 ml-1">(Using to sign in)</span>
         </p>
         <input type="text" className="input-text" value={state.username} onChange={handleUsernameChanged} />
-        <p className="text-sm mb-1 mt-2">
+        <p className="text-sm">
+          {t("common.nickname")}
+          <span className="text-sm text-gray-400 ml-1">(Display in the banner)</span>
+        </p>
+        <input type="text" className="input-text" value={state.nickname} onChange={handleNicknameChanged} />
+        <p className="text-sm">
           {t("common.email")}
           <span className="text-sm text-gray-400 ml-1">(Optional)</span>
         </p>
         <input type="text" className="input-text" value={state.email} onChange={handleEmailChanged} />
-        <div className="mt-4 w-full flex flex-row justify-end items-center space-x-2">
+        <div className="pt-2 w-full flex flex-row justify-end items-center space-x-2">
           <span className="btn-text" onClick={handleCloseBtnClick}>
             {t("common.cancel")}
           </span>

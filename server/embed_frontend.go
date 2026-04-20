@@ -27,12 +27,13 @@ func embedFrontend(app App) {
 
 	app.UseStatic(StaticFileServerConfig{
 		PathPrefix: "/assets",
+		Skipper:    DefaultAPIRequestSkipper,
 		HTML5:      true,
 		Filesystem: getFileSystem("dist/assets"),
 		Middlewares: []MiddlewareFunc{
 			func(next HandlerFunc) HandlerFunc {
 				return func(c Context) error {
-					c.Header(headerCacheControl, "max-age=31536000, immutable")
+					c.Writer().Header().Set(headerCacheControl, "max-age=31536000, immutable")
 					return next(c)
 				}
 			},

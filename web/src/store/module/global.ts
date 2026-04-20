@@ -2,6 +2,8 @@ import * as api from "../../helpers/api";
 import * as storage from "../../helpers/storage";
 import store, { useAppSelector } from "../";
 import { setAppearance, setGlobalState, setLocale } from "../reducer/global";
+import i18n from "../../i18n";
+import { convertLanguageCodeToLocale } from "../../utils/convertLanguageCodeToLocale";
 
 export const initialGlobalState = async () => {
   const defaultGlobalState = {
@@ -9,6 +11,7 @@ export const initialGlobalState = async () => {
     appearance: "system" as Appearance,
     systemStatus: {
       allowSignUp: false,
+      disablePublicMemos: false,
       additionalStyle: "",
       additionalScript: "",
       customizedProfile: {
@@ -45,7 +48,7 @@ export const initialGlobalState = async () => {
           externalUrl: "",
         },
       };
-      defaultGlobalState.locale = customizedProfile.locale;
+      defaultGlobalState.locale = storageLocale || convertLanguageCodeToLocale(i18n.language);
       defaultGlobalState.appearance = customizedProfile.appearance;
     }
   } catch (error) {
@@ -63,10 +66,23 @@ export const useGlobalStore = () => {
     getState: () => {
       return store.getState().global;
     },
+    isDev: () => {
+      return state.systemStatus.profile.mode !== "prod";
+    },
     fetchSystemStatus: async () => {
       const { data: systemStatus } = (await api.getSystemStatus()).data;
       store.dispatch(setGlobalState({ systemStatus: systemStatus }));
       return systemStatus;
+    },
+    setSystemStatus: (systemStatus: Partial<SystemStatus>) => {
+      store.dispatch(
+        setGlobalState({
+          systemStatus: {
+            ...state.systemStatus,
+            ...systemStatus,
+          },
+        })
+      );
     },
     setLocale: (locale: Locale) => {
       store.dispatch(setLocale(locale));

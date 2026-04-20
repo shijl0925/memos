@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/sessions"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
-
-	"github.com/gorilla/sessions"
 )
 
 var (
@@ -29,8 +28,7 @@ func setUserSession(ctx Context, user *api.User) error {
 		SameSite: http.SameSiteStrictMode,
 	}
 	sess.Values[userIDContextKey] = user.ID
-	err := sess.Save(ctx.Request(), ctx.Writer())
-	if err != nil {
+	if err := sess.Save(ctx.Request(), ctx.Writer()); err != nil {
 		return fmt.Errorf("failed to set session, err: %w", err)
 	}
 	return nil
@@ -44,8 +42,7 @@ func removeUserSession(ctx Context) error {
 		HttpOnly: true,
 	}
 	sess.Values[userIDContextKey] = nil
-	err := sess.Save(ctx.Request(), ctx.Writer())
-	if err != nil {
+	if err := sess.Save(ctx.Request(), ctx.Writer()); err != nil {
 		return fmt.Errorf("failed to set session, err: %w", err)
 	}
 	return nil
@@ -65,10 +62,7 @@ func aclMiddleware(s *Server) MiddlewareFunc {
 			userIDValue := sess.Values[userIDContextKey]
 			if userIDValue != nil {
 				userID, _ := strconv.Atoi(fmt.Sprintf("%v", userIDValue))
-				userFind := &api.UserFind{
-					ID: &userID,
-				}
-				user, err := s.Store.FindUser(ctx, userFind)
+				user, err := s.Store.FindUser(ctx, &api.UserFind{ID: &userID})
 				if err != nil && common.ErrorCode(err) != common.NotFound {
 					return internalError(fmt.Sprintf("Failed to find user by ID: %d", userID), err)
 				}
@@ -80,12 +74,11 @@ func aclMiddleware(s *Server) MiddlewareFunc {
 				}
 			}
 
-			if common.HasPrefixes(path, "/api/ping", "/api/status", "/api/user/:id", "/api/memo") && c.Request().Method == http.MethodGet {
+			if common.HasPrefixes(path, "/api/ping", "/api/status", "/api/idp", "/api/user/:id", "/api/memo") && c.Request().Method == http.MethodGet {
 				return next(c)
 			}
 
-			userID := c.Get(getUserIDContextKey())
-			if userID == nil {
+			if c.Get(getUserIDContextKey()) == nil {
 				return unauthorizedError("Missing user in session")
 			}
 

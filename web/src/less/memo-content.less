@@ -34,7 +34,7 @@
     }
 
     .tag-span {
-      @apply inline-block w-auto font-mono text-blue-600 dark:text-blue-400 cursor-pointer;
+      @apply inline-block w-auto text-blue-600 dark:text-blue-400 cursor-pointer;
     }
 
     .link {
@@ -70,13 +70,13 @@
         @apply block;
       }
 
-      &:hover{
-        .codeblock-copy-btn{
+      &:hover {
+        .codeblock-copy-btn {
           @apply flex;
         }
       }
 
-      .codeblock-copy-btn{
+      .codeblock-copy-btn {
         @apply btn-normal absolute hidden top-2 right-2 border-solid border-2;
       }
     }
@@ -110,11 +110,9 @@
     @apply w-full relative flex flex-row justify-start items-center;
 
     > .btn {
-      @apply flex flex-row justify-start items-center pl-2 pr-1 py-1 my-1 text-xs rounded-lg border bg-gray-100 dark:bg-zinc-600 border-gray-200 dark:border-zinc-600 opacity-80 shadow hover:opacity-60 cursor-pointer;
+      @apply flex flex-row justify-start items-center pl-2 pr-1 py-1 my-2 text-xs rounded-lg border bg-gray-100 dark:bg-zinc-600 border-gray-200 dark:border-zinc-600 shadow hover:opacity-90 cursor-pointer;
 
       &.expand-btn {
-        @apply mt-2;
-
         > .icon-img {
           @apply rotate-90;
         }

@@ -1,11 +1,11 @@
 import copy from "copy-to-clipboard";
 import dayjs from "dayjs";
 import { memo, useEffect, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
-import { useEditorStore, useLocationStore, useMemoStore, useUserStore } from "../store/module";
+import { Link, useNavigate } from "react-router-dom";
+import { useEditorStore, useFilterStore, useMemoStore, useUserStore } from "../store/module";
 import Icon from "./Icon";
-import toastHelper from "./Toast";
 import MemoContent from "./MemoContent";
 import MemoResources from "./MemoResources";
 import showShareMemo from "./ShareMemoDialog";
@@ -16,6 +16,7 @@ import "../less/memo.less";
 
 interface Props {
   memo: Memo;
+  readonly?: boolean;
 }
 
 export const getFormatedMemoTimeStr = (time: number, locale = "en"): string => {
@@ -27,23 +28,22 @@ export const getFormatedMemoTimeStr = (time: number, locale = "en"): string => {
 };
 
 const Memo: React.FC<Props> = (props: Props) => {
-  const { memo } = props;
+  const { memo, readonly } = props;
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const editorStore = useEditorStore();
-  const locationStore = useLocationStore();
+  const filterStore = useFilterStore();
   const userStore = useUserStore();
   const memoStore = useMemoStore();
-  const { localSetting } = userStore.state.user as User;
-  const [displayTimeStr, setDisplayTimeStr] = useState<string>(getFormatedMemoTimeStr(memo.displayTs, i18n.language));
+  const [createdTimeStr, setCreatedTimeStr] = useState<string>(getFormatedMemoTimeStr(memo.createdTs, i18n.language));
   const memoContainerRef = useRef<HTMLDivElement>(null);
-  const isVisitorMode = userStore.isVisitorMode();
+  const isVisitorMode = userStore.isVisitorMode() || readonly;
 
   useEffect(() => {
     let intervalFlag: any = -1;
-    if (Date.now() - memo.displayTs < 1000 * 60 * 60 * 24) {
+    if (Date.now() - memo.createdTs < 1000 * 60 * 60 * 24) {
       intervalFlag = setInterval(() => {
-        setDisplayTimeStr(getFormatedMemoTimeStr(memo.displayTs, i18n.language));
+        setCreatedTimeStr(getFormatedMemoTimeStr(memo.createdTs, i18n.language));
       }, 1000 * 1);
     }
 
@@ -62,7 +62,7 @@ const Memo: React.FC<Props> = (props: Props) => {
 
   const handleCopyContent = () => {
     copy(memo.content);
-    toastHelper.success(t("message.succeed-copy-content"));
+    toast.success(t("message.succeed-copy-content"));
   };
 
   const handleTogglePinMemoBtnClick = async () => {
@@ -89,7 +89,7 @@ const Memo: React.FC<Props> = (props: Props) => {
       });
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.message);
+      toast.error(error.response.data.message);
     }
 
     if (editorStore.getState().editMemoId === memo.id) {
@@ -97,7 +97,7 @@ const Memo: React.FC<Props> = (props: Props) => {
     }
   };
 
-  const handleGenMemoImageBtnClick = () => {
+  const handleGenerateMemoImageBtnClick = () => {
     showShareMemo(memo);
   };
 
@@ -106,14 +106,14 @@ const Memo: React.FC<Props> = (props: Props) => {
 
     if (targetEl.className === "tag-span") {
       const tagName = targetEl.innerText.slice(1);
-      const currTagQuery = locationStore.getState().query?.tag;
+      const currTagQuery = filterStore.getState().tag;
       if (currTagQuery === tagName) {
-        locationStore.setTagQuery(undefined);
+        filterStore.setTagFilter(undefined);
       } else {
-        locationStore.setTagQuery(tagName);
+        filterStore.setTagFilter(tagName);
       }
     } else if (targetEl.classList.contains("todo-block")) {
-      if (userStore.isVisitorMode()) {
+      if (isVisitorMode) {
         return;
       }
 
@@ -152,7 +152,12 @@ const Memo: React.FC<Props> = (props: Props) => {
   };
 
   const handleMemoContentDoubleClick = (e: React.MouseEvent) => {
-    if (!localSetting.enableDoubleClickEditing) {
+    if (isVisitorMode) {
+      return;
+    }
+
+    const loginUser = userStore.state.user;
+    if (loginUser && !loginUser.localSetting.enableDoubleClickEditing) {
       return;
     }
     const targetEl = e.target as HTMLElement;
@@ -166,16 +171,16 @@ const Memo: React.FC<Props> = (props: Props) => {
     editorStore.setEditMemoWithId(memo.id);
   };
 
-  const handleMemoDisplayTimeClick = () => {
+  const handleMemoCreatedTimeClick = () => {
     showChangeMemoCreatedTsDialog(memo.id);
   };
 
   const handleMemoVisibilityClick = (visibility: Visibility) => {
-    const currVisibilityQuery = locationStore.getState().query?.visibility;
+    const currVisibilityQuery = filterStore.getState().visibility;
     if (currVisibilityQuery === visibility) {
-      locationStore.setMemoVisibilityQuery(undefined);
+      filterStore.setMemoVisibilityFilter(undefined);
     } else {
-      locationStore.setMemoVisibilityQuery(visibility);
+      filterStore.setMemoVisibilityFilter(visibility);
     }
   };
 
@@ -184,9 +189,14 @@ const Memo: React.FC<Props> = (props: Props) => {
       {memo.pinned && <div className="corner-container"></div>}
       <div className="memo-top-wrapper">
         <div className="status-text-container">
-          <span className="time-text" onDoubleClick={handleMemoDisplayTimeClick}>
-            {displayTimeStr}
+          <span className="time-text" onDoubleClick={handleMemoCreatedTimeClick}>
+            {createdTimeStr}
           </span>
+          {isVisitorMode && (
+            <Link className="name-text" to={`/u/${memo.creatorId}`}>
+              @{memo.creatorName}
+            </Link>
+          )}
           {memo.visibility !== "PRIVATE" && !isVisitorMode && (
             <span
               className={`status-text ${memo.visibility.toLocaleLowerCase()}`}
@@ -212,7 +222,7 @@ const Memo: React.FC<Props> = (props: Props) => {
                     <Icon.Edit3 className="icon-img" />
                     <span className="tip-text">{t("common.edit")}</span>
                   </div>
-                  <div className="btn" onClick={handleGenMemoImageBtnClick}>
+                  <div className="btn" onClick={handleGenerateMemoImageBtnClick}>
                     <Icon.Share className="icon-img" />
                     <span className="tip-text">{t("common.share")}</span>
                   </div>
