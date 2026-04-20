@@ -6,30 +6,6 @@ set -e
 
 cd "$(dirname "$0")/../"
 
-backup_dir="$(mktemp -d)"
-
-cleanup() {
-  if [ -d "$backup_dir/dist" ]; then
-    rm -rf ./server/dist
-    cp -R "$backup_dir/dist" ./server/dist
-  fi
-  rm -rf "$backup_dir"
-}
-
-cp -R ./server/dist "$backup_dir/dist"
-trap cleanup EXIT
-
-echo "Start building frontend..."
-
-(
-  cd ./web
-  yarn install --frozen-lockfile
-  yarn build
-)
-
-rm -rf ./server/dist
-cp -R ./web/dist ./server/dist
-
 echo "Start building backend..."
 
 go build -o ./build/memos ./main.go

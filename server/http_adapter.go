@@ -2,13 +2,10 @@ package server
 
 import (
 	"context"
-	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
-
-	"github.com/gorilla/sessions"
 )
 
 const (
@@ -25,6 +22,8 @@ const (
 type Context interface {
 	Request() *http.Request
 	Writer() http.ResponseWriter
+	Cookie(name string) (*http.Cookie, error)
+	SetCookie(cookie *http.Cookie)
 	JSON(code int, payload any) error
 	String(code int, value string) error
 	Stream(code int, contentType string, reader io.Reader) error
@@ -99,13 +98,6 @@ func newHTTPErrorWithInternal(code int, message string, err error) error {
 	return &httpError{code: code, message: message, internal: err}
 }
 
-func badRequestError(message string, err error) error {
-	if err != nil {
-		return newHTTPErrorWithInternal(http.StatusBadRequest, message, err)
-	}
-	return newHTTPError(http.StatusBadRequest, message)
-}
-
 func unauthorizedError(message string) error {
 	return newHTTPError(http.StatusUnauthorized, message)
 }
@@ -114,19 +106,8 @@ func forbiddenError(message string) error {
 	return newHTTPError(http.StatusForbidden, message)
 }
 
-func notFoundError(message string, err error) error {
-	if err != nil {
-		return newHTTPErrorWithInternal(http.StatusNotFound, message, err)
-	}
-	return newHTTPError(http.StatusNotFound, message)
-}
-
 func internalError(message string, err error) error {
 	return newHTTPErrorWithInternal(http.StatusInternalServerError, message, err)
-}
-
-func writeJSON(c Context, data any) error {
-	return c.JSON(http.StatusOK, composeResponse(data))
 }
 
 func newApp() App {
@@ -140,23 +121,6 @@ func unwrapHTTPError(err error, target **httpError) bool {
 	}
 	*target = httpErr
 	return true
-}
-
-func getSession(name string, ctx Context) (*sessions.Session, error) {
-	switch typedCtx := ctx.(type) {
-	case ginContext:
-		storeValue, ok := typedCtx.context.Get(ginSessionStoreContextKey)
-		if !ok {
-			return nil, errors.New("session store not configured")
-		}
-		store, ok := storeValue.(*sessions.CookieStore)
-		if !ok {
-			return nil, errors.New("unexpected session store type")
-		}
-		return store.Get(typedCtx.Request(), name)
-	default:
-		return nil, errors.New("unsupported server context type")
-	}
 }
 
 func getClientIP(ctx Context) string {

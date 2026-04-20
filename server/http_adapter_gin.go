@@ -277,6 +277,17 @@ func (c ginContext) Writer() http.ResponseWriter {
 	return c.context.Writer
 }
 
+func (c ginContext) Cookie(name string) (*http.Cookie, error) {
+	return c.context.Request.Cookie(name)
+}
+
+func (c ginContext) SetCookie(cookie *http.Cookie) {
+	if !cookie.Secure && requestScheme(c.context.Request) == "https" {
+		cookie.Secure = true
+	}
+	http.SetCookie(c.context.Writer, cookie)
+}
+
 func (c ginContext) JSON(code int, payload any) error {
 	c.context.JSON(code, payload)
 	return nil
@@ -429,8 +440,12 @@ func appendVaryHeader(header http.Header, value string) {
 }
 
 func csrfCookieName(tokenLookup string) string {
-	if cookieName, ok := strings.CutPrefix(tokenLookup, "cookie:"); ok && cookieName != "" {
-		return cookieName
+	const cookiePrefix = "cookie:"
+	if strings.HasPrefix(tokenLookup, cookiePrefix) {
+		cookieName := tokenLookup[len(cookiePrefix):]
+		if cookieName != "" {
+			return cookieName
+		}
 	}
 	return "_csrf"
 }

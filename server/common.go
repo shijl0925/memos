@@ -8,13 +8,11 @@ import (
 )
 
 type response struct {
-	Data interface{} `json:"data"`
+	Data any `json:"data"`
 }
 
-func composeResponse(data interface{}) response {
-	return response{
-		Data: data,
-	}
+func composeResponse(data any) response {
+	return response{Data: data}
 }
 
 func DefaultGetRequestSkipper(c Context) bool {
@@ -22,8 +20,7 @@ func DefaultGetRequestSkipper(c Context) bool {
 }
 
 func DefaultAPIRequestSkipper(c Context) bool {
-	path := c.Path()
-	return common.HasPrefixes(path, "/api")
+	return common.HasPrefixes(c.Path(), "/api")
 }
 
 func (server *Server) DefaultAuthSkipper(c Context) bool {
@@ -36,10 +33,7 @@ func (server *Server) DefaultAuthSkipper(c Context) bool {
 
 	openID := c.QueryParam("openId")
 	if openID != "" {
-		userFind := &api.UserFind{
-			OpenID: &openID,
-		}
-		user, err := server.Store.FindUser(ctx, userFind)
+		user, err := server.Store.FindUser(ctx, &api.UserFind{OpenID: &openID})
 		if err != nil && common.ErrorCode(err) != common.NotFound {
 			return false
 		}

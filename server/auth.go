@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *Server) registerAuthRoutes(g Group) {
+func (s *Server) registerAuthRoutes(g Group, secret string) {
 	g.POST("/auth/signin", func(c Context) error {
 		ctx := c.Request().Context()
 		signin := &api.SignIn{}
@@ -38,8 +38,8 @@ func (s *Server) registerAuthRoutes(g Group) {
 			return newHTTPError(http.StatusUnauthorized, "Incorrect login credentials, please try again")
 		}
 
-		if err = setUserSession(c, user); err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to set signin session", err)
+		if err := GenerateTokensAndSetCookies(c, user, secret); err != nil {
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate tokens", err)
 		}
 		if err := s.createUserAuthSignInActivity(c, user); err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create activity", err)
@@ -54,9 +54,7 @@ func (s *Server) registerAuthRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted signin request", err)
 		}
 
-		identityProviderMessage, err := s.Store.GetIdentityProvider(ctx, &store.FindIdentityProviderMessage{
-			ID: &signin.IdentityProviderID,
-		})
+		identityProviderMessage, err := s.Store.GetIdentityProvider(ctx, &store.FindIdentityProviderMessage{ID: &signin.IdentityProviderID})
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find identity provider", err)
 		}
@@ -118,8 +116,8 @@ func (s *Server) registerAuthRoutes(g Group) {
 			return newHTTPError(http.StatusForbidden, fmt.Sprintf("User has been archived with username %s", userInfo.Identifier))
 		}
 
-		if err = setUserSession(c, user); err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to set signin session", err)
+		if err := GenerateTokensAndSetCookies(c, user, secret); err != nil {
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate tokens", err)
 		}
 		if err := s.createUserAuthSignInActivity(c, user); err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create activity", err)
@@ -150,9 +148,7 @@ func (s *Server) registerAuthRoutes(g Group) {
 		if len(existedHostUsers) == 0 {
 			userCreate.Role = api.Host
 		} else {
-			allowSignUpSetting, err := s.Store.FindSystemSetting(ctx, &api.SystemSettingFind{
-				Name: api.SystemSettingAllowSignUpName,
-			})
+			allowSignUpSetting, err := s.Store.FindSystemSetting(ctx, &api.SystemSettingFind{Name: api.SystemSettingAllowSignUpName})
 			if err != nil && common.ErrorCode(err) != common.NotFound {
 				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find system setting", err)
 			}
@@ -176,36 +172,29 @@ func (s *Server) registerAuthRoutes(g Group) {
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate password hash", err)
 		}
-
 		userCreate.PasswordHash = string(hashBytes)
 		user, err := s.Store.CreateUser(ctx, userCreate)
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create user", err)
 		}
+		if err := GenerateTokensAndSetCookies(c, user, secret); err != nil {
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate tokens", err)
+		}
 		if err := s.createUserAuthSignUpActivity(c, user); err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create activity", err)
-		}
-
-		if err := setUserSession(c, user); err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to set signup session", err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
 	})
 
 	g.POST("/auth/signout", func(c Context) error {
-		if err := removeUserSession(c); err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to set sign out session", err)
-		}
+		RemoveTokensAndCookies(c)
 		return c.JSON(http.StatusOK, true)
 	})
 }
 
 func (s *Server) createUserAuthSignInActivity(c Context, user *api.User) error {
 	ctx := c.Request().Context()
-	payload := api.ActivityUserAuthSignInPayload{
-		UserID: user.ID,
-		IP:     getClientIP(c),
-	}
+	payload := api.ActivityUserAuthSignInPayload{UserID: user.ID, IP: getClientIP(c)}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
@@ -224,10 +213,7 @@ func (s *Server) createUserAuthSignInActivity(c Context, user *api.User) error {
 
 func (s *Server) createUserAuthSignUpActivity(c Context, user *api.User) error {
 	ctx := c.Request().Context()
-	payload := api.ActivityUserAuthSignUpPayload{
-		Username: user.Username,
-		IP:       getClientIP(c),
-	}
+	payload := api.ActivityUserAuthSignUpPayload{Username: user.Username, IP: getClientIP(c)}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
