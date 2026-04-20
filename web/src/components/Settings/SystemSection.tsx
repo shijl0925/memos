@@ -206,7 +206,7 @@ const SystemSection = () => {
       <Divider className="!mt-3 !my-4" />
       <div className="form-label">
         <span className="normal-text">{t("setting.system-section.openai-api-key")}</span>
-        <Typography className="!mb-1" level="body-sm">
+        <Typography className="!mb-1" level="body2">
           <a
             className="ml-2 text-sm text-blue-600 hover:opacity-80 hover:underline"
             href="https://platform.openai.com/account/api-keys"
