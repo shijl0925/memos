@@ -120,7 +120,7 @@ const CreateIdentityProviderDialog: React.FC<Props> = (props: Props) => {
     },
   });
   const [oauth2Scopes, setOAuth2Scopes] = useState<string>("");
-  const [seletedTemplate, setSelectedTemplate] = useState<string>("GitHub");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("GitHub");
   const isCreating = identityProvider === undefined;
 
   useEffect(() => {
@@ -142,7 +142,7 @@ const CreateIdentityProviderDialog: React.FC<Props> = (props: Props) => {
       return;
     }
 
-    const template = templateList.find((t) => t.name === seletedTemplate);
+    const template = templateList.find((t) => t.name === selectedTemplate);
     if (template) {
       setBasicInfo({
         name: template.name,
@@ -154,7 +154,7 @@ const CreateIdentityProviderDialog: React.FC<Props> = (props: Props) => {
         setOAuth2Scopes(template.config.oauth2Config.scopes.join(" "));
       }
     }
-  }, [seletedTemplate]);
+  }, [selectedTemplate]);
 
   const handleCloseBtnClick = () => {
     destroy();
@@ -247,7 +247,7 @@ const CreateIdentityProviderDialog: React.FC<Props> = (props: Props) => {
             <Typography className="mb-2" level="body-sm">
               Template
             </Typography>
-            <RadioGroup className="mb-2" value={seletedTemplate}>
+            <RadioGroup className="mb-2" value={selectedTemplate}>
               <div className="mt-2 w-full flex flex-row space-x-4">
                 {templateList.map((template) => (
                   <Radio
