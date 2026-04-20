@@ -4,9 +4,6 @@ import (
 	"embed"
 	"io/fs"
 	"net/http"
-
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 //go:embed dist
@@ -21,24 +18,24 @@ func getFileSystem(path string) http.FileSystem {
 	return http.FS(fs)
 }
 
-func embedFrontend(e *echo.Echo) {
-	// Use echo static middleware to serve the built dist folder
-	// refer: https://github.com/labstack/echo/blob/master/middleware/static.go
-	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+func embedFrontend(app App) {
+	app.UseStatic(StaticFileServerConfig{
 		Skipper:    DefaultAPIRequestSkipper,
 		HTML5:      true,
 		Filesystem: getFileSystem("dist"),
-	}))
-
-	assetsGroup := e.Group("assets")
-	assetsGroup.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Response().Header().Set(echo.HeaderCacheControl, "max-age=31536000, immutable")
-			return next(c)
-		}
 	})
-	assetsGroup.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+
+	app.UseStatic(StaticFileServerConfig{
+		PathPrefix: "/assets",
 		HTML5:      true,
 		Filesystem: getFileSystem("dist/assets"),
-	}))
+		Middlewares: []MiddlewareFunc{
+			func(next HandlerFunc) HandlerFunc {
+				return func(c Context) error {
+					c.Header(headerCacheControl, "max-age=31536000, immutable")
+					return next(c)
+				}
+			},
+		},
+	})
 }

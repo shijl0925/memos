@@ -12,47 +12,44 @@ import (
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 	"golang.org/x/exp/slices"
-
-	"github.com/labstack/echo/v4"
 )
 
-func (s *Server) registerTagRoutes(g *echo.Group) {
-	g.POST("/tag", func(c echo.Context) error {
+func (s *Server) registerTagRoutes(g Group) {
+	g.POST("/tag", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		tagUpsert := &api.TagUpsert{}
 		if err := json.NewDecoder(c.Request().Body).Decode(tagUpsert); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Malformatted post tag request").SetInternal(err)
+			return badRequestError("Malformatted post tag request", err)
 		}
 		if tagUpsert.Name == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "Tag name shouldn't be empty")
+			return badRequestError("Tag name should not be empty", nil)
 		}
 
 		tagUpsert.CreatorID = userID
 		tag, err := s.Store.UpsertTag(ctx, tagUpsert)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to upsert tag").SetInternal(err)
+			return internalError("Failed to upsert tag", err)
 		}
 		if err := s.createTagCreateActivity(c, tag); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create activity").SetInternal(err)
+			return internalError("Failed to create activity", err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(tag.Name)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode tag response").SetInternal(err)
+		if err := writeJSON(c, tag.Name); err != nil {
+			return internalError("Failed to encode tag response", err)
 		}
 		return nil
 	})
 
-	g.GET("/tag", func(c echo.Context) error {
+	g.GET("/tag", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusBadRequest, "Missing user id to find tag")
+			return badRequestError("Missing user id to find tag", nil)
 		}
 
 		tagFind := &api.TagFind{
@@ -60,7 +57,7 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 		}
 		tagList, err := s.Store.FindTagList(ctx, tagFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find tag list").SetInternal(err)
+			return internalError("Failed to find tag list", err)
 		}
 
 		tagNameList := []string{}
@@ -68,18 +65,17 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 			tagNameList = append(tagNameList, tag.Name)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(tagNameList)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode tags response").SetInternal(err)
+		if err := writeJSON(c, tagNameList); err != nil {
+			return internalError("Failed to encode tags response", err)
 		}
 		return nil
 	})
 
-	g.GET("/tag/suggestion", func(c echo.Context) error {
+	g.GET("/tag/suggestion", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusBadRequest, "Missing user session")
+			return badRequestError("Missing user session", nil)
 		}
 		contentSearch := "#"
 		normalRowStatus := api.Normal
@@ -91,7 +87,7 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 
 		memoList, err := s.Store.FindMemoList(ctx, &memoFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find memo list").SetInternal(err)
+			return internalError("Failed to find memo list", err)
 		}
 
 		tagFind := &api.TagFind{
@@ -99,7 +95,7 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 		}
 		existTagList, err := s.Store.FindTagList(ctx, tagFind)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find tag list").SetInternal(err)
+			return internalError("Failed to find tag list", err)
 		}
 		tagNameList := []string{}
 		for _, tag := range existTagList {
@@ -120,25 +116,24 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 		}
 		sort.Strings(tagList)
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(tagList)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode tags response").SetInternal(err)
+		if err := writeJSON(c, tagList); err != nil {
+			return internalError("Failed to encode tags response", err)
 		}
 		return nil
 	})
 
-	g.DELETE("/tag/:tagName", func(c echo.Context) error {
+	g.DELETE("/tag/:tagName", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Missing user in session")
+			return unauthorizedError("Missing user in session")
 		}
 
 		tagName, err := url.QueryUnescape(c.Param("tagName"))
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Invalid tag name").SetInternal(err)
+			return badRequestError("Invalid tag name", err)
 		} else if tagName == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "Tag name cannot be empty")
+			return badRequestError("Tag name should not be empty", nil)
 		}
 
 		tagDelete := &api.TagDelete{
@@ -147,9 +142,9 @@ func (s *Server) registerTagRoutes(g *echo.Group) {
 		}
 		if err := s.Store.DeleteTag(ctx, tagDelete); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Tag name not found: %s", tagName))
+				return notFoundError(fmt.Sprintf("Tag name not found: %s", tagName), nil)
 			}
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete tag name: %v", tagName)).SetInternal(err)
+			return internalError(fmt.Sprintf("Failed to delete tag name: %v", tagName), err)
 		}
 
 		return c.JSON(http.StatusOK, true)
@@ -174,7 +169,7 @@ func findTagListFromMemoContent(memoContent string) []string {
 	return tagList
 }
 
-func (s *Server) createTagCreateActivity(c echo.Context, tag *api.Tag) error {
+func (s *Server) createTagCreateActivity(c Context, tag *api.Tag) error {
 	ctx := c.Request().Context()
 	payload := api.ActivityTagCreatePayload{
 		TagName: tag.Name,

@@ -13,16 +13,11 @@ import (
 	"github.com/usememos/memos/server/profile"
 	"github.com/usememos/memos/store"
 	"github.com/usememos/memos/store/db"
-
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 type Server struct {
-	e  *echo.Echo
-	db *sql.DB
+	app App
+	db  *sql.DB
 
 	ID        string
 	Profile   *profile.Profile
@@ -31,51 +26,33 @@ type Server struct {
 }
 
 func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
-	e := echo.New()
-	e.Debug = true
-	e.HideBanner = true
-	e.HidePort = true
-
 	db := db.NewDB(profile)
 	if err := db.Open(ctx); err != nil {
 		return nil, errors.Wrap(err, "cannot open db")
 	}
 
 	s := &Server{
-		e:       e,
+		app:     newApp(),
 		db:      db.DBInstance,
 		Profile: profile,
 	}
 	storeInstance := store.New(db.DBInstance, profile)
 	s.Store = storeInstance
 
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: `{"time":"${time_rfc3339}",` +
-			`"method":"${method}","uri":"${uri}",` +
-			`"status":${status},"error":"${error}"}` + "\n",
-	}))
-
-	e.Use(middleware.Gzip())
-
-	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
-		Skipper:     s.DefaultAuthSkipper,
-		TokenLookup: "cookie:_csrf",
-	}))
-
-	e.Use(middleware.CORS())
-
-	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+	s.app.UseLogger(`{"time":"${time_rfc3339}",` +
+		`"method":"${method}","uri":"${uri}",` +
+		`"status":${status},"error":"${error}"}` + "\n")
+	s.app.UseGzip()
+	s.app.UseCSRF("cookie:_csrf", s.DefaultAuthSkipper)
+	s.app.UseCORS()
+	s.app.UseSecure(SecureConfig{
 		Skipper:            DefaultGetRequestSkipper,
 		XSSProtection:      "1; mode=block",
 		ContentTypeNosniff: "nosniff",
 		XFrameOptions:      "SAMEORIGIN",
 		HSTSPreloadEnabled: false,
-	}))
-
-	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
-		ErrorMessage: "Request timeout",
-		Timeout:      30 * time.Second,
-	}))
+	})
+	s.app.UseTimeout(30*time.Second, "Request timeout")
 
 	serverID, err := s.getSystemServerID(ctx)
 	if err != nil {
@@ -90,24 +67,22 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 			return nil, err
 		}
 	}
-	e.Use(session.Middleware(sessions.NewCookieStore([]byte(secretSessionName))))
+	s.app.UseSession(secretSessionName)
 
-	embedFrontend(e)
+	embedFrontend(s.app)
 
 	// Register MetricCollector to server.
 	s.registerMetricCollector()
 
-	rootGroup := e.Group("")
+	rootGroup := s.app.Group("")
 	s.registerRSSRoutes(rootGroup)
 
-	publicGroup := e.Group("/o")
+	publicGroup := s.app.Group("/o")
 	s.registerResourcePublicRoutes(publicGroup)
 	registerGetterPublicRoutes(publicGroup)
 
-	apiGroup := e.Group("/api")
-	apiGroup.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return aclMiddleware(s, next)
-	})
+	apiGroup := s.app.Group("/api")
+	apiGroup.Use(aclMiddleware(s))
 	s.registerSystemRoutes(apiGroup)
 	s.registerAuthRoutes(apiGroup)
 	s.registerUserRoutes(apiGroup)
@@ -124,15 +99,14 @@ func (s *Server) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create activity")
 	}
 	s.Collector.Identify(ctx)
-	return s.e.Start(fmt.Sprintf(":%d", s.Profile.Port))
+	return s.app.Start(fmt.Sprintf(":%d", s.Profile.Port))
 }
 
 func (s *Server) Shutdown(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	// Shutdown echo server
-	if err := s.e.Shutdown(ctx); err != nil {
+	if err := s.app.Shutdown(ctx); err != nil {
 		fmt.Printf("failed to shutdown server, error: %v\n", err)
 	}
 

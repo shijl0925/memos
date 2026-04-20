@@ -7,7 +7,7 @@ COPY ./web/ .
 RUN yarn && yarn build
 
 # Build backend exec file.
-FROM golang:1.19.3-alpine3.16 AS backend
+FROM golang:1.26-alpine AS backend
 WORKDIR /backend-build
 
 RUN apk update && apk add --no-cache gcc musl-dev

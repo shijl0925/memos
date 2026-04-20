@@ -1,0 +1,171 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/sessions"
+)
+
+const (
+	headerCacheControl          = "Cache-Control"
+	headerContentSecurityPolicy = "Content-Security-Policy"
+	headerContentType           = "Content-Type"
+	headerXForwardedFor         = "X-Forwarded-For"
+	headerXRealIP               = "X-Real-IP"
+	mimeApplicationJSONCharset  = "application/json; charset=UTF-8"
+	mimeApplicationXMLCharset   = "application/xml; charset=UTF-8"
+	mimeTextPlain               = "text/plain; charset=UTF-8"
+)
+
+type Context interface {
+	Request() *http.Request
+	Writer() http.ResponseWriter
+	JSON(code int, payload any) error
+	String(code int, value string) error
+	Stream(code int, contentType string, reader io.Reader) error
+	Status(code int)
+	Header(key, value string)
+	Path() string
+	Param(name string) string
+	QueryParam(name string) string
+	Set(key string, value any)
+	Get(key string) any
+	FormFile(name string) (*multipart.FileHeader, error)
+	Scheme() string
+}
+
+type HandlerFunc func(Context) error
+
+type MiddlewareFunc func(HandlerFunc) HandlerFunc
+
+type App interface {
+	Group(prefix string) Group
+	UseLogger(format string)
+	UseGzip()
+	UseCSRF(tokenLookup string, skipper func(Context) bool)
+	UseCORS()
+	UseSecure(config SecureConfig)
+	UseTimeout(timeout time.Duration, errorMessage string)
+	UseSession(secret string)
+	UseStatic(config StaticFileServerConfig)
+	Start(address string) error
+	Shutdown(ctx context.Context) error
+}
+
+type Group interface {
+	GET(path string, handler HandlerFunc)
+	POST(path string, handler HandlerFunc)
+	PATCH(path string, handler HandlerFunc)
+	DELETE(path string, handler HandlerFunc)
+	Use(middlewares ...MiddlewareFunc)
+}
+
+type SecureConfig struct {
+	Skipper            func(Context) bool
+	XSSProtection      string
+	ContentTypeNosniff string
+	XFrameOptions      string
+	HSTSPreloadEnabled bool
+}
+
+type StaticFileServerConfig struct {
+	PathPrefix  string
+	HTML5       bool
+	Filesystem  http.FileSystem
+	Skipper     func(Context) bool
+	Middlewares []MiddlewareFunc
+}
+
+type httpError struct {
+	code     int
+	message  string
+	internal error
+}
+
+func (e *httpError) Error() string {
+	return e.message
+}
+
+func newHTTPError(code int, message string) error {
+	return &httpError{code: code, message: message}
+}
+
+func newHTTPErrorWithInternal(code int, message string, err error) error {
+	return &httpError{code: code, message: message, internal: err}
+}
+
+func badRequestError(message string, err error) error {
+	if err != nil {
+		return newHTTPErrorWithInternal(http.StatusBadRequest, message, err)
+	}
+	return newHTTPError(http.StatusBadRequest, message)
+}
+
+func unauthorizedError(message string) error {
+	return newHTTPError(http.StatusUnauthorized, message)
+}
+
+func forbiddenError(message string) error {
+	return newHTTPError(http.StatusForbidden, message)
+}
+
+func notFoundError(message string, err error) error {
+	if err != nil {
+		return newHTTPErrorWithInternal(http.StatusNotFound, message, err)
+	}
+	return newHTTPError(http.StatusNotFound, message)
+}
+
+func internalError(message string, err error) error {
+	return newHTTPErrorWithInternal(http.StatusInternalServerError, message, err)
+}
+
+func writeJSON(c Context, data any) error {
+	return c.JSON(http.StatusOK, composeResponse(data))
+}
+
+func newApp() App {
+	return newGinApp()
+}
+
+func unwrapHTTPError(err error, target **httpError) bool {
+	httpErr, ok := err.(*httpError)
+	if !ok {
+		return false
+	}
+	*target = httpErr
+	return true
+}
+
+func getSession(name string, ctx Context) (*sessions.Session, error) {
+	switch typedCtx := ctx.(type) {
+	case ginContext:
+		storeValue, ok := typedCtx.context.Get(ginSessionStoreContextKey)
+		if !ok {
+			return nil, errors.New("session store not configured")
+		}
+		store, ok := storeValue.(*sessions.CookieStore)
+		if !ok {
+			return nil, errors.New("unexpected session store type")
+		}
+		return store.Get(typedCtx.Request(), name)
+	default:
+		return nil, errors.New("unsupported server context type")
+	}
+}
+
+func getClientIP(ctx Context) string {
+	request := ctx.Request()
+	if realIP := request.Header.Get(headerXRealIP); realIP != "" {
+		return realIP
+	}
+	if forwardedFor := request.Header.Get(headerXForwardedFor); forwardedFor != "" {
+		return forwardedFor
+	}
+	return request.RemoteAddr
+}

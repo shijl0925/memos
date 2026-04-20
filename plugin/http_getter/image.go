@@ -3,8 +3,6 @@ package getter
 import (
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -14,11 +12,7 @@ type Image struct {
 }
 
 func GetImage(urlStr string) (*Image, error) {
-	if _, err := url.Parse(urlStr); err != nil {
-		return nil, err
-	}
-
-	response, err := http.Get(urlStr)
+	response, err := doValidatedOutboundGet(urlStr)
 	if err != nil {
 		return nil, err
 	}

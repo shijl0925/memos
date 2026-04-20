@@ -1,56 +1,53 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 
-	"github.com/labstack/echo/v4"
 	getter "github.com/usememos/memos/plugin/http_getter"
 )
 
-func registerGetterPublicRoutes(g *echo.Group) {
-	g.GET("/get/httpmeta", func(c echo.Context) error {
+func registerGetterPublicRoutes(g Group) {
+	g.GET("/get/httpmeta", func(c Context) error {
 		urlStr := c.QueryParam("url")
 		if urlStr == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "Missing website url")
+			return badRequestError("Missing website url", nil)
 		}
 		if _, err := url.Parse(urlStr); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Wrong url").SetInternal(err)
+			return badRequestError("Wrong url", err)
 		}
 
 		htmlMeta, err := getter.GetHTMLMeta(urlStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusNotAcceptable, fmt.Sprintf("Failed to get website meta with url: %s", urlStr)).SetInternal(err)
+			return newHTTPErrorWithInternal(http.StatusNotAcceptable, fmt.Sprintf("Failed to get website meta with url: %s", urlStr), err)
 		}
 
-		c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
-		if err := json.NewEncoder(c.Response().Writer).Encode(composeResponse(htmlMeta)); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to encode website HTML meta").SetInternal(err)
+		if err := writeJSON(c, htmlMeta); err != nil {
+			return internalError("Failed to encode website HTML meta", err)
 		}
 		return nil
 	})
 
-	g.GET("/get/image", func(c echo.Context) error {
+	g.GET("/get/image", func(c Context) error {
 		urlStr := c.QueryParam("url")
 		if urlStr == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "Missing image url")
+			return badRequestError("Missing image url", nil)
 		}
 		if _, err := url.Parse(urlStr); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Wrong url").SetInternal(err)
+			return badRequestError("Wrong url", err)
 		}
 
 		image, err := getter.GetImage(urlStr)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Failed to get image url: %s", urlStr)).SetInternal(err)
+			return badRequestError(fmt.Sprintf("Failed to get image url: %s", urlStr), err)
 		}
 
-		c.Response().Writer.WriteHeader(http.StatusOK)
-		c.Response().Writer.Header().Set("Content-Type", image.Mediatype)
-		c.Response().Writer.Header().Set(echo.HeaderCacheControl, "max-age=31536000, immutable")
-		if _, err := c.Response().Writer.Write(image.Blob); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to write image blob").SetInternal(err)
+		c.Status(http.StatusOK)
+		c.Header(headerContentType, image.Mediatype)
+		c.Header(headerCacheControl, "max-age=31536000, immutable")
+		if _, err := c.Writer().Write(image.Blob); err != nil {
+			return internalError("Failed to write image blob", err)
 		}
 		return nil
 	})
