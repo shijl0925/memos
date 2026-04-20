@@ -13,6 +13,8 @@ import (
 	"github.com/usememos/memos/common"
 )
 
+const memoContentLengthOverflowMessage = "Content size overflow, up to 1MB"
+
 func (s *Server) registerMemoRoutes(g Group) {
 	g.POST("/memo", func(c Context) error {
 		ctx := c.Request().Context()
@@ -68,8 +70,8 @@ func (s *Server) registerMemoRoutes(g Group) {
 			}
 		}
 
-		if len(memoCreate.Content) > api.MaxContentLength {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, "Content size overflow, up to 1MB", err)
+		if err := validateMemoContentLength(memoCreate.Content); err != nil {
+			return err
 		}
 
 		memoCreate.CreatorID = userID
@@ -126,8 +128,10 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted patch memo request", err)
 		}
 
-		if memoPatch.Content != nil && len(*memoPatch.Content) > api.MaxContentLength {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, "Content size overflow, up to 1MB", err)
+		if memoPatch.Content != nil {
+			if err := validateMemoContentLength(*memoPatch.Content); err != nil {
+				return err
+			}
 		}
 
 		memo, err = s.Store.PatchMemo(ctx, memoPatch)
@@ -445,6 +449,13 @@ func (s *Server) registerMemoRoutes(g Group) {
 		}
 		return c.JSON(http.StatusOK, true)
 	})
+}
+
+func validateMemoContentLength(content string) error {
+	if len(content) > api.MaxContentLength {
+		return newHTTPError(http.StatusBadRequest, memoContentLengthOverflowMessage)
+	}
+	return nil
 }
 
 func (s *Server) createMemoCreateActivity(c Context, memo *api.Memo) error {

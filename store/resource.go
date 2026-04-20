@@ -87,6 +87,90 @@ func (s *Store) ComposeMemoResourceList(ctx context.Context, memo *api.Memo) err
 	return nil
 }
 
+func findMemoResourceListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) (map[int][]*api.Resource, error) {
+	resourceListMap := make(map[int][]*api.Resource, len(memoIDList))
+	if len(memoIDList) == 0 {
+		return resourceListMap, nil
+	}
+
+	wherePlaceholder := make([]string, 0, len(memoIDList))
+	args := make([]any, 0, len(memoIDList))
+	for _, memoID := range memoIDList {
+		wherePlaceholder = append(wherePlaceholder, "?")
+		args = append(args, memoID)
+	}
+
+	query := `
+		SELECT
+			mr.memo_id,
+			mr.created_ts,
+			mr.updated_ts,
+			IFNULL(linked.linked_memo_amount, 0) AS linked_memo_amount,
+			r.id,
+			r.filename,
+			r.external_link,
+			r.type,
+			r.size,
+			r.creator_id,
+			r.created_ts,
+			r.updated_ts,
+			r.internal_path,
+			r.public_id
+		FROM memo_resource AS mr
+		JOIN resource AS r ON r.id = mr.resource_id
+		LEFT JOIN (
+			SELECT resource_id, COUNT(DISTINCT memo_id) AS linked_memo_amount
+			FROM memo_resource
+			GROUP BY resource_id
+		) AS linked ON linked.resource_id = r.id
+		WHERE mr.memo_id IN (` + strings.Join(wherePlaceholder, ", ") + `)
+		ORDER BY mr.memo_id, mr.created_ts, r.id
+	`
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, FormatError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			memoID          int
+			relationCreated int64
+			relationUpdated int64
+			resourceRaw     resourceRaw
+		)
+		if err := rows.Scan(
+			&memoID,
+			&relationCreated,
+			&relationUpdated,
+			&resourceRaw.LinkedMemoAmount,
+			&resourceRaw.ID,
+			&resourceRaw.Filename,
+			&resourceRaw.ExternalLink,
+			&resourceRaw.Type,
+			&resourceRaw.Size,
+			&resourceRaw.CreatorID,
+			&resourceRaw.CreatedTs,
+			&resourceRaw.UpdatedTs,
+			&resourceRaw.InternalPath,
+			&resourceRaw.PublicID,
+		); err != nil {
+			return nil, FormatError(err)
+		}
+
+		resource := resourceRaw.toResource()
+		resource.CreatedTs = relationCreated
+		resource.UpdatedTs = relationUpdated
+		resourceListMap[memoID] = append(resourceListMap[memoID], resource)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, FormatError(err)
+	}
+
+	return resourceListMap, nil
+}
+
 func (s *Store) CreateResource(ctx context.Context, create *api.ResourceCreate) (*api.Resource, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

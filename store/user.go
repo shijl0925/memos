@@ -344,6 +344,68 @@ func findUserList(ctx context.Context, tx *sql.Tx, find *api.UserFind) ([]*userR
 	return userRawList, nil
 }
 
+func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, idList []int) (map[int]*userRaw, error) {
+	userMap := make(map[int]*userRaw, len(idList))
+	if len(idList) == 0 {
+		return userMap, nil
+	}
+
+	wherePlaceholder := make([]string, 0, len(idList))
+	args := make([]any, 0, len(idList))
+	for _, id := range idList {
+		wherePlaceholder = append(wherePlaceholder, "?")
+		args = append(args, id)
+	}
+
+	query := `
+		SELECT
+			id,
+			username,
+			role,
+			email,
+			nickname,
+			password_hash,
+			open_id,
+			avatar_url,
+			created_ts,
+			updated_ts,
+			row_status
+		FROM user
+		WHERE id IN (` + strings.Join(wherePlaceholder, ", ") + `)
+	`
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, FormatError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userRaw userRaw
+		if err := rows.Scan(
+			&userRaw.ID,
+			&userRaw.Username,
+			&userRaw.Role,
+			&userRaw.Email,
+			&userRaw.Nickname,
+			&userRaw.PasswordHash,
+			&userRaw.OpenID,
+			&userRaw.AvatarURL,
+			&userRaw.CreatedTs,
+			&userRaw.UpdatedTs,
+			&userRaw.RowStatus,
+		); err != nil {
+			return nil, FormatError(err)
+		}
+		userMap[userRaw.ID] = &userRaw
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, FormatError(err)
+	}
+
+	return userMap, nil
+}
+
 func deleteUser(ctx context.Context, tx *sql.Tx, delete *api.UserDelete) error {
 	result, err := tx.ExecContext(ctx, `
 		DELETE FROM user WHERE id = ?
