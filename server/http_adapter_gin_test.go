@@ -12,13 +12,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newTestGinApp(t *testing.T) *ginApp {
+	t.Helper()
+
+	app, ok := newGinApp().(*ginApp)
+	require.True(t, ok)
+	return app
+}
+
 func TestNewAppUsesGinByDefault(t *testing.T) {
 	_, ok := newApp().(*ginApp)
 	require.True(t, ok)
 }
 
 func TestGinUseGzip(t *testing.T) {
-	app := newGinApp().(*ginApp)
+	app := newTestGinApp(t)
 	app.UseGzip()
 	app.Group("").GET("/hello", func(c Context) error {
 		return c.String(http.StatusOK, "hello world")
@@ -41,7 +49,7 @@ func TestGinUseGzip(t *testing.T) {
 }
 
 func TestGinUseCSRFSetsCookieAndProtectsUnsafeRequests(t *testing.T) {
-	app := newGinApp().(*ginApp)
+	app := newTestGinApp(t)
 	app.UseCSRF("cookie:_csrf", nil)
 	group := app.Group("")
 	group.GET("/", func(c Context) error {
@@ -73,7 +81,7 @@ func TestGinUseCSRFSetsCookieAndProtectsUnsafeRequests(t *testing.T) {
 }
 
 func TestGinUseTimeout(t *testing.T) {
-	app := newGinApp().(*ginApp)
+	app := newTestGinApp(t)
 	app.UseTimeout(10*time.Millisecond, "Request timeout")
 	app.Group("").GET("/slow", func(c Context) error {
 		time.Sleep(50 * time.Millisecond)
