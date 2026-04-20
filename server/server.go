@@ -29,11 +29,7 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 		return nil, errors.Wrap(err, "cannot open db")
 	}
 
-	s := &Server{
-		app:     newApp(),
-		db:      db.DBInstance,
-		Profile: profile,
-	}
+	s := &Server{app: newApp(), db: db.DBInstance, Profile: profile}
 	s.Store = store.New(db.DBInstance, profile)
 
 	s.app.UseLogger(`{"time":"${time_rfc3339}",` +
@@ -57,28 +53,28 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	}
 	s.ID = serverID
 
-	secretSessionName := "usememos"
+	embedFrontend(s.app)
+
+	secret := "usememos"
 	if profile.Mode == "prod" {
-		secretSessionName, err = s.getSystemSecretSessionName(ctx)
+		secret, err = s.getSystemSecretSessionName(ctx)
 		if err != nil {
 			return nil, err
 		}
 	}
-	s.app.UseSession(secretSessionName)
-
-	embedFrontend(s.app)
 
 	rootGroup := s.app.Group("")
 	s.registerRSSRoutes(rootGroup)
 
 	publicGroup := s.app.Group("/o")
-	s.registerResourcePublicRoutes(publicGroup)
+	publicGroup.Use(JWTMiddleware(s, secret))
 	registerGetterPublicRoutes(publicGroup)
+	s.registerResourcePublicRoutes(publicGroup)
 
 	apiGroup := s.app.Group("/api")
-	apiGroup.Use(aclMiddleware(s))
+	apiGroup.Use(JWTMiddleware(s, secret))
 	s.registerSystemRoutes(apiGroup)
-	s.registerAuthRoutes(apiGroup)
+	s.registerAuthRoutes(apiGroup, secret)
 	s.registerUserRoutes(apiGroup)
 	s.registerMemoRoutes(apiGroup)
 	s.registerShortcutRoutes(apiGroup)
@@ -113,10 +109,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 }
 
 func (s *Server) createServerStartActivity(ctx context.Context) error {
-	payload := api.ActivityServerStartPayload{
-		ServerID: s.ID,
-		Profile:  s.Profile,
-	}
+	payload := api.ActivityServerStartPayload{ServerID: s.ID, Profile: s.Profile}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")

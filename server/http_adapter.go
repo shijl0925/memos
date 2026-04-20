@@ -25,6 +25,8 @@ const (
 type Context interface {
 	Request() *http.Request
 	Writer() http.ResponseWriter
+	Cookie(name string) (*http.Cookie, error)
+	SetCookie(cookie *http.Cookie)
 	JSON(code int, payload any) error
 	String(code int, value string) error
 	Stream(code int, contentType string, reader io.Reader) error

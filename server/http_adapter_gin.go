@@ -277,6 +277,17 @@ func (c ginContext) Writer() http.ResponseWriter {
 	return c.context.Writer
 }
 
+func (c ginContext) Cookie(name string) (*http.Cookie, error) {
+	return c.context.Request.Cookie(name)
+}
+
+func (c ginContext) SetCookie(cookie *http.Cookie) {
+	if !cookie.Secure && requestScheme(c.context.Request) == "https" {
+		cookie.Secure = true
+	}
+	http.SetCookie(c.context.Writer, cookie)
+}
+
 func (c ginContext) JSON(code int, payload any) error {
 	c.context.JSON(code, payload)
 	return nil

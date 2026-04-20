@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,7 +18,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
+	"github.com/usememos/memos/common/log"
 	"github.com/usememos/memos/plugin/storage/s3"
+	"go.uber.org/zap"
 )
 
 const (
@@ -41,25 +45,6 @@ func (s *Server) registerResourceRoutes(g Group) {
 		resourceCreate.CreatorID = userID
 		if resourceCreate.ExternalLink != "" && !strings.HasPrefix(resourceCreate.ExternalLink, "http") {
 			return newHTTPError(http.StatusBadRequest, "Invalid external link")
-		}
-		if resourceCreate.Visibility == "" {
-			userResourceVisibilitySetting, err := s.Store.FindUserSetting(ctx, &api.UserSettingFind{
-				UserID: userID,
-				Key:    api.UserSettingResourceVisibilityKey,
-			})
-			if err != nil {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user setting", err)
-			}
-
-			if userResourceVisibilitySetting != nil {
-				resourceVisibility := api.Private
-				if err := json.Unmarshal([]byte(userResourceVisibilitySetting.Value), &resourceVisibility); err != nil {
-					return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to unmarshal user setting value", err)
-				}
-				resourceCreate.Visibility = resourceVisibility
-			} else {
-				resourceCreate.Visibility = api.Private
-			}
 		}
 
 		resource, err := s.Store.CreateResource(ctx, resourceCreate)
@@ -91,127 +76,115 @@ func (s *Server) registerResourceRoutes(g Group) {
 			return newHTTPError(http.StatusBadRequest, "Upload file not found")
 		}
 
-		filename := file.Filename
 		filetype := file.Header.Get("Content-Type")
 		size := file.Size
-		src, err := file.Open()
+		sourceFile, err := file.Open()
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to open file", err)
 		}
-		defer src.Close()
+		defer sourceFile.Close()
 
-		systemSetting, err := s.Store.FindSystemSetting(ctx, &api.SystemSettingFind{Name: api.SystemSettingStorageServiceIDName})
+		var resourceCreate *api.ResourceCreate
+		systemSettingStorageServiceID, err := s.Store.FindSystemSetting(ctx, &api.SystemSettingFind{Name: api.SystemSettingStorageServiceIDName})
 		if err != nil && common.ErrorCode(err) != common.NotFound {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find storage", err)
 		}
-		storageServiceID := 0
-		if systemSetting != nil {
-			if err := json.Unmarshal([]byte(systemSetting.Value), &storageServiceID); err != nil {
+		storageServiceID := api.DatabaseStorage
+		if systemSettingStorageServiceID != nil {
+			if err := json.Unmarshal([]byte(systemSettingStorageServiceID.Value), &storageServiceID); err != nil {
 				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to unmarshal storage service id", err)
 			}
 		}
-
-		var resourceCreate *api.ResourceCreate
-		if storageServiceID == 0 {
-			fileBytes, err := io.ReadAll(src)
+		if storageServiceID == api.DatabaseStorage {
+			fileBytes, err := io.ReadAll(sourceFile)
 			if err != nil {
 				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to read file", err)
 			}
 			resourceCreate = &api.ResourceCreate{
 				CreatorID: userID,
-				Filename:  filename,
+				Filename:  file.Filename,
 				Type:      filetype,
 				Size:      size,
 				Blob:      fileBytes,
+			}
+		} else if storageServiceID == api.LocalStorage {
+			systemSettingLocalStoragePath, err := s.Store.FindSystemSetting(ctx, &api.SystemSettingFind{Name: api.SystemSettingLocalStoragePathName})
+			if err != nil && common.ErrorCode(err) != common.NotFound {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find local storage path setting", err)
+			}
+			localStoragePath := ""
+			if systemSettingLocalStoragePath != nil {
+				if err := json.Unmarshal([]byte(systemSettingLocalStoragePath.Value), &localStoragePath); err != nil {
+					return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to unmarshal local storage path setting", err)
+				}
+			}
+			filePath := localStoragePath
+			if !strings.Contains(filePath, "{filename}") {
+				filePath = path.Join(filePath, "{filename}")
+			}
+			filePath = path.Join(s.Profile.Data, replacePathTemplate(filePath, file.Filename))
+			dir, filename := filepath.Split(filePath)
+			if err = os.MkdirAll(dir, os.ModePerm); err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create directory", err)
+			}
+			dst, err := os.Create(filePath)
+			if err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create file", err)
+			}
+			defer dst.Close()
+			if _, err = io.Copy(dst, sourceFile); err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to copy file", err)
+			}
+
+			resourceCreate = &api.ResourceCreate{
+				CreatorID:    userID,
+				Filename:     filename,
+				Type:         filetype,
+				Size:         size,
+				InternalPath: filePath,
 			}
 		} else {
 			storage, err := s.Store.FindStorage(ctx, &api.StorageFind{ID: &storageServiceID})
 			if err != nil {
 				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find storage", err)
 			}
-
-			if storage.Type == api.StorageS3 {
-				s3Config := storage.Config.S3Config
-				t := time.Now()
-				var s3FileKey string
-				if s3Config.Path == "" {
-					s3FileKey = filename
-				} else {
-					s3FileKey = fileKeyPattern.ReplaceAllStringFunc(s3Config.Path, func(s string) string {
-						switch s {
-						case "{filename}":
-							return filename
-						case "{filetype}":
-							return filetype
-						case "{timestamp}":
-							return fmt.Sprintf("%d", t.Unix())
-						case "{year}":
-							return fmt.Sprintf("%d", t.Year())
-						case "{month}":
-							return fmt.Sprintf("%02d", t.Month())
-						case "{day}":
-							return fmt.Sprintf("%02d", t.Day())
-						case "{hour}":
-							return fmt.Sprintf("%02d", t.Hour())
-						case "{minute}":
-							return fmt.Sprintf("%02d", t.Minute())
-						case "{second}":
-							return fmt.Sprintf("%02d", t.Second())
-						}
-						return s
-					})
-					if !strings.Contains(s3Config.Path, "{filename}") {
-						s3FileKey = path.Join(s3FileKey, filename)
-					}
-				}
-
-				s3client, err := s3.NewClient(ctx, &s3.Config{
-					AccessKey: s3Config.AccessKey,
-					SecretKey: s3Config.SecretKey,
-					EndPoint:  s3Config.EndPoint,
-					Region:    s3Config.Region,
-					Bucket:    s3Config.Bucket,
-					URLPrefix: s3Config.URLPrefix,
-				})
-				if err != nil {
-					return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to new s3 client", err)
-				}
-
-				link, err := s3client.UploadFile(ctx, s3FileKey, filetype, src)
-				if err != nil {
-					return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to upload via s3 client", err)
-				}
-				resourceCreate = &api.ResourceCreate{
-					CreatorID:    userID,
-					Filename:     filename,
-					Type:         filetype,
-					ExternalLink: link,
-				}
-			} else {
+			if storage.Type != api.StorageS3 {
 				return newHTTPError(http.StatusInternalServerError, "Unsupported storage type")
 			}
-		}
 
-		if resourceCreate.Visibility == "" {
-			userResourceVisibilitySetting, err := s.Store.FindUserSetting(ctx, &api.UserSettingFind{
-				UserID: userID,
-				Key:    api.UserSettingResourceVisibilityKey,
+			s3Config := storage.Config.S3Config
+			s3Client, err := s3.NewClient(ctx, &s3.Config{
+				AccessKey: s3Config.AccessKey,
+				SecretKey: s3Config.SecretKey,
+				EndPoint:  s3Config.EndPoint,
+				Region:    s3Config.Region,
+				Bucket:    s3Config.Bucket,
+				URLPrefix: s3Config.URLPrefix,
+				URLSuffix: s3Config.URLSuffix,
 			})
 			if err != nil {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user setting", err)
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to new s3 client", err)
 			}
 
-			if userResourceVisibilitySetting != nil {
-				resourceVisibility := api.Private
-				if err := json.Unmarshal([]byte(userResourceVisibilitySetting.Value), &resourceVisibility); err != nil {
-					return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to unmarshal user setting value", err)
-				}
-				resourceCreate.Visibility = resourceVisibility
-			} else {
-				resourceCreate.Visibility = api.Private
+			filePath := s3Config.Path
+			if !strings.Contains(filePath, "{filename}") {
+				filePath = path.Join(filePath, "{filename}")
+			}
+			filePath = replacePathTemplate(filePath, file.Filename)
+			_, filename := filepath.Split(filePath)
+			link, err := s3Client.UploadFile(ctx, filePath, filetype, sourceFile)
+			if err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to upload via s3 client", err)
+			}
+			resourceCreate = &api.ResourceCreate{
+				CreatorID:    userID,
+				Filename:     filename,
+				Type:         filetype,
+				ExternalLink: link,
 			}
 		}
 
+		resourceCreate.PublicID = common.GenUUID()
 		resource, err := s.Store.CreateResource(ctx, resourceCreate)
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create resource", err)
@@ -228,63 +201,20 @@ func (s *Server) registerResourceRoutes(g Group) {
 		if !ok {
 			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
-		list, err := s.Store.FindResourceList(ctx, &api.ResourceFind{CreatorID: &userID})
+
+		resourceFind := &api.ResourceFind{CreatorID: &userID}
+		if limit, err := strconv.Atoi(c.QueryParam("limit")); err == nil {
+			resourceFind.Limit = &limit
+		}
+		if offset, err := strconv.Atoi(c.QueryParam("offset")); err == nil {
+			resourceFind.Offset = &offset
+		}
+
+		list, err := s.Store.FindResourceList(ctx, resourceFind)
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch resource list", err)
 		}
-
-		for _, resource := range list {
-			memoResourceList, err := s.Store.FindMemoResourceList(ctx, &api.MemoResourceFind{ResourceID: &resource.ID})
-			if err != nil {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find memo resource list", err)
-			}
-			resource.LinkedMemoAmount = len(memoResourceList)
-		}
 		return c.JSON(http.StatusOK, composeResponse(list))
-	})
-
-	g.GET("/resource/:resourceId", func(c Context) error {
-		ctx := c.Request().Context()
-		resourceID, err := strconv.Atoi(c.Param("resourceId"))
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
-		}
-
-		userID, ok := c.Get(getUserIDContextKey()).(int)
-		if !ok {
-			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
-		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{
-			ID:        &resourceID,
-			CreatorID: &userID,
-			GetBlob:   true,
-		})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch resource", err)
-		}
-		return c.JSON(http.StatusOK, composeResponse(resource))
-	})
-
-	g.GET("/resource/:resourceId/blob", func(c Context) error {
-		ctx := c.Request().Context()
-		resourceID, err := strconv.Atoi(c.Param("resourceId"))
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
-		}
-
-		userID, ok := c.Get(getUserIDContextKey()).(int)
-		if !ok {
-			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
-		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{
-			ID:        &resourceID,
-			CreatorID: &userID,
-			GetBlob:   true,
-		})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch resource", err)
-		}
-		return c.Stream(http.StatusOK, resource.Type, bytes.NewReader(resource.Blob))
 	})
 
 	g.PATCH("/resource/:resourceId", func(c Context) error {
@@ -311,6 +241,10 @@ func (s *Server) registerResourceRoutes(g Group) {
 		resourcePatch := &api.ResourcePatch{UpdatedTs: &currentTs}
 		if err := json.NewDecoder(c.Request().Body).Decode(resourcePatch); err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted patch resource request", err)
+		}
+		if resourcePatch.ResetPublicID != nil && *resourcePatch.ResetPublicID {
+			publicID := common.GenUUID()
+			resourcePatch.PublicID = &publicID
 		}
 
 		resourcePatch.ID = resourceID
@@ -340,9 +274,13 @@ func (s *Server) registerResourceRoutes(g Group) {
 		if resource.CreatorID != userID {
 			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
+		if resource.InternalPath != "" {
+			if err := os.Remove(resource.InternalPath); err != nil {
+				log.Warn(fmt.Sprintf("failed to delete local file with path %s", resource.InternalPath), zap.Error(err))
+			}
+		}
 
-		resourceDelete := &api.ResourceDelete{ID: resourceID}
-		if err := s.Store.DeleteResource(ctx, resourceDelete); err != nil {
+		if err := s.Store.DeleteResource(ctx, &api.ResourceDelete{ID: resourceID}); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
 				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource ID not found: %d", resourceID))
 			}
@@ -353,23 +291,32 @@ func (s *Server) registerResourceRoutes(g Group) {
 }
 
 func (s *Server) registerResourcePublicRoutes(g Group) {
-	g.GET("/r/:resourceId/:filename", func(c Context) error {
+	g.GET("/r/:resourceId/:publicId", func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
-		filename, err := url.QueryUnescape(c.Param("filename"))
+		publicID, err := url.QueryUnescape(c.Param("publicId"))
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("filename is invalid: %s", c.Param("filename")), err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("publicID is invalid: %s", c.Param("publicId")), err)
 		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{
-			ID:       &resourceID,
-			Filename: &filename,
-			GetBlob:  true,
-		})
+		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, PublicID: &publicID, GetBlob: true})
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
+		}
+
+		blob := resource.Blob
+		if resource.InternalPath != "" {
+			src, err := os.Open(resource.InternalPath)
+			if err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to open the local resource: %s", resource.InternalPath), err)
+			}
+			defer src.Close()
+			blob, err = io.ReadAll(src)
+			if err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to read the local resource: %s", resource.InternalPath), err)
+			}
 		}
 
 		c.Writer().Header().Set(headerCacheControl, "max-age=31536000, immutable")
@@ -378,20 +325,60 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 		if strings.HasPrefix(resourceType, "text") {
 			resourceType = mimeTextPlain
 		} else if strings.HasPrefix(resourceType, "video") || strings.HasPrefix(resourceType, "audio") {
-			http.ServeContent(c.Writer(), c.Request(), resource.Filename, time.Unix(resource.UpdatedTs, 0), bytes.NewReader(resource.Blob))
+			http.ServeContent(c.Writer(), c.Request(), resource.Filename, time.Unix(resource.UpdatedTs, 0), bytes.NewReader(blob))
 			return nil
 		}
-		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(resource.Blob))
+		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(blob))
+	})
+
+	g.GET("/r/:resourceId/:publicId/:filename", func(c Context) error {
+		ctx := c.Request().Context()
+		resourceID, err := strconv.Atoi(c.Param("resourceId"))
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+		}
+		publicID, err := url.QueryUnescape(c.Param("publicId"))
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("publicID is invalid: %s", c.Param("publicId")), err)
+		}
+		filename, err := url.QueryUnescape(c.Param("filename"))
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("filename is invalid: %s", c.Param("filename")), err)
+		}
+		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, PublicID: &publicID, Filename: &filename, GetBlob: true})
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
+		}
+
+		blob := resource.Blob
+		if resource.InternalPath != "" {
+			src, err := os.Open(resource.InternalPath)
+			if err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to open the local resource: %s", resource.InternalPath), err)
+			}
+			defer src.Close()
+			blob, err = io.ReadAll(src)
+			if err != nil {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to read the local resource: %s", resource.InternalPath), err)
+			}
+		}
+
+		c.Writer().Header().Set(headerCacheControl, "max-age=31536000, immutable")
+		c.Writer().Header().Set(headerContentSecurityPolicy, "default-src 'self'")
+		resourceType := strings.ToLower(resource.Type)
+		if strings.HasPrefix(resourceType, "text") {
+			resourceType = mimeTextPlain
+		} else if strings.HasPrefix(resourceType, "video") || strings.HasPrefix(resourceType, "audio") {
+			http.ServeContent(c.Writer(), c.Request(), resource.Filename, time.Unix(resource.UpdatedTs, 0), bytes.NewReader(blob))
+			return nil
+		}
+		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(blob))
 	})
 }
 
 func (s *Server) createResourceCreateActivity(c Context, resource *api.Resource) error {
 	ctx := c.Request().Context()
-	payload := api.ActivityResourceCreatePayload{
-		Filename: resource.Filename,
-		Type:     resource.Type,
-		Size:     resource.Size,
-	}
+	payload := api.ActivityResourceCreatePayload{Filename: resource.Filename, Type: resource.Type, Size: resource.Size}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
@@ -406,4 +393,30 @@ func (s *Server) createResourceCreateActivity(c Context, resource *api.Resource)
 		return errors.Wrap(err, "failed to create activity")
 	}
 	return err
+}
+
+func replacePathTemplate(path string, filename string) string {
+	t := time.Now()
+	path = fileKeyPattern.ReplaceAllStringFunc(path, func(s string) string {
+		switch s {
+		case "{filename}":
+			return filename
+		case "{timestamp}":
+			return fmt.Sprintf("%d", t.Unix())
+		case "{year}":
+			return fmt.Sprintf("%d", t.Year())
+		case "{month}":
+			return fmt.Sprintf("%02d", t.Month())
+		case "{day}":
+			return fmt.Sprintf("%02d", t.Day())
+		case "{hour}":
+			return fmt.Sprintf("%02d", t.Hour())
+		case "{minute}":
+			return fmt.Sprintf("%02d", t.Minute())
+		case "{second}":
+			return fmt.Sprintf("%02d", t.Second())
+		}
+		return s
+	})
+	return path
 }

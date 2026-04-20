@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	getter "github.com/usememos/memos/plugin/http_getter"
+	getter "github.com/usememos/memos/plugin/http-getter"
 )
 
 func registerGetterPublicRoutes(g Group) {
