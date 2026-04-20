@@ -1,16 +1,20 @@
 package server
 
 import (
+	"bufio"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
+	"github.com/usememos/memos/common"
 )
 
 const ginSessionStoreContextKey = "session-store"
@@ -48,9 +52,56 @@ func (a *ginApp) UseLogger(_ string) {
 	}))
 }
 
-func (a *ginApp) UseGzip() {}
+func (a *ginApp) UseGzip() {
+	a.app.Use(func(c *gin.Context) {
+		if !strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") || strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
+			c.Next()
+			return
+		}
 
-func (a *ginApp) UseCSRF(_ string, _ func(Context) bool) {}
+		writer := newGinGzipWriter(c.Writer)
+		defer func() {
+			if err := writer.Close(); err != nil {
+				_ = c.Error(err)
+			}
+		}()
+
+		appendVaryHeader(c.Writer.Header(), "Accept-Encoding")
+		c.Header("Content-Encoding", "gzip")
+		c.Header("Content-Length", "")
+		c.Writer = writer
+		c.Next()
+	})
+}
+
+func (a *ginApp) UseCSRF(tokenLookup string, skipper func(Context) bool) {
+	cookieName := csrfCookieName(tokenLookup)
+	a.app.Use(func(c *gin.Context) {
+		ctx := newGinContext(c)
+		if skipper != nil && skipper(ctx) {
+			c.Next()
+			return
+		}
+
+		token, err := ensureCSRFCookie(c, cookieName)
+		if err != nil {
+			writeGinError(c, internalError("Failed to prepare CSRF cookie", err))
+			c.Abort()
+			return
+		}
+
+		if !isSafeHTTPMethod(c.Request.Method) {
+			requestToken, err := c.Cookie(cookieName)
+			if err != nil || requestToken == "" || requestToken != token {
+				writeGinError(c, forbiddenError("Invalid CSRF token"))
+				c.Abort()
+				return
+			}
+		}
+
+		c.Next()
+	})
+}
 
 func (a *ginApp) UseCORS() {
 	a.app.Use(func(c *gin.Context) {
@@ -89,7 +140,9 @@ func (a *ginApp) UseSecure(config SecureConfig) {
 	})
 }
 
-func (a *ginApp) UseTimeout(_ time.Duration, _ string) {}
+func (a *ginApp) UseTimeout(timeout time.Duration, errorMessage string) {
+	a.server.Handler = http.TimeoutHandler(a.server.Handler, timeout, errorMessage)
+}
 
 func (a *ginApp) UseSession(secret string) {
 	store := sessions.NewCookieStore([]byte(secret))
@@ -324,4 +377,86 @@ func requestScheme(request *http.Request) string {
 		return request.URL.Scheme
 	}
 	return "http"
+}
+
+type ginGzipWriter struct {
+	gin.ResponseWriter
+	writer *gzip.Writer
+}
+
+func newGinGzipWriter(writer gin.ResponseWriter) *ginGzipWriter {
+	return &ginGzipWriter{
+		ResponseWriter: writer,
+		writer:         gzip.NewWriter(writer),
+	}
+}
+
+func (w *ginGzipWriter) Write(data []byte) (int, error) {
+	return w.writer.Write(data)
+}
+
+func (w *ginGzipWriter) WriteString(value string) (int, error) {
+	return w.writer.Write([]byte(value))
+}
+
+func (w *ginGzipWriter) Flush() {
+	_ = w.writer.Flush()
+	w.ResponseWriter.Flush()
+}
+
+func (w *ginGzipWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response writer does not support hijacking")
+	}
+	return hijacker.Hijack()
+}
+
+func (w *ginGzipWriter) Close() error {
+	return w.writer.Close()
+}
+
+func appendVaryHeader(header http.Header, value string) {
+	existing := header.Values("Vary")
+	for _, entry := range existing {
+		for _, part := range strings.Split(entry, ",") {
+			if strings.TrimSpace(part) == value {
+				return
+			}
+		}
+	}
+	header.Add("Vary", value)
+}
+
+func csrfCookieName(tokenLookup string) string {
+	if cookieName, ok := strings.CutPrefix(tokenLookup, "cookie:"); ok && cookieName != "" {
+		return cookieName
+	}
+	return "_csrf"
+}
+
+func ensureCSRFCookie(c *gin.Context, cookieName string) (string, error) {
+	token, err := c.Cookie(cookieName)
+	if err == nil && token != "" {
+		return token, nil
+	}
+
+	token = common.GenUUID()
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     cookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	return token, nil
+}
+
+func isSafeHTTPMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	default:
+		return false
+	}
 }

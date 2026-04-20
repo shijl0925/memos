@@ -23,7 +23,7 @@ const (
 	mimeApplicationJSONCharset  = "application/json; charset=UTF-8"
 	mimeApplicationXMLCharset   = "application/xml; charset=UTF-8"
 	mimeTextPlain               = "text/plain; charset=UTF-8"
-	defaultAppDriver            = appDriverEcho
+	defaultAppDriver            = appDriverGin
 )
 
 type appDriver string
