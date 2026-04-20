@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useUserStore } from "../store/module";
-import { validate, ValidatorConfig } from "../helpers/validator";
 import Icon from "./Icon";
 import { generateDialog } from "./Dialog";
-import toastHelper from "./Toast";
-
-const validateConfig: ValidatorConfig = {
-  minLength: 4,
-  maxLength: 320,
-  noSpace: true,
-  noChinese: true,
-};
 
 type Props = DialogProps;
 
@@ -41,19 +33,13 @@ const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
 
   const handleSaveBtnClick = async () => {
     if (newPassword === "" || newPasswordAgain === "") {
-      toastHelper.error(t("message.fill-all"));
+      toast.error(t("message.fill-all"));
       return;
     }
 
     if (newPassword !== newPasswordAgain) {
-      toastHelper.error(t("message.new-password-not-match"));
+      toast.error(t("message.new-password-not-match"));
       setNewPasswordAgain("");
-      return;
-    }
-
-    const passwordValidResult = validate(newPassword, validateConfig);
-    if (!passwordValidResult.result) {
-      toastHelper.error(`${t("common.password")} ${t(passwordValidResult.reason as string)}`);
       return;
     }
 
@@ -63,11 +49,11 @@ const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
         id: user.id,
         password: newPassword,
       });
-      toastHelper.info(t("message.password-changed"));
+      toast.success(t("message.password-changed"));
       handleCloseBtnClick();
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.message);
+      toast.error(error.response.data.message);
     }
   };
 

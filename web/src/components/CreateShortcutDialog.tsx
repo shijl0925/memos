@@ -1,13 +1,13 @@
 import dayjs from "dayjs";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useShortcutStore, useTagStore } from "../store/module";
 import { filterConsts, getDefaultFilter, relationConsts } from "../helpers/filter";
 import useLoading from "../hooks/useLoading";
 import Icon from "./Icon";
 import { generateDialog } from "./Dialog";
-import toastHelper from "./Toast";
-import Selector from "./common/Selector";
+import Selector from "./base/Selector";
 import "../less/create-shortcut-dialog.less";
 
 interface Props extends DialogProps {
@@ -42,12 +42,12 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
 
   const handleSaveBtnClick = async () => {
     if (!title) {
-      toastHelper.error(t("shortcut-list.title-required"));
+      toast.error(t("shortcut-list.title-required"));
       return;
     }
     for (const filter of filters) {
       if (!filter.value.value) {
-        toastHelper.error(t("shortcut-list.value-required"));
+        toast.error(t("shortcut-list.value-required"));
         return;
       }
     }
@@ -66,16 +66,16 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
       }
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.message);
+      toast.error(error.response.data.message);
     }
     destroy();
   };
 
-  const handleAddFilterBenClick = () => {
+  const handleAddFilterBtnClick = () => {
     if (filters.length > 0) {
       const lastFilter = filters[filters.length - 1];
       if (lastFilter.value.value === "") {
-        toastHelper.info(t("shortcut-list.fill-previous"));
+        toast(t("shortcut-list.fill-previous"));
         return;
       }
     }
@@ -131,7 +131,7 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
                 />
               );
             })}
-            <div className="create-filter-btn" onClick={handleAddFilterBenClick}>
+            <div className="create-filter-btn" onClick={handleAddFilterBtnClick}>
               {t("filter.new-filter")}
             </div>
           </div>

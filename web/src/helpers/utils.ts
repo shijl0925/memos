@@ -1,3 +1,8 @@
+export function convertToMillis(localSetting: LocalSetting) {
+  const hoursToMillis = localSetting.dailyReviewTimeOffset * 60 * 60 * 1000;
+  return hoursToMillis;
+}
+
 export const isNullorUndefined = (value: any) => {
   return value === null || value === undefined;
 };
@@ -147,4 +152,13 @@ export function getSystemColorScheme() {
   } else {
     return "light";
   }
+}
+
+export function convertFileToBase64(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result?.toString() || "");
+    reader.onerror = (error) => reject(error);
+  });
 }

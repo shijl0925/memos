@@ -1,8 +1,8 @@
-import { Button, Input, Select, Option, Typography, List, ListItem, Autocomplete } from "@mui/joy";
+import { Button, Input, Select, Option, Typography, List, ListItem, Autocomplete, Tooltip } from "@mui/joy";
 import React, { useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useResourceStore } from "../store/module";
 import Icon from "./Icon";
-import toastHelper from "./Toast";
 import { generateDialog } from "./Dialog";
 
 const fileTypeAutocompleteOptions = ["image/*", "text/*", "audio/*", "video/*", "application/*"];
@@ -132,7 +132,7 @@ const CreateResourceDialog: React.FC<Props> = (props: Props) => {
       }
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.message);
+      toast.error(error.response.data.message);
     }
 
     if (onConfirm) {
@@ -150,7 +150,7 @@ const CreateResourceDialog: React.FC<Props> = (props: Props) => {
         </button>
       </div>
       <div className="dialog-content-container !w-80">
-        <Typography className="!mb-1" level="body2">
+        <Typography className="!mb-1" level="body-sm">
           Upload method
         </Typography>
         <Select
@@ -165,12 +165,12 @@ const CreateResourceDialog: React.FC<Props> = (props: Props) => {
 
         {state.selectedMode === "local-file" && (
           <>
-            <div className="w-full relative bg-blue-50 rounded-md flex flex-row justify-center items-center py-8">
+            <div className="w-full relative bg-blue-50 dark:bg-zinc-900 rounded-md flex flex-row justify-center items-center py-8">
               <label htmlFor="files" className="p-2 px-4 text-sm text-white cursor-pointer bg-blue-500 block rounded hover:opacity-80">
                 Choose a file...
               </label>
               <input
-                className="absolute inset-0 hidden"
+                className="absolute inset-0 w-full h-full opacity-0"
                 ref={fileInputRef}
                 onChange={handleFileInputChange}
                 type="file"
@@ -179,9 +179,13 @@ const CreateResourceDialog: React.FC<Props> = (props: Props) => {
                 accept="*"
               />
             </div>
-            <List size="sm">
+            <List size="sm" sx={{ width: "100%" }}>
               {fileList.map((file) => (
-                <ListItem key={file.name}>{file.name}</ListItem>
+                <Tooltip title={file.name} key={file.name} placement="top">
+                  <ListItem>
+                    <Typography noWrap>{file.name}</Typography>
+                  </ListItem>
+                </Tooltip>
               ))}
             </List>
           </>
@@ -189,21 +193,21 @@ const CreateResourceDialog: React.FC<Props> = (props: Props) => {
 
         {state.selectedMode === "external-link" && (
           <>
-            <Typography className="!mb-1" level="body2">
+            <Typography className="!mb-1" level="body-sm">
               Link
             </Typography>
             <Input
               className="mb-2"
-              placeholder="File link"
+              placeholder="https://the.link.to/your/resource"
               value={resourceCreate.externalLink}
               onChange={handleExternalLinkChanged}
               fullWidth
             />
-            <Typography className="!mb-1" level="body2">
+            <Typography className="!mb-1" level="body-sm">
               File name
             </Typography>
             <Input className="mb-2" placeholder="File name" value={resourceCreate.filename} onChange={handleFileNameChanged} fullWidth />
-            <Typography className="!mb-1" level="body2">
+            <Typography className="!mb-1" level="body-sm">
               Type
             </Typography>
             <Autocomplete
@@ -230,7 +234,7 @@ const CreateResourceDialog: React.FC<Props> = (props: Props) => {
   );
 };
 
-function showCreateResourceDialog(props: Omit<Props, "destroy">) {
+function showCreateResourceDialog(props: Omit<Props, "destroy" | "hide">) {
   generateDialog<Props>(
     {
       dialogName: "create-resource-dialog",

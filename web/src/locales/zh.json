@@ -1,14 +1,17 @@
 {
   "common": {
     "about": "关于",
+    "home": "主页",
+    "resources": "资源库",
+    "settings": "设置",
+    "daily-review": "每日回顾",
+    "archived": "归档",
     "email": "邮箱",
     "password": "密码",
-    "repeat-password-short": "重复密码",
-    "repeat-password": "重复密码",
-    "new-password": "新密码",
-    "repeat-new-password": "重复新密码",
     "username": "用户名",
     "nickname": "昵称",
+    "new-password": "新密码",
+    "repeat-new-password": "重复新密码",
     "save": "保存",
     "close": "关闭",
     "cancel": "退出",
@@ -47,19 +50,15 @@
     "image": "图片",
     "link": "链接",
     "vacuum": "清理",
-    "select": "选择"
+    "select": "选择",
+    "database": "数据库",
+    "avatar": "头像"
   },
-  "slogan": "An open-source, self-hosted memo hub with knowledge management and social networking.",
+  "slogan": "一个可用于知识管理和社交网络的开源、自托管的备忘录中心。",
   "auth": {
     "signup-as-host": "注册为 Host",
     "host-tip": "你正在注册为 Host 用户账号。",
     "not-host-tip": "如果你没有账号，请联系站点 Host"
-  },
-  "sidebar": {
-    "daily-review": "每日回顾",
-    "resources": "资源库",
-    "setting": "设置",
-    "archived": "已归档"
   },
   "daily-review": {
     "oops-nothing": "啊哦，空空荡荡。"
@@ -101,7 +100,8 @@
     "visibility": {
       "private": "仅自己可见",
       "protected": "登录用户可见",
-      "public": "所有人可见"
+      "public": "所有人可见",
+      "disabled": "公共memos已禁用"
     }
   },
   "memo-list": {
@@ -114,7 +114,7 @@
     "edit-shortcut": "编辑捷径",
     "eligible-memo": "符合条件的 Memo",
     "fill-previous": "请填写之前的过滤值",
-    "title-required": "标题是必填项。",
+    "title-required": "标题是必填项",
     "value-required": "过滤值是必填项"
   },
   "filter": {
@@ -136,7 +136,8 @@
     },
     "value": {
       "not-tagged": "无标签",
-      "linked": "包含链接"
+      "linked": "包含链接",
+      "has-attachment": "包含附件"
     },
     "text-placeholder": "以 ^ 开头使用正则表达式"
   },
@@ -149,6 +150,7 @@
   "setting": {
     "my-account": "我的账号",
     "preference": "偏好设置",
+    "storage": "存储设置",
     "member": "成员",
     "member-list": "成员列表",
     "system": "系统",
@@ -161,13 +163,19 @@
       "theme": "主题",
       "default-memo-visibility": "默认 Memo 可见性",
       "enable-folding-memo": "开启折叠 Memo",
-      "enable-powerful-editor": "开启编辑器自动补全",
-      "enable-double-click":"开启双击编辑",
+      "enable-double-click": "开启双击编辑",
       "editor-font-style": "编辑器字体样式",
       "mobile-editor-style": "移动端编辑器样式",
       "default-memo-sort-option": "Memo 显示时间",
       "created_ts": "创建时间",
       "updated_ts": "更新时间"
+    },
+    "storage-section": {
+      "storage-services-list": "存储服务列表",
+      "create-a-service": "新建服务",
+      "update-a-service": "更新服务",
+      "delete-storage": "删除存储服务",
+      "warning-text": "确定删除这个存储服务么？此操作不可逆❗"
     },
     "member-section": {
       "create-a-member": "创建成员"
@@ -184,21 +192,23 @@
       "additional-style": "自定义样式",
       "additional-script": "自定义脚本",
       "additional-style-placeholder": "自定义 CSS 代码",
-      "additional-script-placeholder": "自定义 JavaScript 代码"
+      "additional-script-placeholder": "自定义 JavaScript 代码",
+      "disable-public-memos": "禁用公共memos"
     },
     "apperance-option": {
       "system": "跟随系统",
       "light": "总是浅色",
       "dark": "总是深色"
-    }
+    },
+    "sso": "SSO"
   },
   "amount-text": {
-    "memo_one": "MEMO",
     "memo_other": "MEMOS",
-    "tag_one": "TAG",
     "tag_other": "TAGS",
-    "day_one": "DAY",
-    "day_other": "DAYS"
+    "day_other": "DAYS",
+    "memo_one": "MEMO",
+    "tag_one": "TAG",
+    "day_one": "DAY"
   },
   "message": {
     "no-memos": "没有 Memo 了 🌃",
@@ -232,12 +242,13 @@
     "too-long": "过长",
     "not-allow-space": "不允许包含空格",
     "not-allow-chinese": "不允许包含中文",
-    "succeed-to-vacuum-database": "清空数据库成功",
     "succeed-update-additional-style": "更新附加样式成功",
     "succeed-copy-resource-link": "复制资源链接到剪贴板成功",
     "succeed-update-customized-profile": "更新自定义配置文件成功",
     "succeed-update-additional-script": "更新附加脚本成功",
-    "update-succeed": "更新成功"
+    "update-succeed": "更新成功",
+    "page-not-found": "404 - 未找到网页 😥",
+    "succeed-vacuum-database": "清理数据库成功"
   },
   "days": {
     "monday": "星期一",

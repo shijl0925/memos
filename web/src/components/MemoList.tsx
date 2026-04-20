@@ -1,30 +1,30 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useLocationStore, useMemoStore, useShortcutStore, useUserStore } from "../store/module";
+import { useFilterStore, useMemoStore, useShortcutStore, useUserStore } from "../store/module";
 import { TAG_REG, LINK_REG } from "../labs/marked/parser";
 import * as utils from "../helpers/utils";
 import { DEFAULT_MEMO_LIMIT } from "../helpers/consts";
 import { checkShouldShowMemoWithFilters } from "../helpers/filter";
-import toastHelper from "./Toast";
 import Memo from "./Memo";
 import "../less/memo-list.less";
 
 const MemoList = () => {
   const { t } = useTranslation();
-  const userStore = useUserStore();
   const memoStore = useMemoStore();
+  const userStore = useUserStore();
   const shortcutStore = useShortcutStore();
-  const locationStore = useLocationStore();
-  const query = locationStore.state.query;
-  const memoDisplayTsOption = userStore.state.user?.setting.memoDisplayTsOption;
+  const filterStore = useFilterStore();
+  const filter = filterStore.state;
   const { memos, isFetching } = memoStore.state;
   const [isComplete, setIsComplete] = useState<boolean>(false);
 
-  const { tag: tagQuery, duration, type: memoType, text: textQuery, shortcutId, visibility } = query ?? {};
+  const currentUserId = userStore.getCurrentUserId();
+  const { tag: tagQuery, duration, type: memoType, text: textQuery, shortcutId, visibility } = filter;
   const shortcut = shortcutId ? shortcutStore.getShortcutById(shortcutId) : null;
   const showMemoFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || shortcut || visibility);
 
-  const shownMemos =
+  const shownMemos = (
     showMemoFilter || shortcut
       ? memos.filter((memo) => {
           let shouldShow = true;
@@ -54,7 +54,7 @@ const MemoList = () => {
           if (
             duration &&
             duration.from < duration.to &&
-            (utils.getTimeStampByDate(memo.displayTs) < duration.from || utils.getTimeStampByDate(memo.displayTs) > duration.to)
+            (utils.getTimeStampByDate(memo.createdTs) < duration.from || utils.getTimeStampByDate(memo.createdTs) > duration.to)
           ) {
             shouldShow = false;
           }
@@ -74,12 +74,13 @@ const MemoList = () => {
 
           return shouldShow;
         })
-      : memos;
+      : memos
+  ).filter((memo) => memo.creatorId === currentUserId);
 
   const pinnedMemos = shownMemos.filter((m) => m.pinned);
   const unpinnedMemos = shownMemos.filter((m) => !m.pinned);
   const memoSort = (mi: Memo, mj: Memo) => {
-    return mj.displayTs - mi.displayTs;
+    return mj.createdTs - mi.createdTs;
   };
   pinnedMemos.sort(memoSort);
   unpinnedMemos.sort(memoSort);
@@ -97,16 +98,16 @@ const MemoList = () => {
       })
       .catch((error) => {
         console.error(error);
-        toastHelper.error(error.response.data.message);
+        toast.error(error.response.data.message);
       });
-  }, [memoDisplayTsOption]);
+  }, [currentUserId]);
 
   useEffect(() => {
     const pageWrapper = document.body.querySelector(".page-wrapper");
     if (pageWrapper) {
       pageWrapper.scrollTo(0, 0);
     }
-  }, [query]);
+  }, [filter]);
 
   useEffect(() => {
     if (isFetching || isComplete) {
@@ -115,7 +116,7 @@ const MemoList = () => {
     if (sortedMemos.length < DEFAULT_MEMO_LIMIT) {
       handleFetchMoreClick();
     }
-  }, [isFetching, isComplete, query, sortedMemos.length]);
+  }, [isFetching, isComplete, filter, sortedMemos.length]);
 
   const handleFetchMoreClick = async () => {
     try {
@@ -127,14 +128,14 @@ const MemoList = () => {
       }
     } catch (error: any) {
       console.error(error);
-      toastHelper.error(error.response.data.message);
+      toast.error(error.response.data.message);
     }
   };
 
   return (
     <div className="memo-list-container">
       {sortedMemos.map((memo) => (
-        <Memo key={`${memo.id}-${memo.displayTs}`} memo={memo} />
+        <Memo key={`${memo.id}-${memo.createdTs}`} memo={memo} />
       ))}
       {isFetching ? (
         <div className="status-text-container fetching-tip">

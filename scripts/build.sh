@@ -32,6 +32,6 @@ cp -R ./web/dist ./server/dist
 
 echo "Start building backend..."
 
-go build -o ./build/memos ./bin/server/main.go
+go build -o ./build/memos ./main.go
 
 echo "Backend built!"

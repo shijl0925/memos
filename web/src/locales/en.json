@@ -1,14 +1,18 @@
 {
   "common": {
     "about": "About",
+    "home": "Home",
+    "resources": "Resources",
+    "settings": "Settings",
+    "daily-review": "Daily Review",
+    "archived": "Archived",
     "email": "Email",
     "password": "Password",
-    "repeat-password-short": "Repeat",
-    "repeat-password": "Repeat the password",
-    "new-password": "New password",
-    "repeat-new-password": "Repeat the new password",
+    "avatar": "Avatar",
     "username": "Username",
     "nickname": "Nickname",
+    "new-password": "New password",
+    "repeat-new-password": "Repeat the new password",
     "save": "Save",
     "close": "Close",
     "cancel": "Cancel",
@@ -47,19 +51,14 @@
     "image": "Image",
     "link": "Link",
     "vacuum": "Vacuum",
-    "select": "Select"
+    "select": "Select",
+    "database": "Database"
   },
   "slogan": "An open-source, self-hosted memo hub with knowledge management and social networking.",
   "auth": {
     "signup-as-host": "Sign up as Host",
     "host-tip": "You are registering as the Site Host.",
     "not-host-tip": "If you don't have an account, please contact the site host."
-  },
-  "sidebar": {
-    "daily-review": "Daily Review",
-    "resources": "Resources",
-    "setting": "Setting",
-    "archived": "Archived"
   },
   "daily-review": {
     "oops-nothing": "Oops, there is nothing."
@@ -72,11 +71,11 @@
     "preview": "Preview",
     "copy-link": "Copy Link",
     "delete-resource": "Delete Resource",
-    "warning-text": "Are you sure to delete this resource? THIS ACTION IS IRREVERSIABLE❗",
+    "warning-text": "Are you sure to delete this resource? THIS ACTION IS IRREVERSIBLE❗",
     "linked-amount": "Linked memo amount",
     "rename": "Rename",
     "clear": "Clear",
-    "warning-text-unused": "Are you sure to delete these unused resource? THIS ACTION IS IRREVERSIABLE❗",
+    "warning-text-unused": "Are you sure to delete these unused resources? THIS ACTION IS IRREVERSIBLE❗",
     "no-unused-resources": "No unused resources",
     "name": "Name"
   },
@@ -101,7 +100,8 @@
     "visibility": {
       "private": "Only visible to you",
       "protected": "Visible to members",
-      "public": "Everyone can see"
+      "public": "Everyone can see",
+      "disabled": "Public memos are disabled"
     }
   },
   "memo-list": {
@@ -136,7 +136,8 @@
     },
     "value": {
       "not-tagged": "No tags",
-      "linked": "Has links"
+      "linked": "Has links",
+      "has-attachment": "Has attachments"
     },
     "text-placeholder": "Starts with ^ to use regex"
   },
@@ -148,10 +149,12 @@
   },
   "setting": {
     "my-account": "My Account",
-    "preference": "Preference",
+    "preference": "Preferences",
     "member": "Member",
     "member-list": "Member list",
     "system": "System",
+    "storage": "Storage",
+    "sso": "SSO",
     "account-section": {
       "title": "Account Information",
       "update-information": "Update Information",
@@ -161,13 +164,19 @@
       "theme": "Theme",
       "default-memo-visibility": "Default memo visibility",
       "enable-folding-memo": "Enable folding memo",
-      "enable-powerful-editor": "Enable powerful editor",
       "enable-double-click": "Enable double-click to edit",
       "editor-font-style": "Editor font style",
       "mobile-editor-style": "Mobile editor style",
       "default-memo-sort-option": "Memo display time",
       "created_ts": "Created Time",
       "updated_ts": "Updated Time"
+    },
+    "storage-section": {
+      "storage-services-list": "Storage service list",
+      "create-a-service": "Create a service",
+      "update-a-service": "Update a service",
+      "warning-text": "Are you sure to delete this storage service? THIS ACTION IS IRREVERSIBLE❗",
+      "delete-storage": "Delete Storage"
     },
     "member-section": {
       "create-a-member": "Create a member"
@@ -181,10 +190,11 @@
       },
       "database-file-size": "Database File Size",
       "allow-user-signup": "Allow user signup",
+      "disable-public-memos": "Disable public memos",
       "additional-style": "Additional style",
       "additional-script": "Additional script",
-      "additional-style-placeholder": "Additional CSS codes",
-      "additional-script-placeholder": "Additional JavaScript codes"
+      "additional-style-placeholder": "Additional CSS code",
+      "additional-script-placeholder": "Additional JavaScript code"
     },
     "apperance-option": {
       "system": "Follow system",
@@ -219,9 +229,9 @@
     "password-changed": "Password Changed",
     "private-only": "This memo is private only.",
     "copied": "Copied",
-    "succeed-copy-content": "Succeed to copy content to clipboard.",
-    "succeed-copy-code": "Succeed to copy code to clipboard.",
-    "succeed-copy-link": "Succeed to copy link to clipboard.",
+    "succeed-copy-content": "Content copied successfully.",
+    "succeed-copy-code": "Code copied successfully.",
+    "succeed-copy-link": "Link copied successfully.",
     "change-resource-filename": "Change resource filename",
     "resource-filename-updated": "Resource filename changed.",
     "invalid-resource-filename": "Invalid filename.",
@@ -233,11 +243,12 @@
     "not-allow-space": "Don't allow space",
     "not-allow-chinese": "Don't allow chinese",
     "succeed-vacuum-database": "Succeed to vacuum database",
-    "succeed-update-additional-style": "Succeed to update additional style",
-    "succeed-copy-resource-link": "Succeed to copy resource link to clipboard",
-    "succeed-update-customized-profile": "Succeed to update customized profile",
-    "succeed-update-additional-script": "Succeed to update additional script",
-    "update-succeed": "Update succeed"
+    "succeed-update-additional-style": "Additional style updated successfully.",
+    "succeed-copy-resource-link": "Resource link copied successfully.",
+    "succeed-update-customized-profile": "Profile successfully customized.",
+    "succeed-update-additional-script": "Additional script updated successfully.",
+    "update-succeed": "Update succeeded",
+    "page-not-found": "404 - Page Not Found 😥"
   },
   "days": {
     "monday": "Monday",

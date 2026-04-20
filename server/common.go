@@ -30,12 +30,10 @@ func (server *Server) DefaultAuthSkipper(c Context) bool {
 	ctx := c.Request().Context()
 	path := c.Path()
 
-	// Skip auth.
 	if common.HasPrefixes(path, "/api/auth") {
 		return true
 	}
 
-	// If there is openId in query string and related user is found, then skip auth.
 	openID := c.QueryParam("openId")
 	if openID != "" {
 		userFind := &api.UserFind{
@@ -46,7 +44,6 @@ func (server *Server) DefaultAuthSkipper(c Context) bool {
 			return false
 		}
 		if user != nil {
-			// Stores userID into context.
 			c.Set(getUserIDContextKey(), user.ID)
 			return true
 		}

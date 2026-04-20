@@ -17,12 +17,18 @@ const (
 	SystemSettingSecretSessionName SystemSettingName = "secretSessionName"
 	// SystemSettingAllowSignUpName is the key type of allow signup setting.
 	SystemSettingAllowSignUpName SystemSettingName = "allowSignUp"
+	// SystemSettingDisablePublicMemosName is the key type of disable public memos setting.
+	SystemSettingDisablePublicMemosName SystemSettingName = "disablePublicMemos"
 	// SystemSettingAdditionalStyleName is the key type of additional style.
 	SystemSettingAdditionalStyleName SystemSettingName = "additionalStyle"
 	// SystemSettingAdditionalScriptName is the key type of additional script.
 	SystemSettingAdditionalScriptName SystemSettingName = "additionalScript"
 	// SystemSettingCustomizedProfileName is the key type of customized server profile.
 	SystemSettingCustomizedProfileName SystemSettingName = "customizedProfile"
+	// SystemSettingStorageServiceIDName is the key type of storage service ID.
+	SystemSettingStorageServiceIDName SystemSettingName = "storageServiceId"
+	// SystemSettingOpenAIConfigName is the key type of OpenAI config.
+	SystemSettingOpenAIConfigName SystemSettingName = "openAIConfig"
 )
 
 // CustomizedProfile is the struct definition for SystemSettingCustomizedProfileName system setting item.
@@ -41,6 +47,11 @@ type CustomizedProfile struct {
 	ExternalURL string `json:"externalUrl"`
 }
 
+type OpenAIConfig struct {
+	Key  string `json:"key"`
+	Host string `json:"host"`
+}
+
 func (key SystemSettingName) String() string {
 	switch key {
 	case SystemSettingServerID:
@@ -49,25 +60,27 @@ func (key SystemSettingName) String() string {
 		return "secretSessionName"
 	case SystemSettingAllowSignUpName:
 		return "allowSignUp"
+	case SystemSettingDisablePublicMemosName:
+		return "disablePublicMemos"
 	case SystemSettingAdditionalStyleName:
 		return "additionalStyle"
 	case SystemSettingAdditionalScriptName:
 		return "additionalScript"
 	case SystemSettingCustomizedProfileName:
 		return "customizedProfile"
+	case SystemSettingStorageServiceIDName:
+		return "storageServiceId"
+	case SystemSettingOpenAIConfigName:
+		return "openAIConfig"
 	}
 	return ""
 }
 
-var (
-	SystemSettingAllowSignUpValue = []bool{true, false}
-)
-
 type SystemSetting struct {
-	Name SystemSettingName
+	Name SystemSettingName `json:"name"`
 	// Value is a JSON string with basic value.
-	Value       string
-	Description string
+	Value       string `json:"value"`
+	Description string `json:"description"`
 }
 
 type SystemSettingUpsert struct {
@@ -85,16 +98,11 @@ func (upsert SystemSettingUpsert) Validate() error {
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal system setting allow signup value")
 		}
-
-		invalid := true
-		for _, v := range SystemSettingAllowSignUpValue {
-			if value == v {
-				invalid = false
-				break
-			}
-		}
-		if invalid {
-			return fmt.Errorf("invalid system setting allow signup value")
+	} else if upsert.Name == SystemSettingDisablePublicMemosName {
+		value := false
+		err := json.Unmarshal([]byte(upsert.Value), &value)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal system setting disable public memos value")
 		}
 	} else if upsert.Name == SystemSettingAdditionalStyleName {
 		value := ""
@@ -127,6 +135,19 @@ func (upsert SystemSettingUpsert) Validate() error {
 		if !slices.Contains(UserSettingAppearanceValue, customizedProfile.Appearance) {
 			return fmt.Errorf("invalid appearance value")
 		}
+	} else if upsert.Name == SystemSettingStorageServiceIDName {
+		value := 0
+		err := json.Unmarshal([]byte(upsert.Value), &value)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal system setting storage service id value")
+		}
+		return nil
+	} else if upsert.Name == SystemSettingOpenAIConfigName {
+		value := OpenAIConfig{}
+		err := json.Unmarshal([]byte(upsert.Value), &value)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal system setting openai api config value")
+		}
 	} else {
 		return fmt.Errorf("invalid system setting name")
 	}
@@ -135,5 +156,5 @@ func (upsert SystemSettingUpsert) Validate() error {
 }
 
 type SystemSettingFind struct {
-	Name *SystemSettingName `json:"name"`
+	Name SystemSettingName `json:"name"`
 }

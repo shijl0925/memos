@@ -17,48 +17,41 @@ func (s *Server) registerShortcutRoutes(g Group) {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return unauthorizedError("Missing user in session")
+			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 		shortcutCreate := &api.ShortcutCreate{}
 		if err := json.NewDecoder(c.Request().Body).Decode(shortcutCreate); err != nil {
-			return badRequestError("Malformatted post shortcut request", err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted post shortcut request", err)
 		}
 
 		shortcutCreate.CreatorID = userID
 		shortcut, err := s.Store.CreateShortcut(ctx, shortcutCreate)
 		if err != nil {
-			return internalError("Failed to create shortcut", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create shortcut", err)
 		}
 		if err := s.createShortcutCreateActivity(c, shortcut); err != nil {
-			return internalError("Failed to create activity", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create activity", err)
 		}
-
-		if err := writeJSON(c, shortcut); err != nil {
-			return internalError("Failed to encode shortcut response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(shortcut))
 	})
 
 	g.PATCH("/shortcut/:shortcutId", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return unauthorizedError("Missing user in session")
+			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 		shortcutID, err := strconv.Atoi(c.Param("shortcutId"))
 		if err != nil {
-			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
 		}
 
-		shortcutFind := &api.ShortcutFind{
-			ID: &shortcutID,
-		}
-		shortcut, err := s.Store.FindShortcut(ctx, shortcutFind)
+		shortcut, err := s.Store.FindShortcut(ctx, &api.ShortcutFind{ID: &shortcutID})
 		if err != nil {
-			return internalError("Failed to find shortcut", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find shortcut", err)
 		}
 		if shortcut.CreatorID != userID {
-			return unauthorizedError("Unauthorized")
+			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
 
 		currentTs := time.Now().Unix()
@@ -66,83 +59,62 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			UpdatedTs: &currentTs,
 		}
 		if err := json.NewDecoder(c.Request().Body).Decode(shortcutPatch); err != nil {
-			return badRequestError("Malformatted patch shortcut request", err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted patch shortcut request", err)
 		}
 
 		shortcutPatch.ID = shortcutID
 		shortcut, err = s.Store.PatchShortcut(ctx, shortcutPatch)
 		if err != nil {
-			return internalError("Failed to patch shortcut", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to patch shortcut", err)
 		}
-
-		if err := writeJSON(c, shortcut); err != nil {
-			return internalError("Failed to encode shortcut response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(shortcut))
 	})
 
 	g.GET("/shortcut", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return badRequestError("Missing user id to find shortcut", nil)
+			return newHTTPError(http.StatusBadRequest, "Missing user id to find shortcut")
 		}
 
-		shortcutFind := &api.ShortcutFind{
-			CreatorID: &userID,
-		}
-		list, err := s.Store.FindShortcutList(ctx, shortcutFind)
+		list, err := s.Store.FindShortcutList(ctx, &api.ShortcutFind{CreatorID: &userID})
 		if err != nil {
-			return internalError("Failed to fetch shortcut list", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch shortcut list", err)
 		}
-
-		if err := writeJSON(c, list); err != nil {
-			return internalError("Failed to encode shortcut list response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(list))
 	})
 
 	g.GET("/shortcut/:shortcutId", func(c Context) error {
 		ctx := c.Request().Context()
 		shortcutID, err := strconv.Atoi(c.Param("shortcutId"))
 		if err != nil {
-			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
 		}
 
-		shortcutFind := &api.ShortcutFind{
-			ID: &shortcutID,
-		}
-		shortcut, err := s.Store.FindShortcut(ctx, shortcutFind)
+		shortcut, err := s.Store.FindShortcut(ctx, &api.ShortcutFind{ID: &shortcutID})
 		if err != nil {
-			return internalError(fmt.Sprintf("Failed to fetch shortcut by ID %d", *shortcutFind.ID), err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch shortcut by ID %d", shortcutID), err)
 		}
-
-		if err := writeJSON(c, shortcut); err != nil {
-			return internalError("Failed to encode shortcut response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(shortcut))
 	})
 
 	g.DELETE("/shortcut/:shortcutId", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return unauthorizedError("Missing user in session")
+			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 		shortcutID, err := strconv.Atoi(c.Param("shortcutId"))
 		if err != nil {
-			return badRequestError(fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
 		}
 
-		shortcutFind := &api.ShortcutFind{
-			ID: &shortcutID,
-		}
-		shortcut, err := s.Store.FindShortcut(ctx, shortcutFind)
+		shortcut, err := s.Store.FindShortcut(ctx, &api.ShortcutFind{ID: &shortcutID})
 		if err != nil {
-			return internalError("Failed to find shortcut", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find shortcut", err)
 		}
 		if shortcut.CreatorID != userID {
-			return unauthorizedError("Unauthorized")
+			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
 		}
 
 		shortcutDelete := &api.ShortcutDelete{
@@ -150,11 +122,10 @@ func (s *Server) registerShortcutRoutes(g Group) {
 		}
 		if err := s.Store.DeleteShortcut(ctx, shortcutDelete); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return notFoundError(fmt.Sprintf("Shortcut ID not found: %d", shortcutID), nil)
+				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Shortcut ID not found: %d", shortcutID))
 			}
-			return internalError("Failed to delete shortcut", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to delete shortcut", err)
 		}
-
 		return c.JSON(http.StatusOK, true)
 	})
 }
@@ -165,7 +136,7 @@ func (s *Server) createShortcutCreateActivity(c Context, shortcut *api.Shortcut)
 		Title:   shortcut.Title,
 		Payload: shortcut.Payload,
 	}
-	payloadStr, err := json.Marshal(payload)
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
@@ -173,7 +144,7 @@ func (s *Server) createShortcutCreateActivity(c Context, shortcut *api.Shortcut)
 		CreatorID: shortcut.CreatorID,
 		Type:      api.ActivityShortcutCreate,
 		Level:     api.ActivityInfo,
-		Payload:   string(payloadStr),
+		Payload:   string(payloadBytes),
 	})
 	if err != nil || activity == nil {
 		return errors.Wrap(err, "failed to create activity")

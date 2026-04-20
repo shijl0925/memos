@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 	"sort"
 
@@ -19,63 +18,53 @@ func (s *Server) registerTagRoutes(g Group) {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return unauthorizedError("Missing user in session")
+			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 
 		tagUpsert := &api.TagUpsert{}
 		if err := json.NewDecoder(c.Request().Body).Decode(tagUpsert); err != nil {
-			return badRequestError("Malformatted post tag request", err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted post tag request", err)
 		}
 		if tagUpsert.Name == "" {
-			return badRequestError("Tag name should not be empty", nil)
+			return newHTTPError(http.StatusBadRequest, "Tag name shouldn't be empty")
 		}
 
 		tagUpsert.CreatorID = userID
 		tag, err := s.Store.UpsertTag(ctx, tagUpsert)
 		if err != nil {
-			return internalError("Failed to upsert tag", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to upsert tag", err)
 		}
 		if err := s.createTagCreateActivity(c, tag); err != nil {
-			return internalError("Failed to create activity", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create activity", err)
 		}
-
-		if err := writeJSON(c, tag.Name); err != nil {
-			return internalError("Failed to encode tag response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(tag.Name))
 	})
 
 	g.GET("/tag", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return badRequestError("Missing user id to find tag", nil)
+			return newHTTPError(http.StatusBadRequest, "Missing user id to find tag")
 		}
 
-		tagFind := &api.TagFind{
-			CreatorID: userID,
-		}
+		tagFind := &api.TagFind{CreatorID: userID}
 		tagList, err := s.Store.FindTagList(ctx, tagFind)
 		if err != nil {
-			return internalError("Failed to find tag list", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find tag list", err)
 		}
 
 		tagNameList := []string{}
 		for _, tag := range tagList {
 			tagNameList = append(tagNameList, tag.Name)
 		}
-
-		if err := writeJSON(c, tagNameList); err != nil {
-			return internalError("Failed to encode tags response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(tagNameList))
 	})
 
 	g.GET("/tag/suggestion", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return badRequestError("Missing user session", nil)
+			return newHTTPError(http.StatusBadRequest, "Missing user session")
 		}
 		contentSearch := "#"
 		normalRowStatus := api.Normal
@@ -87,15 +76,12 @@ func (s *Server) registerTagRoutes(g Group) {
 
 		memoList, err := s.Store.FindMemoList(ctx, &memoFind)
 		if err != nil {
-			return internalError("Failed to find memo list", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find memo list", err)
 		}
 
-		tagFind := &api.TagFind{
-			CreatorID: userID,
-		}
-		existTagList, err := s.Store.FindTagList(ctx, tagFind)
+		existTagList, err := s.Store.FindTagList(ctx, &api.TagFind{CreatorID: userID})
 		if err != nil {
-			return internalError("Failed to find tag list", err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find tag list", err)
 		}
 		tagNameList := []string{}
 		for _, tag := range existTagList {
@@ -115,38 +101,31 @@ func (s *Server) registerTagRoutes(g Group) {
 			tagList = append(tagList, tag)
 		}
 		sort.Strings(tagList)
-
-		if err := writeJSON(c, tagList); err != nil {
-			return internalError("Failed to encode tags response", err)
-		}
-		return nil
+		return c.JSON(http.StatusOK, composeResponse(tagList))
 	})
 
-	g.DELETE("/tag/:tagName", func(c Context) error {
+	g.POST("/tag/delete", func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
-			return unauthorizedError("Missing user in session")
+			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 
-		tagName, err := url.QueryUnescape(c.Param("tagName"))
-		if err != nil {
-			return badRequestError("Invalid tag name", err)
-		} else if tagName == "" {
-			return badRequestError("Tag name should not be empty", nil)
+		tagDelete := &api.TagDelete{}
+		if err := json.NewDecoder(c.Request().Body).Decode(tagDelete); err != nil {
+			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted post tag request", err)
+		}
+		if tagDelete.Name == "" {
+			return newHTTPError(http.StatusBadRequest, "Tag name shouldn't be empty")
 		}
 
-		tagDelete := &api.TagDelete{
-			Name:      tagName,
-			CreatorID: userID,
-		}
+		tagDelete.CreatorID = userID
 		if err := s.Store.DeleteTag(ctx, tagDelete); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return notFoundError(fmt.Sprintf("Tag name not found: %s", tagName), nil)
+				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Tag name not found: %s", tagDelete.Name))
 			}
-			return internalError(fmt.Sprintf("Failed to delete tag name: %v", tagName), err)
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to delete tag name: %v", tagDelete.Name), err)
 		}
-
 		return c.JSON(http.StatusOK, true)
 	})
 }
@@ -174,7 +153,7 @@ func (s *Server) createTagCreateActivity(c Context, tag *api.Tag) error {
 	payload := api.ActivityTagCreatePayload{
 		TagName: tag.Name,
 	}
-	payloadStr, err := json.Marshal(payload)
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
@@ -182,7 +161,7 @@ func (s *Server) createTagCreateActivity(c Context, tag *api.Tag) error {
 		CreatorID: tag.CreatorID,
 		Type:      api.ActivityTagCreate,
 		Level:     api.ActivityInfo,
-		Payload:   string(payloadStr),
+		Payload:   string(payloadBytes),
 	})
 	if err != nil || activity == nil {
 		return errors.Wrap(err, "failed to create activity")
