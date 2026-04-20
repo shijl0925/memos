@@ -2,7 +2,7 @@ module github.com/usememos/memos
 
 go 1.26
 
-require github.com/mattn/go-sqlite3 v1.14.9
+require github.com/mattn/go-sqlite3 v1.14.42
 
 require github.com/google/uuid v1.3.0
 
