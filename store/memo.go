@@ -119,17 +119,7 @@ func (s *Store) FindMemoList(ctx context.Context, find *api.MemoFind) ([]*api.Me
 		return nil, err
 	}
 
-	list := []*api.Memo{}
-	for _, raw := range memoRawList {
-		memo, err := s.ComposeMemo(ctx, raw.toMemo())
-		if err != nil {
-			return nil, err
-		}
-
-		list = append(list, memo)
-	}
-
-	return list, nil
+	return s.composeMemoList(ctx, tx, memoRawList)
 }
 
 func (s *Store) FindMemo(ctx context.Context, find *api.MemoFind) (*api.Memo, error) {
@@ -366,6 +356,57 @@ func deleteMemo(ctx context.Context, tx *sql.Tx, delete *api.MemoDelete) error {
 	}
 
 	return nil
+}
+
+func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*memoRaw) ([]*api.Memo, error) {
+	list := make([]*api.Memo, 0, len(memoRawList))
+	if len(memoRawList) == 0 {
+		return list, nil
+	}
+
+	creatorIDSet := make(map[int]struct{}, len(memoRawList))
+	memoIDList := make([]int, 0, len(memoRawList))
+	for _, raw := range memoRawList {
+		creatorIDSet[raw.CreatorID] = struct{}{}
+		memoIDList = append(memoIDList, raw.ID)
+	}
+
+	creatorIDList := make([]int, 0, len(creatorIDSet))
+	for creatorID := range creatorIDSet {
+		creatorIDList = append(creatorIDList, creatorID)
+	}
+
+	userMap, err := findUserRawMapByIDList(ctx, tx, creatorIDList)
+	if err != nil {
+		return nil, err
+	}
+	resourceListMap, err := findMemoResourceListMap(ctx, tx, memoIDList)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, raw := range memoRawList {
+		memo := raw.toMemo()
+		user, ok := userMap[memo.CreatorID]
+		if !ok {
+			return nil, &common.Error{Code: common.NotFound, Err: fmt.Errorf("not found user with id %d", memo.CreatorID)}
+		}
+		if user.Nickname != "" {
+			memo.CreatorName = user.Nickname
+		} else {
+			memo.CreatorName = user.Username
+		}
+
+		if resourceList, ok := resourceListMap[memo.ID]; ok {
+			memo.ResourceList = resourceList
+		} else {
+			memo.ResourceList = []*api.Resource{}
+		}
+
+		list = append(list, memo)
+	}
+
+	return list, nil
 }
 
 func vacuumMemo(ctx context.Context, tx *sql.Tx) error {
