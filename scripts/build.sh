@@ -9,8 +9,10 @@ cd "$(dirname "$0")/../"
 backup_dir="$(mktemp -d)"
 
 cleanup() {
-  rm -rf ./server/dist
-  cp -R "$backup_dir/dist" ./server/dist
+  if [ -d "$backup_dir/dist" ]; then
+    rm -rf ./server/dist
+    cp -R "$backup_dir/dist" ./server/dist
+  fi
   rm -rf "$backup_dir"
 }
 

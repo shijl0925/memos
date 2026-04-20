@@ -447,6 +447,7 @@ func ensureCSRFCookie(c *gin.Context, cookieName string) (string, error) {
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   requestScheme(c.Request) == "https",
 		SameSite: http.SameSiteStrictMode,
 	})
 	return token, nil
