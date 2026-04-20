@@ -56,8 +56,10 @@
     "typescript": "^5.0.4",
     "vite": "^4.5.2"
   },
-  "resolutions": {
-    "@typescript-eslint/**/semver": "7.7.4",
-    "make-dir/**/semver": "5.7.2"
+  "pnpm": {
+    "overrides": {
+      "@typescript-eslint/*>semver": "7.7.4",
+      "make-dir>semver": "5.7.2"
+    }
   }
 }
