@@ -440,8 +440,12 @@ func appendVaryHeader(header http.Header, value string) {
 }
 
 func csrfCookieName(tokenLookup string) string {
-	if cookieName, ok := strings.CutPrefix(tokenLookup, "cookie:"); ok && cookieName != "" {
-		return cookieName
+	const cookiePrefix = "cookie:"
+	if strings.HasPrefix(tokenLookup, cookiePrefix) {
+		cookieName := tokenLookup[len(cookiePrefix):]
+		if cookieName != "" {
+			return cookieName
+		}
 	}
 	return "_csrf"
 }
