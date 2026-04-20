@@ -1,7 +1,7 @@
 package api
 
 // MaxContentLength means the max memo content bytes is 1MB.
-const MaxContentLength = 1 << 30
+const MaxContentLength = 1 << 20
 
 // Visibility is the type of a visibility.
 type Visibility string
