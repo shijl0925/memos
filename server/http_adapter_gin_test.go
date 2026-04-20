@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewAppUsesGinByDefault(t *testing.T) {
-	_, ok := newApp(defaultAppDriver).(*ginApp)
+	_, ok := newApp().(*ginApp)
 	require.True(t, ok)
 }
 

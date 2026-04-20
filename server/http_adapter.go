@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/session"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 const (
@@ -23,14 +20,6 @@ const (
 	mimeApplicationJSONCharset  = "application/json; charset=UTF-8"
 	mimeApplicationXMLCharset   = "application/xml; charset=UTF-8"
 	mimeTextPlain               = "text/plain; charset=UTF-8"
-	defaultAppDriver            = appDriverGin
-)
-
-type appDriver string
-
-const (
-	appDriverEcho appDriver = "echo"
-	appDriverGin  appDriver = "gin"
 )
 
 type Context interface {
@@ -140,168 +129,8 @@ func writeJSON(c Context, data any) error {
 	return c.JSON(http.StatusOK, composeResponse(data))
 }
 
-func newApp(driver appDriver) App {
-	switch driver {
-	case appDriverGin:
-		return newGinApp()
-	case "", appDriverEcho:
-		fallthrough
-	default:
-		return newEchoApp()
-	}
-}
-
-func echoSkipper(skipper func(Context) bool) func(echo.Context) bool {
-	return func(c echo.Context) bool {
-		if skipper == nil {
-			return false
-		}
-		return skipper(newEchoContext(c))
-	}
-}
-
-func newEchoApp() App {
-	app := echo.New()
-	app.Debug = true
-	app.HideBanner = true
-	app.HidePort = true
-	return echoApp{app: app}
-}
-
-func toEchoMiddleware(middleware MiddlewareFunc) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			return middleware(func(ctx Context) error {
-				return next(unwrapEchoContext(ctx))
-			})(newEchoContext(c))
-		}
-	}
-}
-
-type echoApp struct {
-	app *echo.Echo
-}
-
-func (a echoApp) Group(prefix string) Group {
-	return newEchoGroup(a.app.Group(prefix))
-}
-
-func (a echoApp) UseLogger(format string) {
-	a.app.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: format,
-	}))
-}
-
-func (a echoApp) UseGzip() {
-	a.app.Use(middleware.Gzip())
-}
-
-func (a echoApp) UseCSRF(tokenLookup string, skipper func(Context) bool) {
-	a.app.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
-		Skipper:     echoSkipper(skipper),
-		TokenLookup: tokenLookup,
-	}))
-}
-
-func (a echoApp) UseCORS() {
-	a.app.Use(middleware.CORS())
-}
-
-func (a echoApp) UseSecure(config SecureConfig) {
-	a.app.Use(middleware.SecureWithConfig(middleware.SecureConfig{
-		Skipper:            echoSkipper(config.Skipper),
-		XSSProtection:      config.XSSProtection,
-		ContentTypeNosniff: config.ContentTypeNosniff,
-		XFrameOptions:      config.XFrameOptions,
-		HSTSPreloadEnabled: config.HSTSPreloadEnabled,
-	}))
-}
-
-func (a echoApp) UseTimeout(timeout time.Duration, errorMessage string) {
-	a.app.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
-		ErrorMessage: errorMessage,
-		Timeout:      timeout,
-	}))
-}
-
-func (a echoApp) UseSession(secret string) {
-	a.app.Use(session.Middleware(sessions.NewCookieStore([]byte(secret))))
-}
-
-func (a echoApp) UseStatic(config StaticFileServerConfig) {
-	staticMiddleware := middleware.StaticWithConfig(middleware.StaticConfig{
-		Skipper:    echoSkipper(config.Skipper),
-		HTML5:      config.HTML5,
-		Filesystem: config.Filesystem,
-	})
-
-	if config.PathPrefix == "" {
-		a.app.Use(staticMiddleware)
-		return
-	}
-
-	group := a.app.Group(config.PathPrefix)
-	for _, mw := range config.Middlewares {
-		group.Use(toEchoMiddleware(mw))
-	}
-	group.Use(staticMiddleware)
-}
-
-func (a echoApp) Start(address string) error {
-	return a.app.Start(address)
-}
-
-func (a echoApp) Shutdown(ctx context.Context) error {
-	return a.app.Shutdown(ctx)
-}
-
-func newEchoGroup(group *echo.Group) Group {
-	return echoGroup{group: group}
-}
-
-type echoGroup struct {
-	group *echo.Group
-}
-
-func (g echoGroup) GET(path string, handler HandlerFunc) {
-	g.group.GET(path, wrapEchoHandler(handler))
-}
-
-func (g echoGroup) POST(path string, handler HandlerFunc) {
-	g.group.POST(path, wrapEchoHandler(handler))
-}
-
-func (g echoGroup) PATCH(path string, handler HandlerFunc) {
-	g.group.PATCH(path, wrapEchoHandler(handler))
-}
-
-func (g echoGroup) DELETE(path string, handler HandlerFunc) {
-	g.group.DELETE(path, wrapEchoHandler(handler))
-}
-
-func (g echoGroup) Use(middlewares ...MiddlewareFunc) {
-	for _, middleware := range middlewares {
-		g.group.Use(toEchoMiddleware(middleware))
-	}
-}
-
-func wrapEchoHandler(handler HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		err := handler(newEchoContext(c))
-		if err == nil {
-			return nil
-		}
-
-		var httpErr *httpError
-		if ok := unwrapHTTPError(err, &httpErr); ok {
-			echoErr := echo.NewHTTPError(httpErr.code, httpErr.message)
-			if httpErr.internal != nil {
-				echoErr.SetInternal(httpErr.internal)
-			}
-			return echoErr
-		}
-		return err
-	}
+func newApp() App {
+	return newGinApp()
 }
 
 func unwrapHTTPError(err error, target **httpError) bool {
@@ -313,82 +142,8 @@ func unwrapHTTPError(err error, target **httpError) bool {
 	return true
 }
 
-type echoContext struct {
-	context echo.Context
-}
-
-func newEchoContext(context echo.Context) Context {
-	return echoContext{context: context}
-}
-
-func unwrapEchoContext(context Context) echo.Context {
-	echoContext, ok := context.(echoContext)
-	if !ok {
-		panic("server context adapter expected echoContext")
-	}
-	return echoContext.context
-}
-
-func (c echoContext) Request() *http.Request {
-	return c.context.Request()
-}
-
-func (c echoContext) Writer() http.ResponseWriter {
-	return c.context.Response().Writer
-}
-
-func (c echoContext) JSON(code int, payload any) error {
-	return c.context.JSON(code, payload)
-}
-
-func (c echoContext) String(code int, value string) error {
-	return c.context.String(code, value)
-}
-
-func (c echoContext) Stream(code int, contentType string, reader io.Reader) error {
-	return c.context.Stream(code, contentType, reader)
-}
-
-func (c echoContext) Status(code int) {
-	c.context.Response().WriteHeader(code)
-}
-
-func (c echoContext) Header(key, value string) {
-	c.context.Response().Header().Set(key, value)
-}
-
-func (c echoContext) Path() string {
-	return c.context.Path()
-}
-
-func (c echoContext) Param(name string) string {
-	return c.context.Param(name)
-}
-
-func (c echoContext) QueryParam(name string) string {
-	return c.context.QueryParam(name)
-}
-
-func (c echoContext) Set(key string, value any) {
-	c.context.Set(key, value)
-}
-
-func (c echoContext) Get(key string) any {
-	return c.context.Get(key)
-}
-
-func (c echoContext) FormFile(name string) (*multipart.FileHeader, error) {
-	return c.context.FormFile(name)
-}
-
-func (c echoContext) Scheme() string {
-	return c.context.Scheme()
-}
-
 func getSession(name string, ctx Context) (*sessions.Session, error) {
 	switch typedCtx := ctx.(type) {
-	case echoContext:
-		return session.Get(name, typedCtx.context)
 	case ginContext:
 		storeValue, ok := typedCtx.context.Get(ginSessionStoreContextKey)
 		if !ok {

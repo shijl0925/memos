@@ -32,7 +32,7 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	}
 
 	s := &Server{
-		app:     newApp(defaultAppDriver),
+		app:     newApp(),
 		db:      db.DBInstance,
 		Profile: profile,
 	}
