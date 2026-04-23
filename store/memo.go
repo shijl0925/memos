@@ -46,11 +46,11 @@ func (raw *memoRaw) toMemo() *api.Memo {
 	}
 }
 
-func (s *Store) ComposeMemo(ctx context.Context, memo *api.Memo) (*api.Memo, error) {
-	if err := s.ComposeMemoCreator(ctx, memo); err != nil {
+func (s *Store) composeMemo(ctx context.Context, memo *api.Memo) (*api.Memo, error) {
+	if err := s.composeMemoCreator(ctx, memo); err != nil {
 		return nil, err
 	}
-	if err := s.ComposeMemoResourceList(ctx, memo); err != nil {
+	if err := s.composeMemoResourceList(ctx, memo); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +74,7 @@ func (s *Store) CreateMemo(ctx context.Context, create *api.MemoCreate) (*api.Me
 	}
 
 	s.memoCache.Store(memoRaw.ID, memoRaw)
-	memo, err := s.ComposeMemo(ctx, memoRaw.toMemo())
+	memo, err := s.composeMemo(ctx, memoRaw.toMemo())
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (s *Store) PatchMemo(ctx context.Context, patch *api.MemoPatch) (*api.Memo,
 	}
 
 	s.memoCache.Store(memoRaw.ID, memoRaw)
-	memo, err := s.ComposeMemo(ctx, memoRaw.toMemo())
+	memo, err := s.composeMemo(ctx, memoRaw.toMemo())
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (s *Store) FindMemo(ctx context.Context, find *api.MemoFind) (*api.Memo, er
 	if find.ID != nil {
 		if memo, ok := s.memoCache.Load(*find.ID); ok {
 			memoRaw := memo.(*memoRaw)
-			memo, err := s.ComposeMemo(ctx, memoRaw.toMemo())
+			memo, err := s.composeMemo(ctx, memoRaw.toMemo())
 			if err != nil {
 				return nil, err
 			}
@@ -151,7 +151,7 @@ func (s *Store) FindMemo(ctx context.Context, find *api.MemoFind) (*api.Memo, er
 
 	memoRaw := list[0]
 	s.memoCache.Store(memoRaw.ID, memoRaw)
-	memo, err := s.ComposeMemo(ctx, memoRaw.toMemo())
+	memo, err := s.composeMemo(ctx, memoRaw.toMemo())
 	if err != nil {
 		return nil, err
 	}

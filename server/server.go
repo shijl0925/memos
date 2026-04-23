@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/server/profile"
+	"github.com/usememos/memos/service"
 	"github.com/usememos/memos/store"
 	"github.com/usememos/memos/store/db"
 )
@@ -21,6 +22,7 @@ type Server struct {
 	ID      string
 	Profile *profile.Profile
 	Store   *store.Store
+	Service *service.Service
 }
 
 func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
@@ -31,6 +33,7 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 
 	s := &Server{app: newApp(), db: db.DBInstance, Profile: profile}
 	s.Store = store.New(db.DBInstance, profile)
+	s.Service = service.New(s.Store, profile)
 
 	s.app.UseLogger(`{"time":"${time_rfc3339}",` +
 		`"method":"${method}","uri":"${uri}",` +
@@ -47,7 +50,7 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	})
 	s.app.UseTimeout(30*time.Second, "Request timeout")
 
-	serverID, err := s.getSystemServerID(ctx)
+	serverID, err := s.Service.GetSystemServerID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +60,7 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 
 	secret := "usememos"
 	if profile.Mode == "prod" {
-		secret, err = s.getSystemSecretSessionName(ctx)
+		secret, err = s.Service.GetSystemSecretSession(ctx)
 		if err != nil {
 			return nil, err
 		}

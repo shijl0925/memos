@@ -1,8 +1,6 @@
 package server
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +14,7 @@ import (
 func (s *Server) registerRSSRoutes(g Group) {
 	g.GET("/explore/rss.xml", func(c Context) error {
 		ctx := c.Request().Context()
-		systemCustomizedProfile, err := getSystemCustomizedProfile(ctx, s)
+		systemCustomizedProfile, err := s.Service.GetSystemCustomizedProfile(ctx)
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to get system customized profile", err)
 		}
@@ -39,7 +37,7 @@ func (s *Server) registerRSSRoutes(g Group) {
 
 	g.GET("/u/:id/rss.xml", func(c Context) error {
 		ctx := c.Request().Context()
-		systemCustomizedProfile, err := getSystemCustomizedProfile(ctx, s)
+		systemCustomizedProfile, err := s.Service.GetSystemCustomizedProfile(ctx)
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to get system customized profile", err)
 		}
@@ -94,28 +92,6 @@ func generateRSSFromMemoList(memoList []*api.Memo, baseURL string, profile *api.
 		return "", err
 	}
 	return rss, nil
-}
-
-func getSystemCustomizedProfile(ctx context.Context, s *Server) (*api.CustomizedProfile, error) {
-	systemSetting, err := s.Store.FindSystemSetting(ctx, &api.SystemSettingFind{Name: api.SystemSettingCustomizedProfileName})
-	if err != nil && common.ErrorCode(err) != common.NotFound {
-		return nil, err
-	}
-
-	customizedProfile := &api.CustomizedProfile{
-		Name:        "memos",
-		LogoURL:     "",
-		Description: "",
-		Locale:      "en",
-		Appearance:  "system",
-		ExternalURL: "",
-	}
-	if systemSetting != nil {
-		if err := json.Unmarshal([]byte(systemSetting.Value), customizedProfile); err != nil {
-			return nil, err
-		}
-	}
-	return customizedProfile, nil
 }
 
 func getRSSItemTitle(content string) string {

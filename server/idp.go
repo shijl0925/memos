@@ -8,7 +8,6 @@ import (
 
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
-	"github.com/usememos/memos/store"
 )
 
 func (s *Server) registerIdentityProviderRoutes(g Group) {
@@ -19,29 +18,16 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 
-		user, err := s.Store.FindUser(ctx, &api.UserFind{ID: &userID})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user", err)
-		}
-		if user == nil || user.Role != api.Host {
-			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
-		}
-
 		identityProviderCreate := &api.IdentityProviderCreate{}
 		if err := json.NewDecoder(c.Request().Body).Decode(identityProviderCreate); err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted post identity provider request", err)
 		}
 
-		identityProviderMessage, err := s.Store.CreateIdentityProvider(ctx, &store.IdentityProviderMessage{
-			Name:             identityProviderCreate.Name,
-			Type:             store.IdentityProviderType(identityProviderCreate.Type),
-			IdentifierFilter: identityProviderCreate.IdentifierFilter,
-			Config:           convertIdentityProviderConfigToStore(identityProviderCreate.Config),
-		})
+		idp, err := s.Service.CreateIdentityProvider(ctx, userID, identityProviderCreate)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create identity provider", err)
+			return convertServiceError(err)
 		}
-		return c.JSON(http.StatusOK, composeResponse(convertIdentityProviderFromStore(identityProviderMessage)))
+		return c.JSON(http.StatusOK, composeResponse(idp))
 	})
 
 	g.PATCH("/idp/:idpId", func(c Context) error {
@@ -51,65 +37,35 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 
-		user, err := s.Store.FindUser(ctx, &api.UserFind{ID: &userID})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user", err)
-		}
-		if user == nil || user.Role != api.Host {
-			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
-		}
-
-		identityProviderID, err := strconv.Atoi(c.Param("idpId"))
+		idpID, err := strconv.Atoi(c.Param("idpId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("idpId")), err)
 		}
 
-		identityProviderPatch := &api.IdentityProviderPatch{ID: identityProviderID}
+		identityProviderPatch := &api.IdentityProviderPatch{ID: idpID}
 		if err := json.NewDecoder(c.Request().Body).Decode(identityProviderPatch); err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted patch identity provider request", err)
 		}
 
-		identityProviderMessage, err := s.Store.UpdateIdentityProvider(ctx, &store.UpdateIdentityProviderMessage{
-			ID:               identityProviderPatch.ID,
-			Type:             store.IdentityProviderType(identityProviderPatch.Type),
-			Name:             identityProviderPatch.Name,
-			IdentifierFilter: identityProviderPatch.IdentifierFilter,
-			Config:           convertIdentityProviderConfigToStore(identityProviderPatch.Config),
-		})
+		idp, err := s.Service.UpdateIdentityProvider(ctx, userID, idpID, identityProviderPatch)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to patch identity provider", err)
+			return convertServiceError(err)
 		}
-		return c.JSON(http.StatusOK, composeResponse(convertIdentityProviderFromStore(identityProviderMessage)))
+		return c.JSON(http.StatusOK, composeResponse(idp))
 	})
 
 	g.GET("/idp", func(c Context) error {
 		ctx := c.Request().Context()
-		identityProviderMessageList, err := s.Store.ListIdentityProviders(ctx, &store.FindIdentityProviderMessage{})
+		var userID *int
+		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
+			userID = &id
+		}
+
+		idpList, err := s.Service.ListIdentityProviders(ctx, userID)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find identity provider list", err)
+			return convertServiceError(err)
 		}
-
-		userID, ok := c.Get(getUserIDContextKey()).(int)
-		isHostUser := false
-		if ok {
-			user, err := s.Store.FindUser(ctx, &api.UserFind{ID: &userID})
-			if err != nil && common.ErrorCode(err) != common.NotFound {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user", err)
-			}
-			if user != nil && user.Role == api.Host {
-				isHostUser = true
-			}
-		}
-
-		identityProviderList := []*api.IdentityProvider{}
-		for _, identityProviderMessage := range identityProviderMessageList {
-			identityProvider := convertIdentityProviderFromStore(identityProviderMessage)
-			if !isHostUser {
-				identityProvider.Config.OAuth2Config.ClientSecret = ""
-			}
-			identityProviderList = append(identityProviderList, identityProvider)
-		}
-		return c.JSON(http.StatusOK, composeResponse(identityProviderList))
+		return c.JSON(http.StatusOK, composeResponse(idpList))
 	})
 
 	g.GET("/idp/:idpId", func(c Context) error {
@@ -119,23 +75,16 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 
-		user, err := s.Store.FindUser(ctx, &api.UserFind{ID: &userID})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user", err)
-		}
-		if user == nil || user.Role != api.Host {
-			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
-		}
-
-		identityProviderID, err := strconv.Atoi(c.Param("idpId"))
+		idpID, err := strconv.Atoi(c.Param("idpId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("idpId")), err)
 		}
-		identityProviderMessage, err := s.Store.GetIdentityProvider(ctx, &store.FindIdentityProviderMessage{ID: &identityProviderID})
+
+		idp, err := s.Service.GetIdentityProvider(ctx, userID, idpID)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to get identity provider", err)
+			return convertServiceError(err)
 		}
-		return c.JSON(http.StatusOK, composeResponse(convertIdentityProviderFromStore(identityProviderMessage)))
+		return c.JSON(http.StatusOK, composeResponse(idp))
 	})
 
 	g.DELETE("/idp/:idpId", func(c Context) error {
@@ -145,71 +94,17 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
 
-		user, err := s.Store.FindUser(ctx, &api.UserFind{ID: &userID})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find user", err)
-		}
-		if user == nil || user.Role != api.Host {
-			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
-		}
-
-		identityProviderID, err := strconv.Atoi(c.Param("idpId"))
+		idpID, err := strconv.Atoi(c.Param("idpId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("idpId")), err)
 		}
 
-		if err = s.Store.DeleteIdentityProvider(ctx, &store.DeleteIdentityProviderMessage{ID: identityProviderID}); err != nil {
+		if err = s.Service.DeleteIdentityProvider(ctx, userID, idpID); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
-				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Identity provider ID not found: %d", identityProviderID))
+				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Identity provider ID not found: %d", idpID))
 			}
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to delete identity provider", err)
+			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
 	})
-}
-
-func convertIdentityProviderFromStore(identityProviderMessage *store.IdentityProviderMessage) *api.IdentityProvider {
-	return &api.IdentityProvider{
-		ID:               identityProviderMessage.ID,
-		Name:             identityProviderMessage.Name,
-		Type:             api.IdentityProviderType(identityProviderMessage.Type),
-		IdentifierFilter: identityProviderMessage.IdentifierFilter,
-		Config:           convertIdentityProviderConfigFromStore(identityProviderMessage.Config),
-	}
-}
-
-func convertIdentityProviderConfigFromStore(config *store.IdentityProviderConfig) *api.IdentityProviderConfig {
-	return &api.IdentityProviderConfig{
-		OAuth2Config: &api.IdentityProviderOAuth2Config{
-			ClientID:     config.OAuth2Config.ClientID,
-			ClientSecret: config.OAuth2Config.ClientSecret,
-			AuthURL:      config.OAuth2Config.AuthURL,
-			TokenURL:     config.OAuth2Config.TokenURL,
-			UserInfoURL:  config.OAuth2Config.UserInfoURL,
-			Scopes:       config.OAuth2Config.Scopes,
-			FieldMapping: &api.FieldMapping{
-				Identifier:  config.OAuth2Config.FieldMapping.Identifier,
-				DisplayName: config.OAuth2Config.FieldMapping.DisplayName,
-				Email:       config.OAuth2Config.FieldMapping.Email,
-			},
-		},
-	}
-}
-
-func convertIdentityProviderConfigToStore(config *api.IdentityProviderConfig) *store.IdentityProviderConfig {
-	return &store.IdentityProviderConfig{
-		OAuth2Config: &store.IdentityProviderOAuth2Config{
-			ClientID:     config.OAuth2Config.ClientID,
-			ClientSecret: config.OAuth2Config.ClientSecret,
-			AuthURL:      config.OAuth2Config.AuthURL,
-			TokenURL:     config.OAuth2Config.TokenURL,
-			UserInfoURL:  config.OAuth2Config.UserInfoURL,
-			Scopes:       config.OAuth2Config.Scopes,
-			FieldMapping: &store.FieldMapping{
-				Identifier:  config.OAuth2Config.FieldMapping.Identifier,
-				DisplayName: config.OAuth2Config.FieldMapping.DisplayName,
-				Email:       config.OAuth2Config.FieldMapping.Email,
-			},
-		},
-	}
 }

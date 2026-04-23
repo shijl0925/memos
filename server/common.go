@@ -45,3 +45,19 @@ func (server *Server) DefaultAuthSkipper(c Context) bool {
 
 	return false
 }
+
+// convertServiceError maps a service-layer error to the appropriate HTTP error
+// response.  It uses the common.Code embedded in *common.Error to select the
+// correct HTTP status code so that handlers stay thin.
+func convertServiceError(err error) error {
+	switch common.ErrorCode(err) {
+	case common.NotAuthorized:
+		return newHTTPError(http.StatusUnauthorized, common.ErrorMessage(err))
+	case common.NotFound:
+		return newHTTPError(http.StatusNotFound, common.ErrorMessage(err))
+	case common.Invalid:
+		return newHTTPError(http.StatusBadRequest, common.ErrorMessage(err))
+	default:
+		return newHTTPErrorWithInternal(http.StatusInternalServerError, common.ErrorMessage(err), err)
+	}
+}
