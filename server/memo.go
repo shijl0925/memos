@@ -273,11 +273,3 @@ func (s *Server) registerMemoRoutes(g Group) {
 	})
 }
 
-const memoContentLengthOverflowMessage = "Content size overflow, up to 1MB"
-
-func validateMemoContentLength(content string) error {
-	if len(content) > api.MaxContentLength {
-		return newHTTPError(http.StatusBadRequest, memoContentLengthOverflowMessage)
-	}
-	return nil
-}
