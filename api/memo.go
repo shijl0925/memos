@@ -41,6 +41,9 @@ type Memo struct {
 	Visibility Visibility `json:"visibility"`
 	Pinned     bool       `json:"pinned"`
 
+	// Computed fields
+	DisplayTs int64 `json:"displayTs"`
+
 	// Related fields
 	CreatorName     string      `json:"creatorName"`
 	CreatorUsername string      `json:"creatorUsername"`

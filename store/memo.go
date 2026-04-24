@@ -43,6 +43,9 @@ func (raw *memoRaw) toMemo() *api.Memo {
 		Content:    raw.Content,
 		Visibility: raw.Visibility,
 		Pinned:     raw.Pinned,
+
+		// DisplayTs defaults to CreatedTs (can be overridden via patch)
+		DisplayTs: raw.CreatedTs,
 	}
 }
 
