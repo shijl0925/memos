@@ -1,21 +1,75 @@
 import axios from "axios";
 
-type ResponseObject<T> = {
-  data: T;
-  error?: string;
-  message?: string;
+// ---------------------------------------------------------------------------
+// Axios response interceptor: unwrap the { data: T } envelope that the v0.12.2
+// backend wraps every API response in.  External calls (e.g. GitHub API) are
+// NOT affected because they use absolute HTTPS URLs.
+// ---------------------------------------------------------------------------
+axios.interceptors.response.use(
+  (response) => {
+    const url = response.config.url ?? "";
+    // Only process relative URLs that target our own backend
+    if (
+      url.startsWith("/api") &&
+      response.data !== null &&
+      typeof response.data === "object" &&
+      "data" in response.data
+    ) {
+      response.data = (response.data as { data: unknown }).data;
+    }
+    return response;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ---------------------------------------------------------------------------
+// Transform a raw memo object coming from the backend into the shape expected
+// by the v0.14.4 frontend.
+//   - creatorUsername : not in v0.12.2; fall back to creatorName
+//   - displayTs       : not in v0.12.2; fall back to createdTs
+//   - relationList    : not in v0.12.2; default to []
+// ---------------------------------------------------------------------------
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalizeMemo = (m: any): any => ({
+  ...m,
+  creatorUsername: m.creatorUsername ?? m.creatorName ?? "",
+  displayTs: m.displayTs ?? m.createdTs ?? 0,
+  relationList: m.relationList ?? [],
+});
+
+// ---------------------------------------------------------------------------
+// Lightweight in-process user cache: id → User.
+// Populated lazily on first call to resolveCreatorId / getUserByUsername.
+// ---------------------------------------------------------------------------
+let userListCache: User[] | null = null;
+
+const fetchUserList = async (): Promise<User[]> => {
+  if (userListCache !== null) return userListCache;
+  const { data } = await axios.get<User[]>("/api/user");
+  // data is already unwrapped to User[] by the interceptor
+  userListCache = Array.isArray(data) ? (data as User[]) : [];
+  return userListCache;
+};
+
+/**
+ * Resolve a username to a numeric creator ID by fetching the user list.
+ * Returns undefined when the username is not found.
+ */
+const resolveCreatorId = async (username: string): Promise<number | undefined> => {
+  const users = await fetchUserList();
+  return users.find((u) => u.username === username)?.id;
 };
 
 export function getSystemStatus() {
-  return axios.get<ResponseObject<SystemStatus>>("/api/status");
+  return axios.get<SystemStatus>("/api/status");
 }
 
 export function getSystemSetting() {
-  return axios.get<ResponseObject<SystemSetting[]>>("/api/system/setting");
+  return axios.get<SystemSetting[]>("/api/system/setting");
 }
 
 export function upsertSystemSetting(systemSetting: SystemSetting) {
-  return axios.post<ResponseObject<SystemSetting>>("/api/system/setting", systemSetting);
+  return axios.post<SystemSetting>("/api/system/setting", systemSetting);
 }
 
 export function vacuumDatabase() {
@@ -23,14 +77,14 @@ export function vacuumDatabase() {
 }
 
 export function signin(username: string, password: string) {
-  return axios.post<ResponseObject<User>>("/api/auth/signin", {
+  return axios.post("/api/auth/signin", {
     username,
     password,
   });
 }
 
 export function signinWithSSO(identityProviderId: IdentityProviderId, code: string, redirectUri: string) {
-  return axios.post<ResponseObject<User>>("/api/auth/signin/sso", {
+  return axios.post("/api/auth/signin/sso", {
     identityProviderId,
     code,
     redirectUri,
@@ -38,7 +92,7 @@ export function signinWithSSO(identityProviderId: IdentityProviderId, code: stri
 }
 
 export function signup(username: string, password: string) {
-  return axios.post<ResponseObject<User>>("/api/auth/signup", {
+  return axios.post("/api/auth/signup", {
     username,
     password,
   });
@@ -49,34 +103,47 @@ export function signout() {
 }
 
 export function createUser(userCreate: UserCreate) {
-  return axios.post<ResponseObject<User>>("/api/user", userCreate);
+  return axios.post<User>("/api/user", userCreate);
 }
 
 export function getMyselfUser() {
-  return axios.get<ResponseObject<User>>("/api/user/me");
+  return axios.get<User>("/api/user/me");
 }
 
 export function getUserList() {
-  return axios.get<ResponseObject<User[]>>("/api/user");
+  // Invalidate cache on explicit list fetch
+  userListCache = null;
+  return axios.get<User[]>("/api/user");
 }
 
-export function getUserById(id: number) {
-  return axios.get<ResponseObject<User>>(`/api/user/${id}`);
+/**
+ * Simulates the v0.14.4 `/api/v1/user/name/:username` endpoint.
+ * Fetches the full user list from the backend and returns the matching user.
+ * Returns a promise that resolves to an axios-like response object so call
+ * sites can use the same `const { data } = await getUserByUsername(...)` pattern.
+ */
+export async function getUserByUsername(username: string): Promise<{ data: User }> {
+  const users = await fetchUserList();
+  const user = users.find((u) => u.username === username);
+  if (!user) {
+    return Promise.reject(new Error(`User not found: ${username}`));
+  }
+  return { data: user };
 }
 
 export function upsertUserSetting(upsert: UserSettingUpsert) {
-  return axios.post<ResponseObject<UserSetting>>(`/api/user/setting`, upsert);
+  return axios.post<UserSetting>(`/api/user/setting`, upsert);
 }
 
 export function patchUser(userPatch: UserPatch) {
-  return axios.patch<ResponseObject<User>>(`/api/user/${userPatch.id}`, userPatch);
+  return axios.patch<User>(`/api/user/${userPatch.id}`, userPatch);
 }
 
 export function deleteUser(userDelete: UserDelete) {
   return axios.delete(`/api/user/${userDelete.id}`);
 }
 
-export function getAllMemos(memoFind?: MemoFind) {
+export async function getAllMemos(memoFind?: MemoFind) {
   const queryList = [];
   if (memoFind?.offset) {
     queryList.push(`offset=${memoFind.offset}`);
@@ -85,13 +152,25 @@ export function getAllMemos(memoFind?: MemoFind) {
     queryList.push(`limit=${memoFind.limit}`);
   }
 
-  return axios.get<ResponseObject<Memo[]>>(`/api/memo/all?${queryList.join("&")}`);
+  if (memoFind?.creatorUsername) {
+    const creatorId = await resolveCreatorId(memoFind.creatorUsername);
+    if (creatorId !== undefined) {
+      queryList.push(`creatorId=${creatorId}`);
+    }
+  }
+
+  const res = await axios.get<Memo[]>(`/api/memo/all?${queryList.join("&")}`);
+  res.data = (Array.isArray(res.data) ? res.data : []).map(normalizeMemo) as Memo[];
+  return res;
 }
 
-export function getMemoList(memoFind?: MemoFind) {
+export async function getMemoList(memoFind?: MemoFind) {
   const queryList = [];
-  if (memoFind?.creatorId) {
-    queryList.push(`creatorId=${memoFind.creatorId}`);
+  if (memoFind?.creatorUsername) {
+    const creatorId = await resolveCreatorId(memoFind.creatorUsername);
+    if (creatorId !== undefined) {
+      queryList.push(`creatorId=${creatorId}`);
+    }
   }
   if (memoFind?.rowStatus) {
     queryList.push(`rowStatus=${memoFind.rowStatus}`);
@@ -105,23 +184,31 @@ export function getMemoList(memoFind?: MemoFind) {
   if (memoFind?.limit) {
     queryList.push(`limit=${memoFind.limit}`);
   }
-  return axios.get<ResponseObject<Memo[]>>(`/api/memo?${queryList.join("&")}`);
+  const res = await axios.get<Memo[]>(`/api/memo?${queryList.join("&")}`);
+  res.data = (Array.isArray(res.data) ? res.data : []).map(normalizeMemo) as Memo[];
+  return res;
 }
 
-export function getMemoStats(userId: UserId) {
-  return axios.get<ResponseObject<number[]>>(`/api/memo/stats?creatorId=${userId}`);
+export async function getMemoStats(username: string) {
+  const creatorId = await resolveCreatorId(username);
+  if (creatorId === undefined) {
+    return { data: [] as number[] };
+  }
+  return axios.get<number[]>(`/api/memo/stats?creatorId=${creatorId}`);
 }
 
-export function getMemoById(id: MemoId) {
-  return axios.get<ResponseObject<Memo>>(`/api/memo/${id}`);
+export async function getMemoById(id: MemoId) {
+  const res = await axios.get<Memo>(`/api/memo/${id}`);
+  res.data = normalizeMemo(res.data) as Memo;
+  return res;
 }
 
 export function createMemo(memoCreate: MemoCreate) {
-  return axios.post<ResponseObject<Memo>>("/api/memo", memoCreate);
+  return axios.post<Memo>("/api/memo", memoCreate);
 }
 
 export function patchMemo(memoPatch: MemoPatch) {
-  return axios.patch<ResponseObject<Memo>>(`/api/memo/${memoPatch.id}`, memoPatch);
+  return axios.patch<Memo>(`/api/memo/${memoPatch.id}`, memoPatch);
 }
 
 export function pinMemo(memoId: MemoId) {
@@ -140,28 +227,8 @@ export function deleteMemo(memoId: MemoId) {
   return axios.delete(`/api/memo/${memoId}`);
 }
 
-export function getShortcutList(shortcutFind?: ShortcutFind) {
-  const queryList = [];
-  if (shortcutFind?.creatorId) {
-    queryList.push(`creatorId=${shortcutFind.creatorId}`);
-  }
-  return axios.get<ResponseObject<Shortcut[]>>(`/api/shortcut?${queryList.join("&")}`);
-}
-
-export function createShortcut(shortcutCreate: ShortcutCreate) {
-  return axios.post<ResponseObject<Shortcut>>("/api/shortcut", shortcutCreate);
-}
-
-export function patchShortcut(shortcutPatch: ShortcutPatch) {
-  return axios.patch<ResponseObject<Shortcut>>(`/api/shortcut/${shortcutPatch.id}`, shortcutPatch);
-}
-
-export function deleteShortcutById(shortcutId: ShortcutId) {
-  return axios.delete(`/api/shortcut/${shortcutId}`);
-}
-
 export function getResourceList() {
-  return axios.get<ResponseObject<Resource[]>>("/api/resource");
+  return axios.get<Resource[]>("/api/resource");
 }
 
 export function getResourceListWithLimit(resourceFind?: ResourceFind) {
@@ -172,31 +239,31 @@ export function getResourceListWithLimit(resourceFind?: ResourceFind) {
   if (resourceFind?.limit) {
     queryList.push(`limit=${resourceFind.limit}`);
   }
-  return axios.get<ResponseObject<Resource[]>>(`/api/resource?${queryList.join("&")}`);
+  return axios.get<Resource[]>(`/api/resource?${queryList.join("&")}`);
 }
 
 export function createResource(resourceCreate: ResourceCreate) {
-  return axios.post<ResponseObject<Resource>>("/api/resource", resourceCreate);
+  return axios.post<Resource>("/api/resource", resourceCreate);
 }
 
 export function createResourceWithBlob(formData: FormData) {
-  return axios.post<ResponseObject<Resource>>("/api/resource/blob", formData);
+  return axios.post<Resource>("/api/resource/blob", formData);
+}
+
+export function patchResource(resourcePatch: ResourcePatch) {
+  return axios.patch<Resource>(`/api/resource/${resourcePatch.id}`, resourcePatch);
 }
 
 export function deleteResourceById(id: ResourceId) {
   return axios.delete(`/api/resource/${id}`);
 }
 
-export function patchResource(resourcePatch: ResourcePatch) {
-  return axios.patch<ResponseObject<Resource>>(`/api/resource/${resourcePatch.id}`, resourcePatch);
-}
-
 export function getMemoResourceList(memoId: MemoId) {
-  return axios.get<ResponseObject<Resource[]>>(`/api/memo/${memoId}/resource`);
+  return axios.get<Resource[]>(`/api/memo/${memoId}/resource`);
 }
 
 export function upsertMemoResource(memoId: MemoId, resourceId: ResourceId) {
-  return axios.post<ResponseObject<Resource>>(`/api/memo/${memoId}/resource`, {
+  return axios.post(`/api/memo/${memoId}/resource`, {
     resourceId,
   });
 }
@@ -206,39 +273,39 @@ export function deleteMemoResource(memoId: MemoId, resourceId: ResourceId) {
 }
 
 export function getTagList(tagFind?: TagFind) {
-  const queryList = [];
-  if (tagFind?.creatorId) {
-    queryList.push(`creatorId=${tagFind.creatorId}`);
-  }
-  return axios.get<ResponseObject<string[]>>(`/api/tag?${queryList.join("&")}`);
+  // The v0.12.2 backend tag endpoint uses the authenticated user from the JWT;
+  // it does not accept a creatorId/creatorUsername query parameter.  In visitor
+  // mode this means we will show the logged-in user's tags instead of the
+  // visitor's tags, which is an acceptable limitation without a backend change.
+  return axios.get<string[]>(`/api/tag`);
 }
 
 export function getTagSuggestionList() {
-  return axios.get<ResponseObject<string[]>>(`/api/tag/suggestion`);
+  return axios.get<string[]>(`/api/tag/suggestion`);
 }
 
 export function upsertTag(tagName: string) {
-  return axios.post<ResponseObject<string>>(`/api/tag`, {
+  return axios.post<string>(`/api/tag`, {
     name: tagName,
   });
 }
 
 export function deleteTag(tagName: string) {
-  return axios.post<ResponseObject<boolean>>(`/api/tag/delete`, {
+  return axios.post(`/api/tag/delete`, {
     name: tagName,
   });
 }
 
 export function getStorageList() {
-  return axios.get<ResponseObject<ObjectStorage[]>>(`/api/storage`);
+  return axios.get<ObjectStorage[]>(`/api/storage`);
 }
 
 export function createStorage(storageCreate: StorageCreate) {
-  return axios.post<ResponseObject<ObjectStorage>>(`/api/storage`, storageCreate);
+  return axios.post<ObjectStorage>(`/api/storage`, storageCreate);
 }
 
 export function patchStorage(storagePatch: StoragePatch) {
-  return axios.patch<ResponseObject<ObjectStorage>>(`/api/storage/${storagePatch.id}`, storagePatch);
+  return axios.patch<ObjectStorage>(`/api/storage/${storagePatch.id}`, storagePatch);
 }
 
 export function deleteStorage(storageId: StorageId) {
@@ -246,27 +313,19 @@ export function deleteStorage(storageId: StorageId) {
 }
 
 export function getIdentityProviderList() {
-  return axios.get<ResponseObject<IdentityProvider[]>>(`/api/idp`);
+  return axios.get<IdentityProvider[]>(`/api/idp`);
 }
 
 export function createIdentityProvider(identityProviderCreate: IdentityProviderCreate) {
-  return axios.post<ResponseObject<IdentityProvider>>(`/api/idp`, identityProviderCreate);
+  return axios.post<IdentityProvider>(`/api/idp`, identityProviderCreate);
 }
 
 export function patchIdentityProvider(identityProviderPatch: IdentityProviderPatch) {
-  return axios.patch<ResponseObject<IdentityProvider>>(`/api/idp/${identityProviderPatch.id}`, identityProviderPatch);
+  return axios.patch<IdentityProvider>(`/api/idp/${identityProviderPatch.id}`, identityProviderPatch);
 }
 
 export function deleteIdentityProvider(id: IdentityProviderId) {
   return axios.delete(`/api/idp/${id}`);
-}
-
-export function postChatCompletion(messages: any[]) {
-  return axios.post<ResponseObject<string>>(`/api/openai/chat-completion`, messages);
-}
-
-export function checkOpenAIEnabled() {
-  return axios.get<ResponseObject<boolean>>(`/api/openai/enabled`);
 }
 
 export async function getRepoStarCount() {
