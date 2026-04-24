@@ -23,6 +23,8 @@ const MemoList: React.FC<Props> = (props: Props) => {
   const { memos, isFetching } = memoStore.state;
   const [isComplete, setIsComplete] = useState<boolean>(false);
 
+  const hasFetchedRef = useRef(false);
+
   const currentUsername = userStore.getCurrentUsername();
   const { tag: tagQuery, duration, type: memoType, text: textQuery, visibility } = filter;
   const showMemoFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || visibility);
@@ -86,9 +88,11 @@ const MemoList: React.FC<Props> = (props: Props) => {
   const statusRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    hasFetchedRef.current = false;
     memoStore
       .fetchMemos()
       .then((fetchedMemos) => {
+        hasFetchedRef.current = true;
         if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
           setIsComplete(true);
         } else {
@@ -109,7 +113,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
   }, [filter]);
 
   useEffect(() => {
-    if (isFetching || isComplete) {
+    if (!hasFetchedRef.current || isFetching || isComplete) {
       return;
     }
     if (sortedMemos.length < DEFAULT_MEMO_LIMIT) {
