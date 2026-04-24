@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/pkg/errors"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 )
@@ -19,18 +17,15 @@ func (s *Server) registerShortcutRoutes(g Group) {
 		if !ok {
 			return newHTTPError(http.StatusUnauthorized, "Missing user in session")
 		}
+
 		shortcutCreate := &api.ShortcutCreate{}
 		if err := json.NewDecoder(c.Request().Body).Decode(shortcutCreate); err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted post shortcut request", err)
 		}
 
-		shortcutCreate.CreatorID = userID
-		shortcut, err := s.Store.CreateShortcut(ctx, shortcutCreate)
+		shortcut, err := s.Service.CreateShortcut(ctx, userID, shortcutCreate)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create shortcut", err)
-		}
-		if err := s.createShortcutCreateActivity(c, shortcut); err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to create activity", err)
+			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(shortcut))
 	})
@@ -46,26 +41,14 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
 		}
 
-		shortcut, err := s.Store.FindShortcut(ctx, &api.ShortcutFind{ID: &shortcutID})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find shortcut", err)
-		}
-		if shortcut.CreatorID != userID {
-			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
-		}
-
-		currentTs := time.Now().Unix()
-		shortcutPatch := &api.ShortcutPatch{
-			UpdatedTs: &currentTs,
-		}
+		shortcutPatch := &api.ShortcutPatch{}
 		if err := json.NewDecoder(c.Request().Body).Decode(shortcutPatch); err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, "Malformatted patch shortcut request", err)
 		}
 
-		shortcutPatch.ID = shortcutID
-		shortcut, err = s.Store.PatchShortcut(ctx, shortcutPatch)
+		shortcut, err := s.Service.UpdateShortcut(ctx, userID, shortcutID, shortcutPatch)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to patch shortcut", err)
+			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(shortcut))
 	})
@@ -109,45 +92,12 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("shortcutId")), err)
 		}
 
-		shortcut, err := s.Store.FindShortcut(ctx, &api.ShortcutFind{ID: &shortcutID})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to find shortcut", err)
-		}
-		if shortcut.CreatorID != userID {
-			return newHTTPError(http.StatusUnauthorized, "Unauthorized")
-		}
-
-		shortcutDelete := &api.ShortcutDelete{
-			ID: &shortcutID,
-		}
-		if err := s.Store.DeleteShortcut(ctx, shortcutDelete); err != nil {
+		if err := s.Service.DeleteShortcut(ctx, userID, shortcutID); err != nil {
 			if common.ErrorCode(err) == common.NotFound {
 				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Shortcut ID not found: %d", shortcutID))
 			}
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to delete shortcut", err)
+			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
 	})
-}
-
-func (s *Server) createShortcutCreateActivity(c Context, shortcut *api.Shortcut) error {
-	ctx := c.Request().Context()
-	payload := api.ActivityShortcutCreatePayload{
-		Title:   shortcut.Title,
-		Payload: shortcut.Payload,
-	}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal activity payload")
-	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
-		CreatorID: shortcut.CreatorID,
-		Type:      api.ActivityShortcutCreate,
-		Level:     api.ActivityInfo,
-		Payload:   string(payloadBytes),
-	})
-	if err != nil || activity == nil {
-		return errors.Wrap(err, "failed to create activity")
-	}
-	return err
 }

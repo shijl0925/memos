@@ -48,7 +48,7 @@ func (raw *userRaw) toUser() *api.User {
 	}
 }
 
-func (s *Store) ComposeMemoCreator(ctx context.Context, memo *api.Memo) error {
+func (s *Store) composeMemoCreator(ctx context.Context, memo *api.Memo) error {
 	user, err := s.FindUser(ctx, &api.UserFind{
 		ID: &memo.CreatorID,
 	})

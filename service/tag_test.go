@@ -1,10 +1,10 @@
-package server
+package service
 
 import (
 	"testing"
 )
 
-func TestFindTagListFromMemoContent(t *testing.T) {
+func TestFindTagListFromContent(t *testing.T) {
 	tests := []struct {
 		memoContent string
 		want        []string
@@ -39,7 +39,7 @@ func TestFindTagListFromMemoContent(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		result := findTagListFromMemoContent(test.memoContent)
+		result := findTagListFromContent(test.memoContent)
 		if len(result) != len(test.want) {
 			t.Errorf("Find tag list %s: got result %v, want %v.", test.memoContent, result, test.want)
 		}

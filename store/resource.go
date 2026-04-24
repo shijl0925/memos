@@ -53,7 +53,7 @@ func (raw *resourceRaw) toResource() *api.Resource {
 	}
 }
 
-func (s *Store) ComposeMemoResourceList(ctx context.Context, memo *api.Memo) error {
+func (s *Store) composeMemoResourceList(ctx context.Context, memo *api.Memo) error {
 	resourceList, err := s.FindResourceList(ctx, &api.ResourceFind{
 		MemoID: &memo.ID,
 	})
