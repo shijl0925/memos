@@ -396,6 +396,7 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 		} else {
 			memo.CreatorName = user.Username
 		}
+		memo.CreatorUsername = user.Username
 
 		if resourceList, ok := resourceListMap[memo.ID]; ok {
 			memo.ResourceList = resourceList

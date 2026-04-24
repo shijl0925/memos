@@ -61,6 +61,7 @@ func (s *Store) composeMemoCreator(ctx context.Context, memo *api.Memo) error {
 	} else {
 		memo.CreatorName = user.Username
 	}
+	memo.CreatorUsername = user.Username
 	return nil
 }
 func (s *Store) CreateUser(ctx context.Context, create *api.UserCreate) (*api.User, error) {
