@@ -30,6 +30,20 @@ func userTableName(driver string) string {
 	}
 }
 
+func blobCol(driver string) string {
+	if driver == "mysql" {
+		return "`blob`"
+	}
+	return "blob"
+}
+
+func blobColRef(driver string) string {
+	if driver == "mysql" {
+		return "resource.`blob`"
+	}
+	return "resource.blob"
+}
+
 func quotedKeyCol(driver string) string {
 	if driver == "mysql" {
 		return "`key`"

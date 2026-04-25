@@ -249,7 +249,7 @@ func (s *Store) PatchResource(ctx context.Context, patch *api.ResourcePatch) (*a
 }
 
 func createResourceImpl(ctx context.Context, tx *sql.Tx, driver string, create *api.ResourceCreate) (*resourceRaw, error) {
-	fields := []string{"filename", "blob", "external_link", "type", "size", "creator_id", "internal_path"}
+	fields := []string{"filename", blobCol(driver), "external_link", "type", "size", "creator_id", "internal_path"}
 	values := []any{create.Filename, create.Blob, create.ExternalLink, create.Type, create.Size, create.CreatorID, create.InternalPath}
 	placeholders := []string{"?", "?", "?", "?", "?", "?", "?"}
 
@@ -354,7 +354,7 @@ func findResourceListImpl(ctx context.Context, tx *sql.Tx, driver string, find *
 
 	fields := []string{"resource.id", "resource.filename", "resource.external_link", "resource.type", "resource.size", "resource.creator_id", "resource.created_ts", "resource.updated_ts", "internal_path"}
 	if find.GetBlob {
-		fields = append(fields, "resource.blob")
+		fields = append(fields, blobColRef(driver))
 	}
 
 	query := formatQuery(driver, fmt.Sprintf(`
