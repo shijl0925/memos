@@ -48,40 +48,38 @@ const Header = () => {
         onClick={() => layoutStore.setHeaderStatus(false)}
       />
       <header
-        className={`relative w-20 sm:w-full h-full max-h-screen overflow-auto hide-scrollbar flex flex-col justify-between items-center py-4 z-30 bg-zinc-50 dark:bg-zinc-900 sm:shadow-none transition-all duration-300 -translate-x-full sm:translate-x-0 ${
+        className={`relative w-20 sm:w-full h-full max-h-screen overflow-auto hide-scrollbar flex flex-col justify-between items-center py-4 z-30 bg-zinc-50 dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-700 sm:shadow-none transition-all duration-300 -translate-x-full sm:translate-x-0 ${
           showHeader && "translate-x-0 shadow-2xl"
         }`}
       >
-        {/* Top: user avatar (display only) */}
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full overflow-clip" title={user?.nickname || user?.username || "Memos"}>
+        {/* Top: user avatar + navigation icons */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="w-10 h-10 rounded-full overflow-clip mb-2" title={user?.nickname || user?.username || "Memos"}>
             <UserAvatar avatarUrl={user?.avatarUrl} className="w-10 h-10" />
           </div>
+          <nav className="flex flex-col items-center gap-1">
+            {!isVisitorMode && (
+              <>
+                <NavLink to="/" id="header-home" title={t("common.home")} className={iconNavClass}>
+                  <Icon.Home className="w-5 h-auto" />
+                </NavLink>
+                <NavLink to="/resources" id="header-resources" title={t("common.resources")} className={iconNavClass}>
+                  <Icon.Paperclip className="w-5 h-auto" />
+                </NavLink>
+              </>
+            )}
+            {!globalStore.getDisablePublicMemos() && (
+              <NavLink to="/explore" id="header-explore" title={t("common.explore")} className={iconNavClass}>
+                <Icon.Hash className="w-5 h-auto" />
+              </NavLink>
+            )}
+            {!isVisitorMode && (
+              <NavLink to="/archived" id="header-archived" title={t("common.archived")} className={iconNavClass}>
+                <Icon.Archive className="w-5 h-auto" />
+              </NavLink>
+            )}
+          </nav>
         </div>
-
-        {/* Middle: navigation icons */}
-        <nav className="flex flex-col items-center gap-1">
-          {!isVisitorMode && (
-            <>
-              <NavLink to="/" id="header-home" title={t("common.home")} className={iconNavClass}>
-                <Icon.Home className="w-5 h-auto" />
-              </NavLink>
-              <NavLink to="/resources" id="header-resources" title={t("common.resources")} className={iconNavClass}>
-                <Icon.Paperclip className="w-5 h-auto" />
-              </NavLink>
-            </>
-          )}
-          {!globalStore.getDisablePublicMemos() && (
-            <NavLink to="/explore" id="header-explore" title={t("common.explore")} className={iconNavClass}>
-              <Icon.Hash className="w-5 h-auto" />
-            </NavLink>
-          )}
-          {!isVisitorMode && (
-            <NavLink to="/archived" id="header-archived" title={t("common.archived")} className={iconNavClass}>
-              <Icon.Archive className="w-5 h-auto" />
-            </NavLink>
-          )}
-        </nav>
 
         {/* Bottom: settings / sign-in */}
         <div className="flex flex-col items-center">

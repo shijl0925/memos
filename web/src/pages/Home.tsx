@@ -31,7 +31,7 @@ const Home = () => {
   return (
     <div className="w-full flex flex-row justify-start items-start">
       <HomeSidebar />
-      <div className="flex-grow min-w-0 px-4 pt-4">
+      <div className="flex-grow min-w-0 max-w-3xl px-4 pt-4">
         <MobileHeader />
         {!userStore.isVisitorMode() && <MemoEditor className="mb-2" />}
         <MemoFilter />
