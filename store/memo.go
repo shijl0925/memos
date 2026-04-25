@@ -326,14 +326,12 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 		where, args = append(where, "memo.created_ts < ?"), append(args, *v)
 	}
 	if v := find.VisibilityList; len(v) != 0 {
-		list := []string{}
-		for range v {
-			list = append(list, "?")
-		}
+		placeholders := make([]string, 0, len(v))
 		for _, visibility := range v {
+			placeholders = append(placeholders, "?")
 			args = append(args, visibility)
 		}
-		where = append(where, fmt.Sprintf("memo.visibility in (%s)", strings.Join(list, ",")))
+		where = append(where, fmt.Sprintf("memo.visibility in (%s)", strings.Join(placeholders, ",")))
 	}
 
 	query := formatQuery(driver, `
