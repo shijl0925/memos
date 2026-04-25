@@ -35,7 +35,7 @@ const MyAccountSection = () => {
       <div className="section-container account-section-container">
         <p className="title-text">{t("setting.account-section.title")}</p>
         <div className="flex flex-row justify-start items-center">
-          <UserAvatar className="mr-2" avatarUrl={user.avatarUrl} />
+          <UserAvatar className="w-8 h-8 mr-2" avatarUrl={user.avatarUrl} />
           <span className="text-2xl leading-10 font-medium">{user.nickname}</span>
           <span className="text-base ml-1 text-gray-500 leading-10 dark:text-gray-400">({user.username})</span>
         </div>
