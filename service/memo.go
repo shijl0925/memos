@@ -8,7 +8,6 @@ import (
 
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
-	"github.com/usememos/memos/store"
 )
 
 // CreateMemo applies default visibility from user settings, enforces the
@@ -76,10 +75,10 @@ func (s *Service) CreateMemo(ctx context.Context, userID int, create *api.MemoCr
 	}
 
 	for _, relation := range create.RelationList {
-		if _, err := s.Store.UpsertMemoRelation(ctx, &store.MemoRelation{
+		if _, err := s.Store.UpsertMemoRelation(ctx, &api.MemoRelation{
 			MemoID:        memo.ID,
 			RelatedMemoID: relation.RelatedMemoID,
-			Type:          store.MemoRelationType(relation.Type),
+			Type:          relation.Type,
 		}); err != nil {
 			return nil, fmt.Errorf("failed to upsert memo relation: %w", err)
 		}
@@ -125,7 +124,7 @@ func (s *Service) UpdateMemo(ctx context.Context, userID, memoID int, patch *api
 	}
 
 	if patch.RelationList != nil {
-		oldRelations, err := s.Store.FindMemoRelationList(ctx, &store.MemoRelationFind{MemoID: &memoID})
+		oldRelations, err := s.Store.FindMemoRelationList(ctx, &api.MemoRelationFind{MemoID: &memoID})
 		if err != nil {
 			return nil, fmt.Errorf("failed to find memo relations: %w", err)
 		}
@@ -133,10 +132,10 @@ func (s *Service) UpdateMemo(ctx context.Context, userID, memoID int, patch *api
 		for _, r := range patch.RelationList {
 			key := fmt.Sprintf("%d:%s", r.RelatedMemoID, r.Type)
 			newRelationMap[key] = true
-			if _, err := s.Store.UpsertMemoRelation(ctx, &store.MemoRelation{
+			if _, err := s.Store.UpsertMemoRelation(ctx, &api.MemoRelation{
 				MemoID:        memoID,
 				RelatedMemoID: r.RelatedMemoID,
-				Type:          store.MemoRelationType(r.Type),
+				Type:          r.Type,
 			}); err != nil {
 				return nil, fmt.Errorf("failed to upsert memo relation: %w", err)
 			}
@@ -144,8 +143,8 @@ func (s *Service) UpdateMemo(ctx context.Context, userID, memoID int, patch *api
 		for _, old := range oldRelations {
 			key := fmt.Sprintf("%d:%s", old.RelatedMemoID, old.Type)
 			if !newRelationMap[key] {
-				relType := store.MemoRelationType(old.Type)
-				if err := s.Store.DeleteMemoRelation(ctx, &store.MemoRelationDelete{
+				relType := old.Type
+				if err := s.Store.DeleteMemoRelation(ctx, &api.MemoRelationDelete{
 					MemoID:        &memoID,
 					RelatedMemoID: &old.RelatedMemoID,
 					Type:          &relType,

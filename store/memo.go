@@ -64,19 +64,11 @@ func (s *Store) composeMemo(ctx context.Context, memo *api.Memo) (*api.Memo, err
 }
 
 func (s *Store) composeMemoRelationList(ctx context.Context, memo *api.Memo) error {
-	relationList, err := s.FindMemoRelationList(ctx, &MemoRelationFind{MemoID: &memo.ID})
+	relationList, err := s.FindMemoRelationList(ctx, &api.MemoRelationFind{MemoID: &memo.ID})
 	if err != nil {
 		return err
 	}
-	apiRelationList := make([]*api.MemoRelation, 0, len(relationList))
-	for _, r := range relationList {
-		apiRelationList = append(apiRelationList, &api.MemoRelation{
-			MemoID:        r.MemoID,
-			RelatedMemoID: r.RelatedMemoID,
-			Type:          api.MemoRelationType(r.Type),
-		})
-	}
-	memo.RelationList = apiRelationList
+	memo.RelationList = relationList
 	return nil
 }
 
@@ -408,23 +400,10 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 		return nil, err
 	}
 
-	// Build a relation map keyed by memoID
-	relationListMap := make(map[int][]*api.MemoRelation)
-	for _, memoID := range memoIDList {
-		id := memoID
-		relations, err := s.FindMemoRelationList(ctx, &MemoRelationFind{MemoID: &id})
-		if err != nil {
-			return nil, err
-		}
-		apiRelations := make([]*api.MemoRelation, 0, len(relations))
-		for _, r := range relations {
-			apiRelations = append(apiRelations, &api.MemoRelation{
-				MemoID:        r.MemoID,
-				RelatedMemoID: r.RelatedMemoID,
-				Type:          api.MemoRelationType(r.Type),
-			})
-		}
-		relationListMap[memoID] = apiRelations
+	// Build a relation map keyed by memoID using a single batch query.
+	relationListMap, err := findMemoRelationListMap(ctx, tx, memoIDList)
+	if err != nil {
+		return nil, err
 	}
 
 	for _, raw := range memoRawList {

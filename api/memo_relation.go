@@ -22,3 +22,17 @@ type MemoRelationUpsert struct {
 	RelatedMemoID int              `json:"relatedMemoId"`
 	Type          MemoRelationType `json:"type"`
 }
+
+// MemoRelationFind is used to query memo relations.
+type MemoRelationFind struct {
+	MemoID        *int
+	RelatedMemoID *int
+	Type          *MemoRelationType
+}
+
+// MemoRelationDelete is used to delete memo relations.
+type MemoRelationDelete struct {
+	MemoID        *int
+	RelatedMemoID *int
+	Type          *MemoRelationType
+}
