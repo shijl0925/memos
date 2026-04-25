@@ -209,7 +209,7 @@ func (s *Store) UpdateIdentityProvider(ctx context.Context, update *UpdateIdenti
 	if err := tx.Commit(); err != nil {
 		return nil, FormatError(err)
 	}
-	s.idpCache.Store(identityProviderMessage.ID, identityProviderMessage)
+	s.idpCache.Store(identityProviderMessage.ID, &identityProviderMessage)
 	return &identityProviderMessage, nil
 }
 

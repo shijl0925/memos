@@ -210,7 +210,7 @@ func (s *Server) registerMemoRoutes(g Group) {
 			memoFind.Pinned = &pinned
 		}
 		if tag := c.QueryParam("tag"); tag != "" {
-			contentSearch := "#" + tag + " "
+			contentSearch := "#" + tag
 			memoFind.ContentSearch = &contentSearch
 		}
 		if visibilityListStr := c.QueryParam("visibility"); visibilityListStr != "" {

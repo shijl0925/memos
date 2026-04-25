@@ -117,7 +117,7 @@ func (s *Server) createServerStartActivity(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: api.UnknownID,
 		Type:      api.ActivityServerStart,
 		Level:     api.ActivityInfo,
@@ -126,7 +126,5 @@ func (s *Server) createServerStartActivity(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }

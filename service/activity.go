@@ -17,7 +17,7 @@ func (s *Service) createMemoCreateActivity(ctx context.Context, memo *api.Memo) 
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: memo.CreatorID,
 		Type:      api.ActivityMemoCreate,
 		Level:     api.ActivityInfo,
@@ -26,8 +26,6 @@ func (s *Service) createMemoCreateActivity(ctx context.Context, memo *api.Memo) 
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
 
@@ -41,7 +39,7 @@ func (s *Service) createUserCreateActivity(ctx context.Context, user *api.User) 
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: user.ID,
 		Type:      api.ActivityUserCreate,
 		Level:     api.ActivityInfo,
@@ -50,8 +48,6 @@ func (s *Service) createUserCreateActivity(ctx context.Context, user *api.User) 
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
 
@@ -61,7 +57,7 @@ func (s *Service) createUserAuthSignInActivity(ctx context.Context, user *api.Us
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: user.ID,
 		Type:      api.ActivityUserAuthSignIn,
 		Level:     api.ActivityInfo,
@@ -70,8 +66,6 @@ func (s *Service) createUserAuthSignInActivity(ctx context.Context, user *api.Us
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
 
@@ -81,7 +75,7 @@ func (s *Service) createUserAuthSignUpActivity(ctx context.Context, user *api.Us
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: user.ID,
 		Type:      api.ActivityUserAuthSignUp,
 		Level:     api.ActivityInfo,
@@ -90,8 +84,6 @@ func (s *Service) createUserAuthSignUpActivity(ctx context.Context, user *api.Us
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
 
@@ -105,7 +97,7 @@ func (s *Service) createResourceCreateActivity(ctx context.Context, resource *ap
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: resource.CreatorID,
 		Type:      api.ActivityResourceCreate,
 		Level:     api.ActivityInfo,
@@ -114,8 +106,6 @@ func (s *Service) createResourceCreateActivity(ctx context.Context, resource *ap
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
 
@@ -127,7 +117,7 @@ func (s *Service) createTagCreateActivity(ctx context.Context, tag *api.Tag) err
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: tag.CreatorID,
 		Type:      api.ActivityTagCreate,
 		Level:     api.ActivityInfo,
@@ -136,8 +126,6 @@ func (s *Service) createTagCreateActivity(ctx context.Context, tag *api.Tag) err
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
 
@@ -150,7 +138,7 @@ func (s *Service) createShortcutCreateActivity(ctx context.Context, shortcut *ap
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal activity payload")
 	}
-	activity, err := s.Store.CreateActivity(ctx, &api.ActivityCreate{
+	_, err = s.Store.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: shortcut.CreatorID,
 		Type:      api.ActivityShortcutCreate,
 		Level:     api.ActivityInfo,
@@ -159,7 +147,5 @@ func (s *Service) createShortcutCreateActivity(ctx context.Context, shortcut *ap
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
-	_ = activity
 	return nil
 }
