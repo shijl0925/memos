@@ -66,7 +66,7 @@ const Header = () => {
               className="mb-2"
               trigger={
                 <div
-                  className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 ring-blue-400 ring-offset-1 transition-all"
+                  className="flex items-center justify-center w-10 h-10 rounded-full overflow-hidden cursor-pointer hover:ring-2 ring-blue-400 ring-offset-1 transition-all"
                   title={user.nickname || user.username}
                 >
                   <UserAvatar avatarUrl={user.avatarUrl} className="w-10 h-10" />
