@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { toast } from "react-hot-toast";
+import DailyReviewPanel from "@/components/DailyReviewPanel";
 import HomeSidebar from "@/components/HomeSidebar";
 import MemoEditor from "@/components/MemoEditor";
 import MemoFilter from "@/components/MemoFilter";
@@ -34,6 +35,7 @@ const Home = () => {
         <MobileHeader />
         <div className="w-full h-auto flex flex-col justify-start items-start bg-zinc-100 dark:bg-zinc-800 rounded-lg">
           {!userStore.isVisitorMode() && <MemoEditor className="mb-2" />}
+          {!userStore.isVisitorMode() && <DailyReviewPanel />}
           <MemoFilter />
         </div>
         <MemoList />

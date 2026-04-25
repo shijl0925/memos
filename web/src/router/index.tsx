@@ -2,7 +2,6 @@ import { lazy } from "react";
 import { createBrowserRouter, redirect } from "react-router-dom";
 import { isNullorUndefined } from "@/helpers/utils";
 import Archived from "@/pages/Archived";
-import DailyReview from "@/pages/DailyReview";
 import ResourcesDashboard from "@/pages/ResourcesDashboard";
 import Setting from "@/pages/Setting";
 import store from "@/store";
@@ -116,26 +115,6 @@ const router = createBrowserRouter([
           const { systemStatus } = store.getState().global;
 
           if (isNullorUndefined(user) && systemStatus.disablePublicMemos) {
-            return redirect("/auth");
-          }
-          return null;
-        },
-      },
-      {
-        path: "review",
-        element: <DailyReview />,
-        loader: async () => {
-          await initialGlobalStateLoader();
-
-          try {
-            await initialUserState();
-          } catch (error) {
-            // do nth
-          }
-
-          const { user } = store.getState().user;
-
-          if (isNullorUndefined(user)) {
             return redirect("/auth");
           }
           return null;
