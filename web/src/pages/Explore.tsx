@@ -53,7 +53,7 @@ const Explore = () => {
 
         if (duration && duration.from < duration.to) {
           const memoDate = getTimeStampByDate(memo.displayTs);
-          if (memoDate < duration.from || memoDate > duration.to) {
+          if (memoDate < duration.from || memoDate >= duration.to) {
             shouldShow = false;
           }
         }
