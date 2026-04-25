@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import { useEffect } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useGlobalStore, useLayoutStore, useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 import { resolution } from "@/utils/layout";
@@ -10,7 +10,6 @@ import UserAvatar from "./UserAvatar";
 const Header = () => {
   const t = useTranslate();
   const location = useLocation();
-  const navigate = useNavigate();
   const globalStore = useGlobalStore();
   const userStore = useUserStore();
   const layoutStore = useLayoutStore();
@@ -53,15 +52,14 @@ const Header = () => {
           showHeader && "translate-x-0 shadow-2xl"
         }`}
       >
-        {/* Top: user avatar */}
+        {/* Top: user avatar (display only) */}
         <div className="flex flex-col items-center">
-          <button
-            className="w-10 h-10 rounded-full overflow-clip hover:ring-2 ring-blue-400 ring-offset-1 transition-all"
-            onClick={() => navigate("/setting")}
+          <div
+            className="w-10 h-10 rounded-full overflow-clip"
             title={user?.nickname || user?.username || "Memos"}
           >
             <UserAvatar avatarUrl={user?.avatarUrl} className="w-10 h-10" />
-          </button>
+          </div>
         </div>
 
         {/* Middle: navigation icons */}
@@ -78,7 +76,7 @@ const Header = () => {
           )}
           {!globalStore.getDisablePublicMemos() && (
             <NavLink to="/explore" id="header-explore" title={t("common.explore")} className={iconNavClass}>
-              <Icon.Globe className="w-5 h-auto" />
+              <Icon.Hash className="w-5 h-auto" />
             </NavLink>
           )}
           {!isVisitorMode && (

@@ -84,14 +84,14 @@ const HomeSidebar = () => {
             <Icon.Link2 className="w-3.5 h-auto" />
             Links {linkCount}
           </button>
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300 transition-colors">
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 select-none">
             <Icon.CheckSquare className="w-3.5 h-auto" />
             To-do {todoDone}/{todoTotal}
-          </button>
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300 transition-colors">
+          </span>
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 select-none">
             <Icon.Code2 className="w-3.5 h-auto" />
             Code {codeCount}
-          </button>
+          </span>
         </div>
       )}
 
@@ -100,9 +100,9 @@ const HomeSidebar = () => {
         <div className="w-full px-3 mb-1">
           <div className="flex items-center justify-between py-1">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Shortcuts</span>
-            <button className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400">
+            <span className="flex items-center justify-center w-6 h-6 rounded text-gray-300 dark:text-zinc-600 cursor-default">
               <Icon.Plus className="w-4 h-4" />
-            </button>
+            </span>
           </div>
         </div>
       )}
