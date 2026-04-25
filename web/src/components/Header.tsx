@@ -44,7 +44,7 @@ const Header = () => {
 
   return (
     <div
-      className={`fixed sm:sticky top-0 left-0 w-full sm:w-20 h-full shrink-0 pointer-events-none sm:pointer-events-auto z-10 ${
+      className={`fixed sm:sticky top-0 left-0 w-full sm:w-20 h-full shrink-0 pointer-events-none sm:pointer-events-auto z-50 ${
         showHeader && "pointer-events-auto"
       }`}
     >
@@ -66,7 +66,7 @@ const Header = () => {
               className="mb-2"
               trigger={
                 <div
-                  className="w-10 h-10 rounded-full overflow-clip cursor-pointer hover:ring-2 ring-blue-400 ring-offset-1 transition-all"
+                  className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 ring-blue-400 ring-offset-1 transition-all"
                   title={user.nickname || user.username}
                 >
                   <UserAvatar avatarUrl={user.avatarUrl} className="w-10 h-10" />
