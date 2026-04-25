@@ -60,7 +60,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
           if (memoType) {
             if (memoType === "NOT_TAGGED" && memo.content.match(TAG_REG) !== null) {
               shouldShow = false;
-            } else if (memoType === "LINKED" && (memo.content.match(LINK_REG) === null || memo.content.match(PLAIN_LINK_REG) === null)) {
+            } else if (memoType === "LINKED" && (memo.content.match(LINK_REG) === null && memo.content.match(PLAIN_LINK_REG) === null)) {
               shouldShow = false;
             }
           }

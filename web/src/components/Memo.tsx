@@ -86,12 +86,12 @@ const Memo: React.FC<Props> = (props: Props) => {
       return;
     }
 
-    const root = document.body.querySelector("#root");
-    if (root) {
+    const pageWrapper = document.querySelector(".page-wrapper");
+    if (pageWrapper) {
       const checkShouldRender = () => {
-        if (root.scrollTop + window.innerHeight > (memoContainerRef.current?.offsetTop || 0)) {
+        if (pageWrapper.scrollTop + window.innerHeight > (memoContainerRef.current?.offsetTop || 0)) {
           setShouldRender(true);
-          root.removeEventListener("scroll", checkShouldRender);
+          pageWrapper.removeEventListener("scroll", checkShouldRender);
           return true;
         }
       };
@@ -99,7 +99,10 @@ const Memo: React.FC<Props> = (props: Props) => {
       if (checkShouldRender()) {
         return;
       }
-      root.addEventListener("scroll", checkShouldRender);
+      pageWrapper.addEventListener("scroll", checkShouldRender);
+      return () => {
+        pageWrapper.removeEventListener("scroll", checkShouldRender);
+      };
     }
   }, [lazyRendering, filterStore.state]);
 
