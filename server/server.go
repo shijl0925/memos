@@ -123,8 +123,11 @@ func (s *Server) createServerStartActivity(ctx context.Context) error {
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	return err
+	if activity == nil {
+		return errors.New("failed to create activity: store returned nil")
+	}
+	return nil
 }
