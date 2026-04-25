@@ -1,15 +1,17 @@
 import classNames from "classnames";
 import { useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useGlobalStore, useLayoutStore, useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 import { resolution } from "@/utils/layout";
 import Icon from "./Icon";
 import UserAvatar from "./UserAvatar";
+import Dropdown from "./kit/Dropdown";
 
 const Header = () => {
   const t = useTranslate();
   const location = useLocation();
+  const navigate = useNavigate();
   const globalStore = useGlobalStore();
   const userStore = useUserStore();
   const layoutStore = useLayoutStore();
@@ -35,6 +37,11 @@ const Header = () => {
       isActive && "bg-white dark:bg-zinc-700 shadow text-gray-800 dark:text-gray-100"
     );
 
+  const handleSignOut = async () => {
+    await userStore.doSignOut();
+    window.location.href = "/auth";
+  };
+
   return (
     <div
       className={`fixed sm:sticky top-0 left-0 w-full sm:w-20 h-full shrink-0 pointer-events-none sm:pointer-events-auto z-10 ${
@@ -52,11 +59,45 @@ const Header = () => {
           showHeader && "translate-x-0 shadow-2xl"
         }`}
       >
-        {/* Top: user avatar + navigation icons */}
+        {/* Top: user avatar with dropdown + navigation icons */}
         <div className="flex flex-col items-center gap-1">
-          <div className="w-10 h-10 rounded-full overflow-clip mb-2" title={user?.nickname || user?.username || "Memos"}>
-            <UserAvatar avatarUrl={user?.avatarUrl} className="w-10 h-10" />
-          </div>
+          {user ? (
+            <Dropdown
+              className="mb-2"
+              trigger={
+                <div
+                  className="w-10 h-10 rounded-full overflow-clip cursor-pointer hover:ring-2 ring-blue-400 ring-offset-1 transition-all"
+                  title={user.nickname || user.username}
+                >
+                  <UserAvatar avatarUrl={user.avatarUrl} className="w-10 h-10" />
+                </div>
+              }
+              actionsClassName="min-w-[160px]"
+              positionClassName="top-full left-0 mt-2"
+              actions={
+                <>
+                  <button
+                    className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center text-sm dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    onClick={() => navigate("/setting")}
+                  >
+                    <Icon.User className="w-4 h-auto mr-2 opacity-80" />
+                    {t("setting.my-account")}
+                  </button>
+                  <button
+                    className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center text-sm dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    onClick={handleSignOut}
+                  >
+                    <Icon.LogOut className="w-4 h-auto mr-2 opacity-80" />
+                    {t("common.sign-out")}
+                  </button>
+                </>
+              }
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full overflow-clip mb-2" title="Memos">
+              <UserAvatar className="w-10 h-10" />
+            </div>
+          )}
           <nav className="flex flex-col items-center gap-1">
             {!isVisitorMode && (
               <>
