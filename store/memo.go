@@ -79,7 +79,7 @@ func (s *Store) CreateMemo(ctx context.Context, create *api.MemoCreate) (*api.Me
 	}
 	defer tx.Rollback()
 
-	memoRaw, err := createMemoRaw(ctx, tx, create)
+	memoRaw, err := createMemoRaw(ctx, tx, s.driver, create)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (s *Store) PatchMemo(ctx context.Context, patch *api.MemoPatch) (*api.Memo,
 	}
 	defer tx.Rollback()
 
-	memoRaw, err := patchMemoRaw(ctx, tx, patch)
+	memoRaw, err := patchMemoRaw(ctx, tx, s.driver, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -129,12 +129,12 @@ func (s *Store) FindMemoList(ctx context.Context, find *api.MemoFind) ([]*api.Me
 	}
 	defer tx.Rollback()
 
-	memoRawList, err := findMemoRawList(ctx, tx, find)
+	memoRawList, err := findMemoRawList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.composeMemoList(ctx, tx, memoRawList)
+	return s.composeMemoList(ctx, tx, s.driver, memoRawList)
 }
 
 func (s *Store) FindMemo(ctx context.Context, find *api.MemoFind) (*api.Memo, error) {
@@ -155,7 +155,7 @@ func (s *Store) FindMemo(ctx context.Context, find *api.MemoFind) (*api.Memo, er
 	}
 	defer tx.Rollback()
 
-	list, err := findMemoRawList(ctx, tx, find)
+	list, err := findMemoRawList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (s *Store) DeleteMemo(ctx context.Context, delete *api.MemoDelete) error {
 	if err := deleteMemo(ctx, tx, delete); err != nil {
 		return FormatError(err)
 	}
-	if err := vacuum(ctx, tx); err != nil {
+	if err := vacuum(ctx, tx, s.driver); err != nil {
 		return err
 	}
 
@@ -196,7 +196,7 @@ func (s *Store) DeleteMemo(ctx context.Context, delete *api.MemoDelete) error {
 	return nil
 }
 
-func createMemoRaw(ctx context.Context, tx *sql.Tx, create *api.MemoCreate) (*memoRaw, error) {
+func createMemoRaw(ctx context.Context, tx *sql.Tx, driver string, create *api.MemoCreate) (*memoRaw, error) {
 	set := []string{"creator_id", "content", "visibility"}
 	args := []any{create.CreatorID, create.Content, create.Visibility}
 	placeholder := []string{"?", "?", "?"}
@@ -205,13 +205,31 @@ func createMemoRaw(ctx context.Context, tx *sql.Tx, create *api.MemoCreate) (*me
 		set, args, placeholder = append(set, "created_ts"), append(args, *v), append(placeholder, "?")
 	}
 
-	query := `
+	if driver == "mysql" {
+		insertQuery := `INSERT INTO memo (` + strings.Join(set, ", ") + `) VALUES (` + strings.Join(placeholder, ",") + `)`
+		result, err := tx.ExecContext(ctx, insertQuery, args...)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id32 := int(id)
+		list, err := findMemoRawList(ctx, tx, driver, &api.MemoFind{ID: &id32})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `
 		INSERT INTO memo (
-			` + strings.Join(set, ", ") + `
+			`+strings.Join(set, ", ")+`
 		)
-		VALUES (` + strings.Join(placeholder, ",") + `)
+		VALUES (`+strings.Join(placeholder, ",")+`)
 		RETURNING id, creator_id, created_ts, updated_ts, row_status, content, visibility
-	`
+	`)
 	var memoRaw memoRaw
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(
 		&memoRaw.ID,
@@ -228,7 +246,7 @@ func createMemoRaw(ctx context.Context, tx *sql.Tx, create *api.MemoCreate) (*me
 	return &memoRaw, nil
 }
 
-func patchMemoRaw(ctx context.Context, tx *sql.Tx, patch *api.MemoPatch) (*memoRaw, error) {
+func patchMemoRaw(ctx context.Context, tx *sql.Tx, driver string, patch *api.MemoPatch) (*memoRaw, error) {
 	set, args := []string{}, []any{}
 
 	if v := patch.CreatedTs; v != nil {
@@ -249,12 +267,24 @@ func patchMemoRaw(ctx context.Context, tx *sql.Tx, patch *api.MemoPatch) (*memoR
 
 	args = append(args, patch.ID)
 
-	query := `
+	if driver == "mysql" {
+		stmt := `UPDATE memo SET ` + strings.Join(set, ", ") + ` WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findMemoRawList(ctx, tx, driver, &api.MemoFind{ID: &patch.ID})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `
 		UPDATE memo
-		SET ` + strings.Join(set, ", ") + `
+		SET `+strings.Join(set, ", ")+`
 		WHERE id = ?
 		RETURNING id, creator_id, created_ts, updated_ts, row_status, content, visibility
-	`
+	`)
 	var memoRaw memoRaw
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(
 		&memoRaw.ID,
@@ -271,7 +301,7 @@ func patchMemoRaw(ctx context.Context, tx *sql.Tx, patch *api.MemoPatch) (*memoR
 	return &memoRaw, nil
 }
 
-func findMemoRawList(ctx context.Context, tx *sql.Tx, find *api.MemoFind) ([]*memoRaw, error) {
+func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.MemoFind) ([]*memoRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.ID; v != nil {
@@ -297,14 +327,16 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, find *api.MemoFind) ([]*me
 	}
 	if v := find.VisibilityList; len(v) != 0 {
 		list := []string{}
+		for range v {
+			list = append(list, "?")
+		}
 		for _, visibility := range v {
-			list = append(list, fmt.Sprintf("$%d", len(args)+1))
 			args = append(args, visibility)
 		}
 		where = append(where, fmt.Sprintf("memo.visibility in (%s)", strings.Join(list, ",")))
 	}
 
-	query := `
+	query := formatQuery(driver, `
 		SELECT
 			memo.id,
 			memo.creator_id,
@@ -313,12 +345,12 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, find *api.MemoFind) ([]*me
 			memo.row_status,
 			memo.content,
 			memo.visibility,
-			IFNULL(memo_organizer.pinned, 0) AS pinned
+			COALESCE(memo_organizer.pinned, 0) AS pinned
 		FROM memo
 		LEFT JOIN memo_organizer ON memo_organizer.memo_id = memo.id AND memo_organizer.user_id = memo.creator_id
-		WHERE ` + strings.Join(where, " AND ") + `
+		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY pinned DESC, memo.created_ts DESC
-	`
+	`)
 	if find.Limit != nil {
 		query = fmt.Sprintf("%s LIMIT %d", query, *find.Limit)
 		if find.Offset != nil {
@@ -379,7 +411,7 @@ func deleteMemo(ctx context.Context, tx *sql.Tx, delete *api.MemoDelete) error {
 	return nil
 }
 
-func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*memoRaw) ([]*api.Memo, error) {
+func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, driver string, memoRawList []*memoRaw) ([]*api.Memo, error) {
 	list := make([]*api.Memo, 0, len(memoRawList))
 	if len(memoRawList) == 0 {
 		return list, nil
@@ -397,17 +429,17 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 		creatorIDList = append(creatorIDList, creatorID)
 	}
 
-	userMap, err := findUserRawMapByIDList(ctx, tx, creatorIDList)
+	userMap, err := findUserRawMapByIDList(ctx, tx, driver, creatorIDList)
 	if err != nil {
 		return nil, err
 	}
-	resourceListMap, err := findMemoResourceListMap(ctx, tx, memoIDList)
+	resourceListMap, err := findMemoResourceListMap(ctx, tx, driver, memoIDList)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build a relation map keyed by memoID using a single batch query.
-	relationListMap, err := findMemoRelationListMap(ctx, tx, memoIDList)
+	relationListMap, err := findMemoRelationListMap(ctx, tx, driver, memoIDList)
 	if err != nil {
 		return nil, err
 	}
@@ -443,17 +475,8 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 	return list, nil
 }
 
-func vacuumMemo(ctx context.Context, tx *sql.Tx) error {
-	stmt := `
-	DELETE FROM 
-		memo 
-	WHERE 
-		creator_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				user
-		)`
+func vacuumMemo(ctx context.Context, tx *sql.Tx, driver string) error {
+	stmt := `DELETE FROM memo WHERE creator_id NOT IN (SELECT id FROM ` + userTableName(driver) + `)`
 	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return FormatError(err)

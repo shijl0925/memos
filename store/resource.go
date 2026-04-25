@@ -85,7 +85,7 @@ func (s *Store) composeMemoResourceList(ctx context.Context, memo *api.Memo) err
 	return nil
 }
 
-func findMemoResourceListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) (map[int][]*api.Resource, error) {
+func findMemoResourceListMap(ctx context.Context, tx *sql.Tx, driver string, memoIDList []int) (map[int][]*api.Resource, error) {
 	resourceListMap := make(map[int][]*api.Resource, len(memoIDList))
 	if len(memoIDList) == 0 {
 		return resourceListMap, nil
@@ -98,31 +98,7 @@ func findMemoResourceListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) 
 		args = append(args, memoID)
 	}
 
-	query := `
-		SELECT
-			mr.memo_id,
-			mr.created_ts,
-			mr.updated_ts,
-			IFNULL(linked.linked_memo_amount, 0) AS linked_memo_amount,
-			r.id,
-			r.filename,
-			r.external_link,
-			r.type,
-			r.size,
-			r.creator_id,
-			r.created_ts,
-			r.updated_ts,
-			r.internal_path
-		FROM memo_resource AS mr
-		JOIN resource AS r ON r.id = mr.resource_id
-		LEFT JOIN (
-			SELECT resource_id, COUNT(DISTINCT memo_id) AS linked_memo_amount
-			FROM memo_resource
-			GROUP BY resource_id
-		) AS linked ON linked.resource_id = r.id
-		WHERE mr.memo_id IN (` + strings.Join(wherePlaceholder, ", ") + `)
-		ORDER BY mr.memo_id, mr.created_ts, r.id
-	`
+	query := formatQuery(driver, `SELECT mr.memo_id, mr.created_ts, mr.updated_ts, COALESCE(linked.linked_memo_amount, 0) AS linked_memo_amount, r.id, r.filename, r.external_link, r.type, r.size, r.creator_id, r.created_ts, r.updated_ts, r.internal_path FROM memo_resource AS mr JOIN resource AS r ON r.id = mr.resource_id LEFT JOIN (SELECT resource_id, COUNT(DISTINCT memo_id) AS linked_memo_amount FROM memo_resource GROUP BY resource_id) AS linked ON linked.resource_id = r.id WHERE mr.memo_id IN (`+strings.Join(wherePlaceholder, ", ")+`) ORDER BY mr.memo_id, mr.created_ts, r.id`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
@@ -174,7 +150,7 @@ func (s *Store) CreateResource(ctx context.Context, create *api.ResourceCreate) 
 	}
 	defer tx.Rollback()
 
-	resourceRaw, err := createResourceImpl(ctx, tx, create)
+	resourceRaw, err := createResourceImpl(ctx, tx, s.driver, create)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +171,7 @@ func (s *Store) FindResourceList(ctx context.Context, find *api.ResourceFind) ([
 	}
 	defer tx.Rollback()
 
-	resourceRawList, err := findResourceListImpl(ctx, tx, find)
+	resourceRawList, err := findResourceListImpl(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +191,7 @@ func (s *Store) FindResource(ctx context.Context, find *api.ResourceFind) (*api.
 	}
 	defer tx.Rollback()
 
-	list, err := findResourceListImpl(ctx, tx, find)
+	list, err := findResourceListImpl(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +216,7 @@ func (s *Store) DeleteResource(ctx context.Context, delete *api.ResourceDelete) 
 	if err := deleteResource(ctx, tx, delete); err != nil {
 		return err
 	}
-	if err := vacuum(ctx, tx); err != nil {
+	if err := vacuum(ctx, tx, s.driver); err != nil {
 		return err
 	}
 
@@ -258,7 +234,7 @@ func (s *Store) PatchResource(ctx context.Context, patch *api.ResourcePatch) (*a
 	}
 	defer tx.Rollback()
 
-	resourceRaw, err := patchResourceImpl(ctx, tx, patch)
+	resourceRaw, err := patchResourceImpl(ctx, tx, s.driver, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -272,17 +248,30 @@ func (s *Store) PatchResource(ctx context.Context, patch *api.ResourcePatch) (*a
 	return resource, nil
 }
 
-func createResourceImpl(ctx context.Context, tx *sql.Tx, create *api.ResourceCreate) (*resourceRaw, error) {
+func createResourceImpl(ctx context.Context, tx *sql.Tx, driver string, create *api.ResourceCreate) (*resourceRaw, error) {
 	fields := []string{"filename", "blob", "external_link", "type", "size", "creator_id", "internal_path"}
 	values := []any{create.Filename, create.Blob, create.ExternalLink, create.Type, create.Size, create.CreatorID, create.InternalPath}
 	placeholders := []string{"?", "?", "?", "?", "?", "?", "?"}
-	query := `
-		INSERT INTO resource (
-			` + strings.Join(fields, ",") + `
-		)
-		VALUES (` + strings.Join(placeholders, ",") + `)
-		RETURNING id, ` + strings.Join(fields, ",") + `, created_ts, updated_ts
-	`
+
+	if driver == "mysql" {
+		insertQuery := `INSERT INTO resource (` + strings.Join(fields, ",") + `) VALUES (` + strings.Join(placeholders, ",") + `)`
+		result, err := tx.ExecContext(ctx, insertQuery, values...)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id32 := int(id)
+		list, err := findResourceListImpl(ctx, tx, driver, &api.ResourceFind{ID: &id32})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `INSERT INTO resource (`+strings.Join(fields, ",")+`) VALUES (`+strings.Join(placeholders, ",")+`) RETURNING id, `+strings.Join(fields, ",")+`, created_ts, updated_ts`)
 	var resourceRaw resourceRaw
 	dests := []any{
 		&resourceRaw.ID,
@@ -302,7 +291,7 @@ func createResourceImpl(ctx context.Context, tx *sql.Tx, create *api.ResourceCre
 	return &resourceRaw, nil
 }
 
-func patchResourceImpl(ctx context.Context, tx *sql.Tx, patch *api.ResourcePatch) (*resourceRaw, error) {
+func patchResourceImpl(ctx context.Context, tx *sql.Tx, driver string, patch *api.ResourcePatch) (*resourceRaw, error) {
 	set, args := []string{}, []any{}
 
 	if v := patch.UpdatedTs; v != nil {
@@ -314,11 +303,20 @@ func patchResourceImpl(ctx context.Context, tx *sql.Tx, patch *api.ResourcePatch
 
 	args = append(args, patch.ID)
 	fields := []string{"id", "filename", "external_link", "type", "size", "creator_id", "created_ts", "updated_ts", "internal_path"}
-	query := `
-		UPDATE resource
-		SET ` + strings.Join(set, ", ") + `
-		WHERE id = ?
-		RETURNING ` + strings.Join(fields, ", ")
+
+	if driver == "mysql" {
+		stmt := `UPDATE resource SET ` + strings.Join(set, ", ") + ` WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findResourceListImpl(ctx, tx, driver, &api.ResourceFind{ID: &patch.ID})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `UPDATE resource SET `+strings.Join(set, ", ")+` WHERE id = ? RETURNING `+strings.Join(fields, ", "))
 	var resourceRaw resourceRaw
 	dests := []any{
 		&resourceRaw.ID,
@@ -338,7 +336,7 @@ func patchResourceImpl(ctx context.Context, tx *sql.Tx, patch *api.ResourcePatch
 	return &resourceRaw, nil
 }
 
-func findResourceListImpl(ctx context.Context, tx *sql.Tx, find *api.ResourceFind) ([]*resourceRaw, error) {
+func findResourceListImpl(ctx context.Context, tx *sql.Tx, driver string, find *api.ResourceFind) ([]*resourceRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.ID; v != nil {
@@ -359,7 +357,7 @@ func findResourceListImpl(ctx context.Context, tx *sql.Tx, find *api.ResourceFin
 		fields = append(fields, "resource.blob")
 	}
 
-	query := fmt.Sprintf(`
+	query := formatQuery(driver, fmt.Sprintf(`
 		SELECT
 		  COUNT(DISTINCT memo_resource.memo_id) AS linked_memo_amount,
 			%s
@@ -368,7 +366,7 @@ func findResourceListImpl(ctx context.Context, tx *sql.Tx, find *api.ResourceFin
 		WHERE %s
 		GROUP BY resource.id
 		ORDER BY resource.id DESC
-	`, strings.Join(fields, ", "), strings.Join(where, " AND "))
+	`, strings.Join(fields, ", "), strings.Join(where, " AND ")))
 	if find.Limit != nil {
 		query = fmt.Sprintf("%s LIMIT %d", query, *find.Limit)
 		if find.Offset != nil {
@@ -430,17 +428,8 @@ func deleteResource(ctx context.Context, tx *sql.Tx, delete *api.ResourceDelete)
 	return nil
 }
 
-func vacuumResource(ctx context.Context, tx *sql.Tx) error {
-	stmt := `
-	DELETE FROM 
-		resource 
-	WHERE 
-		creator_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				user
-		)`
+func vacuumResource(ctx context.Context, tx *sql.Tx, driver string) error {
+	stmt := `DELETE FROM resource WHERE creator_id NOT IN (SELECT id FROM ` + userTableName(driver) + `)`
 	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return FormatError(err)

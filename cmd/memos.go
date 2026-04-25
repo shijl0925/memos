@@ -134,6 +134,7 @@ func init() {
 
 	viper.SetDefault("mode", "demo")
 	viper.SetDefault("port", 8081)
+	viper.SetDefault("driver", "sqlite3")
 	viper.SetEnvPrefix("memos")
 
 	setupCmd.Flags().String(setupCmdFlagHostUsername, "", "Owner username")
@@ -153,6 +154,7 @@ func initConfig() {
 
 	println("---")
 	println("Server profile")
+	println("driver:", profile.Driver)
 	println("dsn:", profile.DSN)
 	println("port:", profile.Port)
 	println("mode:", profile.Mode)

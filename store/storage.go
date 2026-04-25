@@ -34,7 +34,7 @@ func (s *Store) CreateStorage(ctx context.Context, create *api.StorageCreate) (*
 	}
 	defer tx.Rollback()
 
-	storageRaw, err := createStorageRaw(ctx, tx, create)
+	storageRaw, err := createStorageRaw(ctx, tx, s.driver, create)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (s *Store) PatchStorage(ctx context.Context, patch *api.StoragePatch) (*api
 	}
 	defer tx.Rollback()
 
-	storageRaw, err := patchStorageRaw(ctx, tx, patch)
+	storageRaw, err := patchStorageRaw(ctx, tx, s.driver, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (s *Store) FindStorageList(ctx context.Context, find *api.StorageFind) ([]*
 	}
 	defer tx.Rollback()
 
-	storageRawList, err := findStorageRawList(ctx, tx, find)
+	storageRawList, err := findStorageRawList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (s *Store) FindStorage(ctx context.Context, find *api.StorageFind) (*api.St
 	}
 	defer tx.Rollback()
 
-	list, err := findStorageRawList(ctx, tx, find)
+	list, err := findStorageRawList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -123,11 +123,7 @@ func (s *Store) DeleteStorage(ctx context.Context, delete *api.StorageDelete) er
 	return nil
 }
 
-func createStorageRaw(ctx context.Context, tx *sql.Tx, create *api.StorageCreate) (*storageRaw, error) {
-	set := []string{"name", "type", "config"}
-	args := []any{create.Name, create.Type}
-	placeholder := []string{"?", "?", "?"}
-
+func createStorageRaw(ctx context.Context, tx *sql.Tx, driver string, create *api.StorageCreate) (*storageRaw, error) {
 	var configBytes []byte
 	var err error
 	if create.Type == api.StorageS3 {
@@ -138,30 +134,35 @@ func createStorageRaw(ctx context.Context, tx *sql.Tx, create *api.StorageCreate
 	} else {
 		return nil, fmt.Errorf("unsupported storage type %s", string(create.Type))
 	}
-	args = append(args, string(configBytes))
 
-	query := `
-		INSERT INTO storage (
-			` + strings.Join(set, ", ") + `
-		)
-		VALUES (` + strings.Join(placeholder, ",") + `)
-		RETURNING id
-	`
 	storageRaw := storageRaw{
 		Name:   create.Name,
 		Type:   create.Type,
 		Config: create.Config,
 	}
-	if err := tx.QueryRowContext(ctx, query, args...).Scan(
-		&storageRaw.ID,
-	); err != nil {
+
+	if driver == "mysql" {
+		result, err := tx.ExecContext(ctx, `INSERT INTO storage (name, type, config) VALUES (?, ?, ?)`, create.Name, create.Type, string(configBytes))
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		storageRaw.ID = int(id)
+		return &storageRaw, nil
+	}
+
+	query := formatQuery(driver, `INSERT INTO storage (name, type, config) VALUES (?, ?, ?) RETURNING id`)
+	if err := tx.QueryRowContext(ctx, query, create.Name, create.Type, string(configBytes)).Scan(&storageRaw.ID); err != nil {
 		return nil, FormatError(err)
 	}
 
 	return &storageRaw, nil
 }
 
-func patchStorageRaw(ctx context.Context, tx *sql.Tx, patch *api.StoragePatch) (*storageRaw, error) {
+func patchStorageRaw(ctx context.Context, tx *sql.Tx, driver string, patch *api.StoragePatch) (*storageRaw, error) {
 	set, args := []string{}, []any{}
 	if v := patch.Name; v != nil {
 		set, args = append(set, "name = ?"), append(args, *v)
@@ -181,12 +182,19 @@ func patchStorageRaw(ctx context.Context, tx *sql.Tx, patch *api.StoragePatch) (
 	}
 	args = append(args, patch.ID)
 
-	query := `
-		UPDATE storage
-		SET ` + strings.Join(set, ", ") + `
-		WHERE id = ?
-		RETURNING id, name, type, config
-	`
+	if driver == "mysql" {
+		stmt := `UPDATE storage SET ` + strings.Join(set, ", ") + ` WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findStorageRawList(ctx, tx, driver, &api.StorageFind{ID: &patch.ID})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `UPDATE storage SET `+strings.Join(set, ", ")+` WHERE id = ? RETURNING id, name, type, config`)
 	var storageRaw storageRaw
 	var storageConfig string
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(
@@ -212,23 +220,14 @@ func patchStorageRaw(ctx context.Context, tx *sql.Tx, patch *api.StoragePatch) (
 	return &storageRaw, nil
 }
 
-func findStorageRawList(ctx context.Context, tx *sql.Tx, find *api.StorageFind) ([]*storageRaw, error) {
+func findStorageRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.StorageFind) ([]*storageRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.ID; v != nil {
 		where, args = append(where, "id = ?"), append(args, *v)
 	}
 
-	query := `
-		SELECT
-			id, 
-			name, 
-			type, 
-			config
-		FROM storage
-		WHERE ` + strings.Join(where, " AND ") + `
-		ORDER BY id DESC
-	`
+	query := formatQuery(driver, `SELECT id, name, type, config FROM storage WHERE `+strings.Join(where, " AND ")+` ORDER BY id DESC`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)

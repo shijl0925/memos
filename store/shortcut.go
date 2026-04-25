@@ -47,7 +47,7 @@ func (s *Store) CreateShortcut(ctx context.Context, create *api.ShortcutCreate) 
 	}
 	defer tx.Rollback()
 
-	shortcutRaw, err := createShortcut(ctx, tx, create)
+	shortcutRaw, err := createShortcut(ctx, tx, s.driver, create)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (s *Store) PatchShortcut(ctx context.Context, patch *api.ShortcutPatch) (*a
 	}
 	defer tx.Rollback()
 
-	shortcutRaw, err := patchShortcut(ctx, tx, patch)
+	shortcutRaw, err := patchShortcut(ctx, tx, s.driver, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (s *Store) FindShortcutList(ctx context.Context, find *api.ShortcutFind) ([
 	}
 	defer tx.Rollback()
 
-	shortcutRawList, err := findShortcutList(ctx, tx, find)
+	shortcutRawList, err := findShortcutList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (s *Store) FindShortcut(ctx context.Context, find *api.ShortcutFind) (*api.
 	}
 	defer tx.Rollback()
 
-	list, err := findShortcutList(ctx, tx, find)
+	list, err := findShortcutList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -153,16 +153,24 @@ func (s *Store) DeleteShortcut(ctx context.Context, delete *api.ShortcutDelete) 
 	return nil
 }
 
-func createShortcut(ctx context.Context, tx *sql.Tx, create *api.ShortcutCreate) (*shortcutRaw, error) {
-	query := `
-		INSERT INTO shortcut (
-			title, 
-			payload, 
-			creator_id
-		)
-		VALUES (?, ?, ?)
-		RETURNING id, title, payload, creator_id, created_ts, updated_ts, row_status
-	`
+func createShortcut(ctx context.Context, tx *sql.Tx, driver string, create *api.ShortcutCreate) (*shortcutRaw, error) {
+	if driver == "mysql" {
+		result, err := tx.ExecContext(ctx, `INSERT INTO shortcut (title, payload, creator_id) VALUES (?, ?, ?)`, create.Title, create.Payload, create.CreatorID)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id32 := int(id)
+		list, err := findShortcutList(ctx, tx, driver, &api.ShortcutFind{ID: &id32})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+	query := formatQuery(driver, `INSERT INTO shortcut (title, payload, creator_id) VALUES (?, ?, ?) RETURNING id, title, payload, creator_id, created_ts, updated_ts, row_status`)
 	var shortcutRaw shortcutRaw
 	if err := tx.QueryRowContext(ctx, query, create.Title, create.Payload, create.CreatorID).Scan(
 		&shortcutRaw.ID,
@@ -179,7 +187,7 @@ func createShortcut(ctx context.Context, tx *sql.Tx, create *api.ShortcutCreate)
 	return &shortcutRaw, nil
 }
 
-func patchShortcut(ctx context.Context, tx *sql.Tx, patch *api.ShortcutPatch) (*shortcutRaw, error) {
+func patchShortcut(ctx context.Context, tx *sql.Tx, driver string, patch *api.ShortcutPatch) (*shortcutRaw, error) {
 	set, args := []string{}, []any{}
 
 	if v := patch.UpdatedTs; v != nil {
@@ -197,12 +205,19 @@ func patchShortcut(ctx context.Context, tx *sql.Tx, patch *api.ShortcutPatch) (*
 
 	args = append(args, patch.ID)
 
-	query := `
-		UPDATE shortcut
-		SET ` + strings.Join(set, ", ") + `
-		WHERE id = ?
-		RETURNING id, title, payload, creator_id, created_ts, updated_ts, row_status
-	`
+	if driver == "mysql" {
+		stmt := `UPDATE shortcut SET ` + strings.Join(set, ", ") + ` WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findShortcutList(ctx, tx, driver, &api.ShortcutFind{ID: &patch.ID})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `UPDATE shortcut SET `+strings.Join(set, ", ")+` WHERE id = ? RETURNING id, title, payload, creator_id, created_ts, updated_ts, row_status`)
 	var shortcutRaw shortcutRaw
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(
 		&shortcutRaw.ID,
@@ -219,7 +234,7 @@ func patchShortcut(ctx context.Context, tx *sql.Tx, patch *api.ShortcutPatch) (*
 	return &shortcutRaw, nil
 }
 
-func findShortcutList(ctx context.Context, tx *sql.Tx, find *api.ShortcutFind) ([]*shortcutRaw, error) {
+func findShortcutList(ctx context.Context, tx *sql.Tx, driver string, find *api.ShortcutFind) ([]*shortcutRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.ID; v != nil {
@@ -232,20 +247,8 @@ func findShortcutList(ctx context.Context, tx *sql.Tx, find *api.ShortcutFind) (
 		where, args = append(where, "title = ?"), append(args, *v)
 	}
 
-	rows, err := tx.QueryContext(ctx, `
-		SELECT
-			id,
-			title,
-			payload,
-			creator_id,
-			created_ts,
-			updated_ts,
-			row_status
-		FROM shortcut
-		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY created_ts DESC`,
-		args...,
-	)
+	q := formatQuery(driver, `SELECT id, title, payload, creator_id, created_ts, updated_ts, row_status FROM shortcut WHERE `+strings.Join(where, " AND ")+` ORDER BY created_ts DESC`)
+	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, FormatError(err)
 	}
@@ -300,17 +303,8 @@ func deleteShortcut(ctx context.Context, tx *sql.Tx, delete *api.ShortcutDelete)
 	return nil
 }
 
-func vacuumShortcut(ctx context.Context, tx *sql.Tx) error {
-	stmt := `
-	DELETE FROM 
-		shortcut 
-	WHERE 
-		creator_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				user
-		)`
+func vacuumShortcut(ctx context.Context, tx *sql.Tx, driver string) error {
+	stmt := `DELETE FROM shortcut WHERE creator_id NOT IN (SELECT id FROM ` + userTableName(driver) + `)`
 	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return FormatError(err)

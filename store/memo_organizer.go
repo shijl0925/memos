@@ -55,7 +55,7 @@ func (s *Store) UpsertMemoOrganizer(ctx context.Context, upsert *api.MemoOrganiz
 	}
 	defer tx.Rollback()
 
-	if err := upsertMemoOrganizer(ctx, tx, upsert); err != nil {
+	if err := upsertMemoOrganizer(ctx, tx, s.driver, upsert); err != nil {
 		return err
 	}
 
@@ -121,29 +121,22 @@ func findMemoOrganizer(ctx context.Context, tx *sql.Tx, find *api.MemoOrganizerF
 	return &memoOrganizerRaw, nil
 }
 
-func upsertMemoOrganizer(ctx context.Context, tx *sql.Tx, upsert *api.MemoOrganizerUpsert) error {
-	query := `
-		INSERT INTO memo_organizer (
-			memo_id,
-			user_id,
-			pinned
-		)
-		VALUES (?, ?, ?)
-		ON CONFLICT(memo_id, user_id) DO UPDATE 
-		SET
-			pinned = EXCLUDED.pinned
-		RETURNING id, memo_id, user_id, pinned
-	`
-	var memoOrganizer api.MemoOrganizer
-	if err := tx.QueryRowContext(ctx, query, upsert.MemoID, upsert.UserID, upsert.Pinned).Scan(
-		&memoOrganizer.ID,
-		&memoOrganizer.MemoID,
-		&memoOrganizer.UserID,
-		&memoOrganizer.Pinned,
-	); err != nil {
+func upsertMemoOrganizer(ctx context.Context, tx *sql.Tx, driver string, upsert *api.MemoOrganizerUpsert) error {
+	if driver == "mysql" {
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO memo_organizer (memo_id, user_id, pinned) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE pinned=VALUES(pinned)`,
+			upsert.MemoID, upsert.UserID, upsert.Pinned)
 		return FormatError(err)
 	}
-
+	query := formatQuery(driver, `
+		INSERT INTO memo_organizer (memo_id, user_id, pinned)
+		VALUES (?, ?, ?)
+		ON CONFLICT(memo_id, user_id) DO UPDATE SET pinned = EXCLUDED.pinned
+	`)
+	_, err := tx.ExecContext(ctx, query, upsert.MemoID, upsert.UserID, upsert.Pinned)
+	if err != nil {
+		return FormatError(err)
+	}
 	return nil
 }
 
@@ -171,23 +164,8 @@ func deleteMemoOrganizer(ctx context.Context, tx *sql.Tx, delete *api.MemoOrgani
 	return nil
 }
 
-func vacuumMemoOrganizer(ctx context.Context, tx *sql.Tx) error {
-	stmt := `
-	DELETE FROM 
-		memo_organizer 
-	WHERE 
-		memo_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				memo
-		)
-		OR user_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				user
-		)`
+func vacuumMemoOrganizer(ctx context.Context, tx *sql.Tx, driver string) error {
+	stmt := `DELETE FROM memo_organizer WHERE memo_id NOT IN (SELECT id FROM memo) OR user_id NOT IN (SELECT id FROM ` + userTableName(driver) + `)`
 	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return FormatError(err)

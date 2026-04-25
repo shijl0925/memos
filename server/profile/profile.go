@@ -20,6 +20,8 @@ type Profile struct {
 	Data string `json:"-"`
 	// DSN points to where Memos stores its own data
 	DSN string `json:"-"`
+	// Driver is the database driver: sqlite3, mysql, or postgres
+	Driver string `json:"-"`
 	// Version is the current version of server
 	Version string `json:"version"`
 }
@@ -60,6 +62,19 @@ func GetProfile() (*Profile, error) {
 		profile.Mode = "demo"
 	}
 
+	driver := viper.GetString("driver")
+	if driver == "" {
+		driver = "sqlite3"
+	}
+	profile.Driver = driver
+
+	profile.Version = version.GetCurrentVersion(profile.Mode)
+
+	if driver != "sqlite3" {
+		profile.DSN = viper.GetString("dsn")
+		return &profile, nil
+	}
+
 	if profile.Mode == "prod" && profile.Data == "" {
 		profile.Data = "/var/opt/memos"
 	}
@@ -72,7 +87,6 @@ func GetProfile() (*Profile, error) {
 
 	profile.Data = dataDir
 	profile.DSN = fmt.Sprintf("%s/memos_%s.db", dataDir, profile.Mode)
-	profile.Version = version.GetCurrentVersion(profile.Mode)
 
 	return &profile, nil
 }

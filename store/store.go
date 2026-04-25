@@ -12,6 +12,7 @@ import (
 type Store struct {
 	db      *sql.DB
 	profile *profile.Profile
+	driver  string
 
 	userCache        sync.Map // map[int]*userRaw
 	userSettingCache sync.Map // map[string]*userSettingRaw
@@ -25,6 +26,7 @@ func New(db *sql.DB, profile *profile.Profile) *Store {
 	return &Store{
 		db:      db,
 		profile: profile,
+		driver:  profile.Driver,
 	}
 }
 
@@ -35,7 +37,7 @@ func (s *Store) Vacuum(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 
-	if err := vacuum(ctx, tx); err != nil {
+	if err := vacuum(ctx, tx, s.driver); err != nil {
 		return err
 	}
 
@@ -43,39 +45,39 @@ func (s *Store) Vacuum(ctx context.Context) error {
 		return FormatError(err)
 	}
 
-	// Vacuum sqlite database file size after deleting resource.
-	if _, err := s.db.Exec("VACUUM"); err != nil {
-		return err
+	if s.driver == "sqlite3" {
+		if _, err := s.db.Exec("VACUUM"); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// Exec vacuum records in a transaction.
-func vacuum(ctx context.Context, tx *sql.Tx) error {
-	if err := vacuumMemo(ctx, tx); err != nil {
+// vacuum cleans up orphaned records in a transaction.
+func vacuum(ctx context.Context, tx *sql.Tx, driver string) error {
+	if err := vacuumMemo(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumResource(ctx, tx); err != nil {
+	if err := vacuumResource(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumShortcut(ctx, tx); err != nil {
+	if err := vacuumShortcut(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumUserSetting(ctx, tx); err != nil {
+	if err := vacuumUserSetting(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumMemoOrganizer(ctx, tx); err != nil {
+	if err := vacuumMemoOrganizer(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumMemoResource(ctx, tx); err != nil {
+	if err := vacuumMemoResource(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumMemoRelations(ctx, tx); err != nil {
+	if err := vacuumMemoRelations(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumTag(ctx, tx); err != nil {
-		// Prevent revive warning.
+	if err := vacuumTag(ctx, tx, driver); err != nil {
 		return err
 	}
 

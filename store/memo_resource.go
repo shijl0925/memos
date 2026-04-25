@@ -35,7 +35,7 @@ func (s *Store) FindMemoResourceList(ctx context.Context, find *api.MemoResource
 	}
 	defer tx.Rollback()
 
-	memoResourceRawList, err := findMemoResourceList(ctx, tx, find)
+	memoResourceRawList, err := findMemoResourceList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *Store) FindMemoResource(ctx context.Context, find *api.MemoResourceFind
 	}
 	defer tx.Rollback()
 
-	list, err := findMemoResourceList(ctx, tx, find)
+	list, err := findMemoResourceList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (s *Store) UpsertMemoResource(ctx context.Context, upsert *api.MemoResource
 	}
 	defer tx.Rollback()
 
-	memoResourceRaw, err := upsertMemoResource(ctx, tx, upsert)
+	memoResourceRaw, err := upsertMemoResource(ctx, tx, s.driver, upsert)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (s *Store) DeleteMemoResource(ctx context.Context, delete *api.MemoResource
 	return nil
 }
 
-func findMemoResourceList(ctx context.Context, tx *sql.Tx, find *api.MemoResourceFind) ([]*memoResourceRaw, error) {
+func findMemoResourceList(ctx context.Context, tx *sql.Tx, driver string, find *api.MemoResourceFind) ([]*memoResourceRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.MemoID; v != nil {
@@ -117,16 +117,7 @@ func findMemoResourceList(ctx context.Context, tx *sql.Tx, find *api.MemoResourc
 		where, args = append(where, "resource_id = ?"), append(args, *v)
 	}
 
-	query := `
-		SELECT
-			memo_id,
-			resource_id,
-			created_ts,
-			updated_ts
-		FROM memo_resource
-		WHERE ` + strings.Join(where, " AND ") + `
-		ORDER BY updated_ts DESC
-	`
+	query := formatQuery(driver, `SELECT memo_id, resource_id, created_ts, updated_ts FROM memo_resource WHERE `+strings.Join(where, " AND ")+` ORDER BY updated_ts DESC`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
@@ -155,7 +146,7 @@ func findMemoResourceList(ctx context.Context, tx *sql.Tx, find *api.MemoResourc
 	return memoResourceRawList, nil
 }
 
-func upsertMemoResource(ctx context.Context, tx *sql.Tx, upsert *api.MemoResourceUpsert) (*memoResourceRaw, error) {
+func upsertMemoResource(ctx context.Context, tx *sql.Tx, driver string, upsert *api.MemoResourceUpsert) (*memoResourceRaw, error) {
 	set := []string{"memo_id", "resource_id"}
 	args := []any{upsert.MemoID, upsert.ResourceID}
 	placeholder := []string{"?", "?"}
@@ -164,16 +155,26 @@ func upsertMemoResource(ctx context.Context, tx *sql.Tx, upsert *api.MemoResourc
 		set, args, placeholder = append(set, "updated_ts"), append(args, v), append(placeholder, "?")
 	}
 
-	query := `
-		INSERT INTO memo_resource (
-			` + strings.Join(set, ", ") + `
-		)
-		VALUES (` + strings.Join(placeholder, ",") + `)
-		ON CONFLICT(memo_id, resource_id) DO UPDATE 
-		SET
-			updated_ts = EXCLUDED.updated_ts
+	if driver == "mysql" {
+		insertQuery := `INSERT INTO memo_resource (` + strings.Join(set, ", ") + `) VALUES (` + strings.Join(placeholder, ",") + `) ON DUPLICATE KEY UPDATE updated_ts=VALUES(updated_ts)`
+		_, err := tx.ExecContext(ctx, insertQuery, args...)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		var raw memoResourceRaw
+		row := tx.QueryRowContext(ctx, `SELECT memo_id, resource_id, created_ts, updated_ts FROM memo_resource WHERE memo_id=? AND resource_id=?`, upsert.MemoID, upsert.ResourceID)
+		if err := row.Scan(&raw.MemoID, &raw.ResourceID, &raw.CreatedTs, &raw.UpdatedTs); err != nil {
+			return nil, FormatError(err)
+		}
+		return &raw, nil
+	}
+
+	query := formatQuery(driver, `
+		INSERT INTO memo_resource (`+strings.Join(set, ", ")+`)
+		VALUES (`+strings.Join(placeholder, ",")+`)
+		ON CONFLICT(memo_id, resource_id) DO UPDATE SET updated_ts = EXCLUDED.updated_ts
 		RETURNING memo_id, resource_id, created_ts, updated_ts
-	`
+	`)
 	var memoResourceRaw memoResourceRaw
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(
 		&memoResourceRaw.MemoID,
@@ -211,7 +212,7 @@ func deleteMemoResource(ctx context.Context, tx *sql.Tx, delete *api.MemoResourc
 	return nil
 }
 
-func vacuumMemoResource(ctx context.Context, tx *sql.Tx) error {
+func vacuumMemoResource(ctx context.Context, tx *sql.Tx, driver string) error {
 	stmt := `
 	DELETE FROM 
 		memo_resource 
