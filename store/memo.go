@@ -56,8 +56,28 @@ func (s *Store) composeMemo(ctx context.Context, memo *api.Memo) (*api.Memo, err
 	if err := s.composeMemoResourceList(ctx, memo); err != nil {
 		return nil, err
 	}
+	if err := s.composeMemoRelationList(ctx, memo); err != nil {
+		return nil, err
+	}
 
 	return memo, nil
+}
+
+func (s *Store) composeMemoRelationList(ctx context.Context, memo *api.Memo) error {
+	relationList, err := s.FindMemoRelationList(ctx, &MemoRelationFind{MemoID: &memo.ID})
+	if err != nil {
+		return err
+	}
+	apiRelationList := make([]*api.MemoRelation, 0, len(relationList))
+	for _, r := range relationList {
+		apiRelationList = append(apiRelationList, &api.MemoRelation{
+			MemoID:        r.MemoID,
+			RelatedMemoID: r.RelatedMemoID,
+			Type:          api.MemoRelationType(r.Type),
+		})
+	}
+	memo.RelationList = apiRelationList
+	return nil
 }
 
 func (s *Store) CreateMemo(ctx context.Context, create *api.MemoCreate) (*api.Memo, error) {
@@ -388,6 +408,25 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 		return nil, err
 	}
 
+	// Build a relation map keyed by memoID
+	relationListMap := make(map[int][]*api.MemoRelation)
+	for _, memoID := range memoIDList {
+		id := memoID
+		relations, err := s.FindMemoRelationList(ctx, &MemoRelationFind{MemoID: &id})
+		if err != nil {
+			return nil, err
+		}
+		apiRelations := make([]*api.MemoRelation, 0, len(relations))
+		for _, r := range relations {
+			apiRelations = append(apiRelations, &api.MemoRelation{
+				MemoID:        r.MemoID,
+				RelatedMemoID: r.RelatedMemoID,
+				Type:          api.MemoRelationType(r.Type),
+			})
+		}
+		relationListMap[memoID] = apiRelations
+	}
+
 	for _, raw := range memoRawList {
 		memo := raw.toMemo()
 		user, ok := userMap[memo.CreatorID]
@@ -405,6 +444,12 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 			memo.ResourceList = resourceList
 		} else {
 			memo.ResourceList = []*api.Resource{}
+		}
+
+		if relationList, ok := relationListMap[memo.ID]; ok {
+			memo.RelationList = relationList
+		} else {
+			memo.RelationList = []*api.MemoRelation{}
 		}
 
 		list = append(list, memo)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -141,21 +140,8 @@ func (s *Server) registerResourceRoutes(g Group) {
 }
 
 func (s *Server) registerResourcePublicRoutes(g Group) {
-	g.GET("/r/:resourceId/:publicId", func(c Context) error {
-		ctx := c.Request().Context()
-		resourceID, err := strconv.Atoi(c.Param("resourceId"))
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
-		}
-		publicID, err := url.QueryUnescape(c.Param("publicId"))
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("publicID is invalid: %s", c.Param("publicId")), err)
-		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, PublicID: &publicID, GetBlob: true})
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
-		}
-
+	// Helper that streams a resource blob to the client.
+	serveResource := func(c Context, resource *api.Resource) error {
 		blob := resource.Blob
 		if resource.InternalPath != "" {
 			src, err := os.Open(resource.InternalPath)
@@ -168,7 +154,6 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to read the local resource: %s", resource.InternalPath), err)
 			}
 		}
-
 		c.Writer().Header().Set(headerCacheControl, "max-age=31536000, immutable")
 		c.Writer().Header().Set(headerContentSecurityPolicy, "default-src 'self'")
 		resourceType := strings.ToLower(resource.Type)
@@ -179,6 +164,40 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 			return nil
 		}
 		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(blob))
+	}
+
+	// Primary route: /o/r/:resourceId (used by the v0.14.4 frontend)
+	g.GET("/r/:resourceId", func(c Context) error {
+		ctx := c.Request().Context()
+		resourceID, err := strconv.Atoi(c.Param("resourceId"))
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+		}
+		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
+		}
+		if resource == nil {
+			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+		}
+		return serveResource(c, resource)
+	})
+
+	// Legacy routes kept for backward compatibility with old URLs that include publicId and filename.
+	g.GET("/r/:resourceId/:publicId", func(c Context) error {
+		ctx := c.Request().Context()
+		resourceID, err := strconv.Atoi(c.Param("resourceId"))
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
+		}
+		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
+		if err != nil {
+			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
+		}
+		if resource == nil {
+			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+		}
+		return serveResource(c, resource)
 	})
 
 	g.GET("/r/:resourceId/:publicId/:filename", func(c Context) error {
@@ -187,41 +206,13 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
-		publicID, err := url.QueryUnescape(c.Param("publicId"))
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("publicID is invalid: %s", c.Param("publicId")), err)
-		}
-		filename, err := url.QueryUnescape(c.Param("filename"))
-		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("filename is invalid: %s", c.Param("filename")), err)
-		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, PublicID: &publicID, Filename: &filename, GetBlob: true})
+		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
 		}
-
-		blob := resource.Blob
-		if resource.InternalPath != "" {
-			src, err := os.Open(resource.InternalPath)
-			if err != nil {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to open the local resource: %s", resource.InternalPath), err)
-			}
-			defer src.Close()
-			blob, err = io.ReadAll(src)
-			if err != nil {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to read the local resource: %s", resource.InternalPath), err)
-			}
+		if resource == nil {
+			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
 		}
-
-		c.Writer().Header().Set(headerCacheControl, "max-age=31536000, immutable")
-		c.Writer().Header().Set(headerContentSecurityPolicy, "default-src 'self'")
-		resourceType := strings.ToLower(resource.Type)
-		if strings.HasPrefix(resourceType, "text") {
-			resourceType = mimeTextPlain
-		} else if strings.HasPrefix(resourceType, "video") || strings.HasPrefix(resourceType, "audio") {
-			http.ServeContent(c.Writer(), c.Request(), resource.Filename, time.Unix(resource.UpdatedTs, 0), bytes.NewReader(blob))
-			return nil
-		}
-		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(blob))
+		return serveResource(c, resource)
 	})
 }

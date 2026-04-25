@@ -3,7 +3,7 @@ export const getResourceUrl = (resource: Resource, withOrigin = true) => {
     return resource.externalLink;
   }
 
-  return `${withOrigin ? window.location.origin : ""}/o/r/${resource.id}/${resource.publicId}/${encodeURIComponent(resource.filename)}`;
+  return `${withOrigin ? window.location.origin : ""}/o/r/${resource.id}`;
 };
 
 export const getResourceType = (resource: Resource) => {

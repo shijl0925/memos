@@ -28,7 +28,6 @@ type resourceRaw struct {
 	ExternalLink     string
 	Type             string
 	Size             int64
-	PublicID         string
 	LinkedMemoAmount int
 }
 
@@ -48,7 +47,6 @@ func (raw *resourceRaw) toResource() *api.Resource {
 		ExternalLink:     raw.ExternalLink,
 		Type:             raw.Type,
 		Size:             raw.Size,
-		PublicID:         raw.PublicID,
 		LinkedMemoAmount: raw.LinkedMemoAmount,
 	}
 }
@@ -114,8 +112,7 @@ func findMemoResourceListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) 
 			r.creator_id,
 			r.created_ts,
 			r.updated_ts,
-			r.internal_path,
-			r.public_id
+			r.internal_path
 		FROM memo_resource AS mr
 		JOIN resource AS r ON r.id = mr.resource_id
 		LEFT JOIN (
@@ -153,7 +150,6 @@ func findMemoResourceListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) 
 			&resourceRaw.CreatedTs,
 			&resourceRaw.UpdatedTs,
 			&resourceRaw.InternalPath,
-			&resourceRaw.PublicID,
 		); err != nil {
 			return nil, FormatError(err)
 		}
@@ -277,9 +273,9 @@ func (s *Store) PatchResource(ctx context.Context, patch *api.ResourcePatch) (*a
 }
 
 func createResourceImpl(ctx context.Context, tx *sql.Tx, create *api.ResourceCreate) (*resourceRaw, error) {
-	fields := []string{"filename", "blob", "external_link", "type", "size", "creator_id", "internal_path", "public_id"}
-	values := []any{create.Filename, create.Blob, create.ExternalLink, create.Type, create.Size, create.CreatorID, create.InternalPath, create.PublicID}
-	placeholders := []string{"?", "?", "?", "?", "?", "?", "?", "?"}
+	fields := []string{"filename", "blob", "external_link", "type", "size", "creator_id", "internal_path"}
+	values := []any{create.Filename, create.Blob, create.ExternalLink, create.Type, create.Size, create.CreatorID, create.InternalPath}
+	placeholders := []string{"?", "?", "?", "?", "?", "?", "?"}
 	query := `
 		INSERT INTO resource (
 			` + strings.Join(fields, ",") + `
@@ -297,7 +293,6 @@ func createResourceImpl(ctx context.Context, tx *sql.Tx, create *api.ResourceCre
 		&resourceRaw.Size,
 		&resourceRaw.CreatorID,
 		&resourceRaw.InternalPath,
-		&resourceRaw.PublicID,
 	}
 	dests = append(dests, []any{&resourceRaw.CreatedTs, &resourceRaw.UpdatedTs}...)
 	if err := tx.QueryRowContext(ctx, query, values...).Scan(dests...); err != nil {
@@ -316,12 +311,9 @@ func patchResourceImpl(ctx context.Context, tx *sql.Tx, patch *api.ResourcePatch
 	if v := patch.Filename; v != nil {
 		set, args = append(set, "filename = ?"), append(args, *v)
 	}
-	if v := patch.PublicID; v != nil {
-		set, args = append(set, "public_id = ?"), append(args, *v)
-	}
 
 	args = append(args, patch.ID)
-	fields := []string{"id", "filename", "external_link", "type", "size", "creator_id", "created_ts", "updated_ts", "internal_path", "public_id"}
+	fields := []string{"id", "filename", "external_link", "type", "size", "creator_id", "created_ts", "updated_ts", "internal_path"}
 	query := `
 		UPDATE resource
 		SET ` + strings.Join(set, ", ") + `
@@ -338,7 +330,6 @@ func patchResourceImpl(ctx context.Context, tx *sql.Tx, patch *api.ResourcePatch
 		&resourceRaw.CreatedTs,
 		&resourceRaw.UpdatedTs,
 		&resourceRaw.InternalPath,
-		&resourceRaw.PublicID,
 	}
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(dests...); err != nil {
 		return nil, FormatError(err)
@@ -362,11 +353,8 @@ func findResourceListImpl(ctx context.Context, tx *sql.Tx, find *api.ResourceFin
 	if v := find.MemoID; v != nil {
 		where, args = append(where, "resource.id in (SELECT resource_id FROM memo_resource WHERE memo_id = ?)"), append(args, *v)
 	}
-	if v := find.PublicID; v != nil {
-		where, args = append(where, "resource.public_id = ?"), append(args, *v)
-	}
 
-	fields := []string{"resource.id", "resource.filename", "resource.external_link", "resource.type", "resource.size", "resource.creator_id", "resource.created_ts", "resource.updated_ts", "internal_path", "public_id"}
+	fields := []string{"resource.id", "resource.filename", "resource.external_link", "resource.type", "resource.size", "resource.creator_id", "resource.created_ts", "resource.updated_ts", "internal_path"}
 	if find.GetBlob {
 		fields = append(fields, "resource.blob")
 	}
@@ -408,7 +396,6 @@ func findResourceListImpl(ctx context.Context, tx *sql.Tx, find *api.ResourceFin
 			&resourceRaw.CreatedTs,
 			&resourceRaw.UpdatedTs,
 			&resourceRaw.InternalPath,
-			&resourceRaw.PublicID,
 		}
 		if find.GetBlob {
 			dests = append(dests, &resourceRaw.Blob)

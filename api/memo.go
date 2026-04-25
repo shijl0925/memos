@@ -45,9 +45,10 @@ type Memo struct {
 	DisplayTs int64 `json:"displayTs"`
 
 	// Related fields
-	CreatorName     string      `json:"creatorName"`
-	CreatorUsername string      `json:"creatorUsername"`
-	ResourceList    []*Resource `json:"resourceList"`
+	CreatorName     string           `json:"creatorName"`
+	CreatorUsername string           `json:"creatorUsername"`
+	ResourceList    []*Resource      `json:"resourceList"`
+	RelationList    []*MemoRelation  `json:"relationList"`
 }
 
 type MemoCreate struct {
@@ -60,7 +61,8 @@ type MemoCreate struct {
 	Content    string     `json:"content"`
 
 	// Related fields
-	ResourceIDList []int `json:"resourceIdList"`
+	ResourceIDList []int          `json:"resourceIdList"`
+	RelationList   []*MemoRelationUpsert `json:"relationList"`
 }
 
 type MemoPatch struct {
@@ -76,7 +78,8 @@ type MemoPatch struct {
 	Visibility *Visibility `json:"visibility"`
 
 	// Related fields
-	ResourceIDList []int `json:"resourceIdList"`
+	ResourceIDList []int          `json:"resourceIdList"`
+	RelationList   []*MemoRelationUpsert `json:"relationList"`
 }
 
 type MemoFind struct {

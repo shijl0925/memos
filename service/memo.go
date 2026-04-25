@@ -8,6 +8,7 @@ import (
 
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
+	"github.com/usememos/memos/store"
 )
 
 // CreateMemo applies default visibility from user settings, enforces the
@@ -74,6 +75,16 @@ func (s *Service) CreateMemo(ctx context.Context, userID int, create *api.MemoCr
 		}
 	}
 
+	for _, relation := range create.RelationList {
+		if _, err := s.Store.UpsertMemoRelation(ctx, &store.MemoRelation{
+			MemoID:        memo.ID,
+			RelatedMemoID: relation.RelatedMemoID,
+			Type:          store.MemoRelationType(relation.Type),
+		}); err != nil {
+			return nil, fmt.Errorf("failed to upsert memo relation: %w", err)
+		}
+	}
+
 	if err := s.createMemoCreateActivity(ctx, memo); err != nil {
 		return nil, fmt.Errorf("failed to create activity: %w", err)
 	}
@@ -110,6 +121,38 @@ func (s *Service) UpdateMemo(ctx context.Context, userID, memoID int, patch *api
 			ResourceID: resourceID,
 		}); err != nil {
 			return nil, fmt.Errorf("failed to upsert memo resource: %w", err)
+		}
+	}
+
+	if patch.RelationList != nil {
+		oldRelations, err := s.Store.FindMemoRelationList(ctx, &store.MemoRelationFind{MemoID: &memoID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to find memo relations: %w", err)
+		}
+		newRelationMap := make(map[string]bool)
+		for _, r := range patch.RelationList {
+			key := fmt.Sprintf("%d:%s", r.RelatedMemoID, r.Type)
+			newRelationMap[key] = true
+			if _, err := s.Store.UpsertMemoRelation(ctx, &store.MemoRelation{
+				MemoID:        memoID,
+				RelatedMemoID: r.RelatedMemoID,
+				Type:          store.MemoRelationType(r.Type),
+			}); err != nil {
+				return nil, fmt.Errorf("failed to upsert memo relation: %w", err)
+			}
+		}
+		for _, old := range oldRelations {
+			key := fmt.Sprintf("%d:%s", old.RelatedMemoID, old.Type)
+			if !newRelationMap[key] {
+				relType := store.MemoRelationType(old.Type)
+				if err := s.Store.DeleteMemoRelation(ctx, &store.MemoRelationDelete{
+					MemoID:        &memoID,
+					RelatedMemoID: &old.RelatedMemoID,
+					Type:          &relType,
+				}); err != nil {
+					return nil, fmt.Errorf("failed to delete memo relation: %w", err)
+				}
+			}
 		}
 	}
 
