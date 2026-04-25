@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS migration_history (
 CREATE TABLE IF NOT EXISTS system_setting (
   name VARCHAR(255) NOT NULL,
   value TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL,
   UNIQUE KEY uq_system_setting_name (name)
 );
 
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   nickname VARCHAR(255) NOT NULL DEFAULT '',
   password_hash VARCHAR(255) NOT NULL,
   open_id VARCHAR(255) NOT NULL,
-  avatar_url TEXT NOT NULL DEFAULT '',
+  avatar_url VARCHAR(2048) NOT NULL DEFAULT '',
   UNIQUE KEY uq_user_username (username),
   UNIQUE KEY uq_user_open_id (open_id)
 );
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS memo (
   created_ts BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   updated_ts BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   row_status VARCHAR(32) NOT NULL DEFAULT 'NORMAL',
-  content LONGTEXT NOT NULL DEFAULT '',
+  content LONGTEXT NOT NULL,
   visibility VARCHAR(32) NOT NULL DEFAULT 'PRIVATE'
 );
 
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS shortcut (
   updated_ts BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   row_status VARCHAR(32) NOT NULL DEFAULT 'NORMAL',
   title VARCHAR(255) NOT NULL DEFAULT '',
-  payload TEXT NOT NULL DEFAULT '{}'
+  payload TEXT NOT NULL
 );
 
 -- resource
@@ -76,10 +76,10 @@ CREATE TABLE IF NOT EXISTS resource (
   updated_ts BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   filename VARCHAR(255) NOT NULL DEFAULT '',
   blob LONGBLOB DEFAULT NULL,
-  external_link TEXT NOT NULL DEFAULT '',
+  external_link TEXT NOT NULL,
   type VARCHAR(255) NOT NULL DEFAULT '',
   size BIGINT NOT NULL DEFAULT 0,
-  internal_path TEXT NOT NULL DEFAULT ''
+  internal_path TEXT NOT NULL
 );
 
 -- memo_resource
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS activity (
   created_ts BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
   type VARCHAR(255) NOT NULL DEFAULT '',
   level VARCHAR(32) NOT NULL DEFAULT 'INFO',
-  payload TEXT NOT NULL DEFAULT '{}'
+  payload TEXT NOT NULL
 );
 
 -- storage
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS storage (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   type VARCHAR(255) NOT NULL,
-  config TEXT NOT NULL DEFAULT '{}'
+  config TEXT NOT NULL
 );
 
 -- idp
@@ -130,5 +130,5 @@ CREATE TABLE IF NOT EXISTS idp (
   name VARCHAR(255) NOT NULL,
   type VARCHAR(255) NOT NULL,
   identifier_filter VARCHAR(255) NOT NULL DEFAULT '',
-  config TEXT NOT NULL DEFAULT '{}'
+  config TEXT NOT NULL
 );
