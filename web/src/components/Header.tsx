@@ -37,7 +37,7 @@ const Header = () => {
 
   return (
     <div
-      className={`fixed sm:sticky top-0 left-0 w-full sm:w-14 h-full shrink-0 pointer-events-none sm:pointer-events-auto z-10 ${
+      className={`fixed sm:sticky top-0 left-0 w-full sm:w-20 h-full shrink-0 pointer-events-none sm:pointer-events-auto z-10 ${
         showHeader && "pointer-events-auto"
       }`}
     >
@@ -48,7 +48,7 @@ const Header = () => {
         onClick={() => layoutStore.setHeaderStatus(false)}
       />
       <header
-        className={`relative w-14 sm:w-full h-full max-h-screen overflow-auto hide-scrollbar flex flex-col justify-between items-center py-4 z-30 bg-zinc-100 dark:bg-zinc-800 sm:bg-transparent sm:border-r sm:border-gray-200 sm:dark:border-zinc-700 sm:shadow-none transition-all duration-300 -translate-x-full sm:translate-x-0 ${
+        className={`relative w-20 sm:w-full h-full max-h-screen overflow-auto hide-scrollbar flex flex-col justify-between items-center py-4 z-30 bg-zinc-50 dark:bg-zinc-900 sm:shadow-none transition-all duration-300 -translate-x-full sm:translate-x-0 ${
           showHeader && "translate-x-0 shadow-2xl"
         }`}
       >

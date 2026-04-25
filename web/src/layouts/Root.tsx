@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 function Root() {
   return (
     <div className="w-full h-screen overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-      <div className="h-full max-w-7xl mx-auto flex flex-row">
+      <div className="h-full w-full flex flex-row">
         <Header />
         <main className="flex-grow min-w-0 h-full overflow-y-auto page-wrapper">
           <Outlet />
