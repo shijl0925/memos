@@ -213,12 +213,22 @@ func (s *Server) registerMemoRoutes(g Group) {
 			contentSearch := "#" + tag
 			memoFind.ContentSearch = &contentSearch
 		}
+		// Free-text search (takes precedence over tag when both are supplied)
+		if text := c.QueryParam("text"); text != "" {
+			memoFind.ContentSearch = &text
+		}
 		if visibilityListStr := c.QueryParam("visibility"); visibilityListStr != "" {
 			visibilityList := []api.Visibility{}
 			for _, visibility := range strings.Split(visibilityListStr, ",") {
 				visibilityList = append(visibilityList, api.Visibility(visibility))
 			}
 			memoFind.VisibilityList = visibilityList
+		}
+		if from, err := strconv.ParseInt(c.QueryParam("from"), 10, 64); err == nil {
+			memoFind.CreatedTsAfter = &from
+		}
+		if to, err := strconv.ParseInt(c.QueryParam("to"), 10, 64); err == nil {
+			memoFind.CreatedTsBefore = &to
 		}
 		if limit, err := strconv.Atoi(c.QueryParam("limit")); err == nil {
 			memoFind.Limit = &limit

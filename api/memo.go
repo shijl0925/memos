@@ -94,6 +94,10 @@ type MemoFind struct {
 	ContentSearch  *string
 	VisibilityList []Visibility
 
+	// Date range (Unix seconds, inclusive lower bound, exclusive upper bound)
+	CreatedTsAfter  *int64
+	CreatedTsBefore *int64
+
 	// Pagination
 	Limit  *int
 	Offset *int

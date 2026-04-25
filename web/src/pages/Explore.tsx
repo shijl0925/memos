@@ -2,20 +2,20 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useLocation } from "react-router-dom";
 import Empty from "@/components/Empty";
+import ExploreSidebar from "@/components/ExploreSidebar";
 import Memo from "@/components/Memo";
 import MemoFilter from "@/components/MemoFilter";
 import MobileHeader from "@/components/MobileHeader";
-import SearchBar from "@/components/SearchBar";
 import { DEFAULT_MEMO_LIMIT } from "@/helpers/consts";
+import { getTimeStampByDate } from "@/helpers/datetime";
 import useLoading from "@/hooks/useLoading";
 import { TAG_REG } from "@/labs/marked/parser";
-import { useFilterStore, useGlobalStore, useMemoStore } from "@/store/module";
+import { useFilterStore, useMemoStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 
 const Explore = () => {
   const t = useTranslate();
   const location = useLocation();
-  const globalStore = useGlobalStore();
   const filterStore = useFilterStore();
   const memoStore = useMemoStore();
   const filter = filterStore.state;
@@ -23,8 +23,8 @@ const Explore = () => {
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const loadingState = useLoading();
 
-  const { tag: tagQuery, text: textQuery } = filter;
-  const showMemoFilter = Boolean(tagQuery || textQuery);
+  const { tag: tagQuery, text: textQuery, duration } = filter;
+  const showMemoFilter = Boolean(tagQuery || textQuery || (duration && duration.from < duration.to));
 
   const fetchedMemos = showMemoFilter
     ? memos.filter((memo) => {
@@ -49,6 +49,13 @@ const Explore = () => {
 
         if (textQuery && !memo.content.toLowerCase().includes(textQuery.toLowerCase())) {
           shouldShow = false;
+        }
+
+        if (duration && duration.from < duration.to) {
+          const memoDate = getTimeStampByDate(memo.displayTs);
+          if (memoDate < duration.from || memoDate > duration.to) {
+            shouldShow = false;
+          }
         }
 
         return shouldShow;
@@ -89,35 +96,36 @@ const Explore = () => {
   };
 
   return (
-    <section className="w-full max-w-3xl mx-auto min-h-full flex flex-col justify-start items-center px-4 py-4 pb-8 bg-zinc-100 dark:bg-zinc-800">
-      <MobileHeader showSearch={false} />
-      {globalStore.isDev() && (
-        <div className="mb-4 mt-2 w-full">
-          <SearchBar />
-        </div>
-      )}
-      {!loadingState.isLoading && (
-        <main className="relative w-full h-auto flex flex-col justify-start items-start">
-          <MemoFilter />
-          {sortedMemos.map((memo) => {
-            return <Memo key={`${memo.id}-${memo.displayTs}`} memo={memo} showCreator />;
-          })}
-          {isComplete ? (
-            memos.length === 0 && (
-              <div className="w-full mt-16 mb-8 flex flex-col justify-center items-center italic">
-                <Empty />
-                <p className="mt-4 text-gray-600 dark:text-gray-400">{t("message.no-data")}</p>
-              </div>
-            )
-          ) : (
-            <p className="m-auto text-center mt-4 italic cursor-pointer text-gray-500 hover:text-green-600" onClick={handleFetchMoreClick}>
-              {t("memo.fetch-more")}
-            </p>
+    <div className="w-full flex flex-row justify-start items-start">
+      <ExploreSidebar />
+      <div className="flex-grow min-w-0 flex justify-center pt-4">
+        <div className="w-full max-w-3xl px-4 pb-8">
+          <MobileHeader showSearch={false} />
+          {!loadingState.isLoading && (
+            <main className="relative w-full h-auto flex flex-col justify-start items-start">
+              <MemoFilter />
+              {sortedMemos.map((memo) => {
+                return <Memo key={`${memo.id}-${memo.displayTs}`} memo={memo} showCreator />;
+              })}
+              {isComplete ? (
+                sortedMemos.length === 0 && (
+                  <div className="w-full mt-16 mb-8 flex flex-col justify-center items-center italic">
+                    <Empty />
+                    <p className="mt-4 text-gray-600 dark:text-gray-400">{t("message.no-data")}</p>
+                  </div>
+                )
+              ) : (
+                <p className="m-auto text-center mt-4 italic cursor-pointer text-gray-500 hover:text-green-600" onClick={handleFetchMoreClick}>
+                  {t("memo.fetch-more")}
+                </p>
+              )}
+            </main>
           )}
-        </main>
-      )}
-    </section>
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default Explore;
+
