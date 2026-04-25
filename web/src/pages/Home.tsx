@@ -30,15 +30,15 @@ const Home = () => {
 
   return (
     <div className="w-full flex flex-row justify-start items-start">
-      <div className="flex-grow shrink w-auto px-4 sm:px-2 sm:pt-4">
-        <MobileHeader />
-        <div className="w-full h-auto flex flex-col justify-start items-start bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+      <HomeSidebar />
+      <div className="flex-grow min-w-0 flex justify-center pt-4">
+        <div className="w-full max-w-3xl px-4">
+          <MobileHeader />
           {!userStore.isVisitorMode() && <MemoEditor className="mb-2" />}
           <MemoFilter />
+          <MemoList />
         </div>
-        <MemoList />
       </div>
-      <HomeSidebar />
     </div>
   );
 };

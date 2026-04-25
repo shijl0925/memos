@@ -289,6 +289,12 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, find *api.MemoFind) ([]*me
 	if v := find.ContentSearch; v != nil {
 		where, args = append(where, "memo.content LIKE ?"), append(args, "%"+*v+"%")
 	}
+	if v := find.CreatedTsAfter; v != nil {
+		where, args = append(where, "memo.created_ts >= ?"), append(args, *v)
+	}
+	if v := find.CreatedTsBefore; v != nil {
+		where, args = append(where, "memo.created_ts < ?"), append(args, *v)
+	}
 	if v := find.VisibilityList; len(v) != 0 {
 		list := []string{}
 		for _, visibility := range v {

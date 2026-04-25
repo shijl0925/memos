@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import useToggle from "@/hooks/useToggle";
 import Icon from "../Icon";
 
@@ -14,6 +15,21 @@ const Dropdown: React.FC<Props> = (props: Props) => {
   const { trigger, actions, className, actionsClassName, positionClassName } = props;
   const [dropdownStatus, toggleDropdownStatus] = useToggle(false);
   const dropdownWrapperRef = useRef<HTMLDivElement>(null);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
+
+  useLayoutEffect(() => {
+    if (dropdownStatus && dropdownWrapperRef.current) {
+      const rect = dropdownWrapperRef.current.getBoundingClientRect();
+      const isRightAligned = positionClassName?.includes("right-0") ?? false;
+      const marginTop = positionClassName?.includes("mt-2") ? 8 : 4;
+      setPanelStyle({
+        position: "fixed",
+        top: rect.bottom + marginTop,
+        ...(isRightAligned ? { right: window.innerWidth - rect.right } : { left: rect.left }),
+        zIndex: 9999,
+      });
+    }
+  }, [dropdownStatus, positionClassName]);
 
   useEffect(() => {
     if (dropdownStatus) {
@@ -29,6 +45,17 @@ const Dropdown: React.FC<Props> = (props: Props) => {
     }
   }, [dropdownStatus]);
 
+  const panel = (
+    <div
+      className={`w-auto flex flex-col justify-start items-start bg-white dark:bg-zinc-700 p-1 rounded-md shadow ${
+        dropdownStatus ? "" : "!hidden"
+      } ${actionsClassName ?? ""}`}
+      style={panelStyle}
+    >
+      {actions}
+    </div>
+  );
+
   return (
     <div
       ref={dropdownWrapperRef}
@@ -42,13 +69,7 @@ const Dropdown: React.FC<Props> = (props: Props) => {
           <Icon.MoreHorizontal className="w-4 h-auto" />
         </button>
       )}
-      <div
-        className={`w-auto absolute flex flex-col justify-start items-start bg-white dark:bg-zinc-700 z-10 p-1 rounded-md shadow ${
-          dropdownStatus ? "" : "!hidden"
-        } ${actionsClassName ?? ""} ${positionClassName ?? "top-full right-0 mt-1"}`}
-      >
-        {actions}
-      </div>
+      {createPortal(panel, document.body)}
     </div>
   );
 };

@@ -11,8 +11,8 @@ const MemoFilter = () => {
   const location = useLocation();
   const filterStore = useFilterStore();
   const filter = filterStore.state;
-  const { tag: tagQuery, duration, text: textQuery, visibility } = filter;
-  const showFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || textQuery || visibility);
+  const { tag: tagQuery, duration, type: memoType, text: textQuery, visibility } = filter;
+  const showFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || visibility);
 
   useEffect(() => {
     filterStore.clearFilter();
@@ -21,6 +21,15 @@ const MemoFilter = () => {
   return (
     <div className={`filter-query-container ${showFilter ? "" : "!hidden"}`}>
       <span className="mx-2 text-gray-400">{t("common.filter")}:</span>
+      <div
+        className={"filter-item-container " + (memoType ? "" : "!hidden")}
+        onClick={() => {
+          filterStore.setMemoTypeFilter(undefined);
+        }}
+      >
+        <Icon.Filter className="icon-text" /> {memoType}
+        <Icon.X className="w-4 h-auto ml-1 opacity-40" />
+      </div>
       <div
         className={"filter-item-container " + (tagQuery ? "" : "!hidden")}
         onClick={() => {

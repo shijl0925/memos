@@ -8,8 +8,8 @@ interface Props {
 const UserAvatar = (props: Props) => {
   const { avatarUrl, className } = props;
   return (
-    <div className={classNames(`w-8 h-8 overflow-clip`, className)}>
-      <img className="w-full h-auto rounded-full min-w-full min-h-full object-cover" src={avatarUrl || "/logo.webp"} alt="" />
+    <div className={classNames("flex items-center justify-center overflow-hidden rounded-full", className ?? "w-8 h-8")}>
+      <img className="w-full h-full object-cover rounded-full" src={avatarUrl || "/logo.webp"} alt="" />
     </div>
   );
 };
