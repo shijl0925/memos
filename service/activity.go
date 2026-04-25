@@ -23,9 +23,11 @@ func (s *Service) createMemoCreateActivity(ctx context.Context, memo *api.Memo) 
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
 
@@ -45,9 +47,11 @@ func (s *Service) createUserCreateActivity(ctx context.Context, user *api.User) 
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
 
@@ -63,9 +67,11 @@ func (s *Service) createUserAuthSignInActivity(ctx context.Context, user *api.Us
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
 
@@ -81,9 +87,11 @@ func (s *Service) createUserAuthSignUpActivity(ctx context.Context, user *api.Us
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
 
@@ -103,9 +111,11 @@ func (s *Service) createResourceCreateActivity(ctx context.Context, resource *ap
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
 
@@ -123,9 +133,11 @@ func (s *Service) createTagCreateActivity(ctx context.Context, tag *api.Tag) err
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
 
@@ -144,8 +156,10 @@ func (s *Service) createShortcutCreateActivity(ctx context.Context, shortcut *ap
 		Level:     api.ActivityInfo,
 		Payload:   string(payloadBytes),
 	})
-	if err != nil || activity == nil {
+	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }

@@ -126,8 +126,7 @@ func (s *Server) createServerStartActivity(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create activity")
 	}
-	if activity == nil {
-		return errors.New("failed to create activity: store returned nil")
-	}
+	// In prod mode, Store.CreateActivity intentionally returns (nil, nil); treat as success.
+	_ = activity
 	return nil
 }
