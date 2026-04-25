@@ -16,7 +16,6 @@
     "close": "关闭",
     "confirm": "确定",
     "create": "创建",
-    "daily-review": "每日回顾",
     "database": "数据库",
     "delete": "删除",
     "edit": "编辑",
@@ -101,10 +100,6 @@
     "not-host-tip": "如果你没有账号，请联系站点管理员",
     "repeat-new-password": "重复新密码",
     "signup-as-host": "注册为管理员"
-  },
-  "daily-review": {
-    "no-memos": "哎呀，空无一物。",
-    "title": "每日回顾"
   },
   "days": {
     "fri": "五",
@@ -326,7 +321,6 @@
     "preference-section": {
       "auto-collapse": "自动折叠",
       "created_ts": "创建时间",
-      "daily-review-time-offset": "每日回顾时间偏移",
       "default-memo-sort-option": "备忘录显示时间",
       "default-memo-visibility": "默认备忘录可见性",
       "editor-font-style": "编辑器字体样式",

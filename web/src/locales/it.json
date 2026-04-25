@@ -154,10 +154,6 @@
     "tag-name": "NOME_TAG",
     "invalid-tag-name": "Nome tag non valido"
   },
-  "daily-review": {
-    "title": "Revisione giornaliera",
-    "no-memos": "Nessun memo oggi."
-  },
   "setting": {
     "my-account": "Il mio account",
     "preference": "Preferenze",
@@ -193,7 +189,6 @@
       "telegram-user-id-placeholder": "Salva i messaggi al tuo bot telegram come memo",
       "created_ts": "Tempo di creazione",
       "updated_ts": "Tempo di aggiornamento",
-      "daily-review-time-offset": "Ora di revisione giornaliera",
       "auto-collapse": "Riduci automaticamente"
     },
     "storage-section": {

@@ -1,10 +1,5 @@
 import i18n from "@/i18n";
 
-export function convertToMillis(localSetting: LocalSetting) {
-  const hoursToMillis = localSetting.dailyReviewTimeOffset * 60 * 60 * 1000;
-  return hoursToMillis;
-}
-
 export function getNowTimeStamp(): number {
   return Date.now();
 }

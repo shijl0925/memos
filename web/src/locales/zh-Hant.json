@@ -153,10 +153,6 @@
     "all-tags": "所有標籤",
     "tag-name": "標籤名稱"
   },
-  "daily-review": {
-    "title": "每日回顧",
-    "no-memos": "啊咧，這裡啥都沒有。"
-  },
   "setting": {
     "my-account": "我的帳號",
     "preference": "偏好設定",
@@ -191,7 +187,6 @@
       "telegram-user-id-placeholder": "向 Telegram 機器人傳送任意訊息以取得",
       "created_ts": "建立時間",
       "updated_ts": "更新時間",
-      "daily-review-time-offset": "每日回顧時間偏移",
       "auto-collapse": "自動摺疊"
     },
     "storage-section": {

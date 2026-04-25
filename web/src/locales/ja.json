@@ -150,10 +150,6 @@
     "all-tags": "すべてのタグ",
     "tag-name": "タグの名前"
   },
-  "daily-review": {
-    "title": "今日のまとめ",
-    "no-memos": "あっ...今日はなんも書いてないっスね"
-  },
   "setting": {
     "my-account": "アカウント設定",
     "preference": "設定",
@@ -188,7 +184,6 @@
       "telegram-user-id-placeholder": "文章をTelegram Botに送信して取得します。",
       "created_ts": "投稿時間",
       "updated_ts": "編集された時間",
-      "daily-review-time-offset": "今日のまとめの設定時差",
       "auto-collapse": "自動で折りたたむ"
     },
     "storage-section": {

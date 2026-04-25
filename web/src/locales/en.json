@@ -158,10 +158,6 @@
     "hide": "Hide",
     "save-all": "Save all"
   },
-  "daily-review": {
-    "title": "Daily Review",
-    "no-memos": "Oops, there is nothing."
-  },
   "setting": {
     "my-account": "My Account",
     "preference": "Preferences",
@@ -196,7 +192,6 @@
       "telegram-user-id-placeholder": "Send any words to your Telegram Bot as a memo",
       "created_ts": "Created Time",
       "updated_ts": "Updated Time",
-      "daily-review-time-offset": "Daily Review Time Offset",
       "auto-collapse": "Auto Collapse"
     },
     "storage-section": {

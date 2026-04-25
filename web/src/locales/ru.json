@@ -3,7 +3,6 @@
     "memos-slogan": "Легкий, self-hosted сервис заметок. С открытым исходным кодом и навсегда бесплатный.",
     "about": "О Memos",
     "home": "Главная",
-    "daily-review": "По дням",
     "resources": "Ресурсы",
     "ask-ai": "Спросить ИИ",
     "archived": "В архиве",
@@ -89,7 +88,6 @@
     "repeat-new-password": "Повторить новый пароль"
   },
   "sidebar": {
-    "daily-review": "По дням",
     "resources": "Ресурсы",
     "setting": "Настройки",
     "archived": "Заархивировано"
@@ -210,10 +208,6 @@
     "all-tags": "Все теги",
     "tag-name": "Тег"
   },
-  "daily-review": {
-    "title": "По дням",
-    "no-memos": "Записей нет."
-  },
   "search": {
     "quickly-filter": "Быстрый фильтр"
   },
@@ -250,7 +244,6 @@
       "created_ts": "Время создания",
       "updated_ts": "Время обновления",
       "enable-double-click": "Разрешить двойной клик для редактирования",
-      "daily-review-time-offset": "Смещение времени ежедневного просмотра",
       "auto-collapse": "Автоматическое свертывание",
       "telegram-user-id": "ID пользователя Telegram",
       "telegram-user-id-placeholder": "Отправьте любое сообщение своему Telegram-боту, чтобы узнать ID"

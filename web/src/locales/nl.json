@@ -70,7 +70,6 @@
     "repeat-new-password": "Nieuw wachtwoord herhalen"
   },
   "sidebar": {
-    "daily-review": "Dagelijkse Review",
     "resources": "Bronnen",
     "setting": "Instellingen",
     "archived": "Gearchiveerd"
@@ -152,10 +151,6 @@
     "tag-name": "LABEL_NAAM",
     "invalid-tag-name": "Onjuiste label naam"
   },
-  "daily-review": {
-    "title": "Dagelijks",
-    "no-memos": "Oeps, er is niks."
-  },
   "search": {
     "quickly-filter": "Snel filteren"
   },
@@ -181,7 +176,6 @@
       "telegram-user-id-placeholder": "Stuur je memos naar je Telegram bot",
       "created_ts": "Tijd van aanmaken",
       "updated_ts": "Tijd van wijziging",
-      "daily-review-time-offset": "Dagelijkse review tijdscompensatie",
       "enable-double-click": "Dubbelklik op memo om te bewerken",
       "auto-collapse": "Automatisch samenvouwen"
     },

@@ -153,10 +153,6 @@
     "all-tags": "सभी टैग",
     "tag-name": "टैग_नाम"
   },
-  "daily-review": {
-    "title": "दैनिक समीक्षा",
-    "no-memos": "उफ़, कुछ भी नहीं है।"
-  },
   "setting": {
     "my-account": "मेरा खाता",
     "preference": "प्राथमिकता",
@@ -192,7 +188,6 @@
       "telegram-user-id-placeholder": "अपने टेलीग्राम बॉट को कोई शब्द भेजें और प्राप्त करें",
       "created_ts": "समय बनाया गया",
       "updated_ts": "समय अद्यतन किया गया",
-      "daily-review-time-offset": "दैनिक समीक्षा समय ऑफ़सेट",
       "auto-collapse": "ऑटो संक्षेपित"
     },
     "storage-section": {

@@ -153,10 +153,6 @@
     "all-tags": "Alle Tags",
     "tag-name": "TAG_NAME"
   },
-  "daily-review": {
-    "title": "Tagesbilanz",
-    "no-memos": "Hoppla, da ist ja gar nichts."
-  },
   "setting": {
     "my-account": "Mein Konto",
     "preference": "Einstellungen",
@@ -192,7 +188,6 @@
       "telegram-user-id-placeholder": "Sende beliebige Wörter als Memo an deinen Telegram Bot",
       "created_ts": "Erstellungszeitpunkt",
       "updated_ts": "Änderungszeitpunkt",
-      "daily-review-time-offset": "Tägliche Überprüfung Zeitverschiebung",
       "auto-collapse": "Automatisch reduzieren"
     },
     "storage-section": {

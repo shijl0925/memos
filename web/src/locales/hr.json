@@ -153,10 +153,6 @@
     "all-tags": "Svi Tagovi",
     "tag-name": "IME_TAGA"
   },
-  "daily-review": {
-    "title": "Pregled dana",
-    "no-memos": "Ups. Ovdje nema ničega."
-  },
   "setting": {
     "my-account": "Moj račun",
     "preference": "Postavke",
@@ -191,7 +187,6 @@
       "telegram-user-id-placeholder": "Send any words to Your Telegram Bot to get",
       "created_ts": "Vrijeme stvaranja",
       "updated_ts": "Vrijeme ažuriranja",
-      "daily-review-time-offset": "Daily Review Time Offset",
       "auto-collapse": "Auto Collapse"
     },
     "storage-section": {

@@ -154,10 +154,6 @@
     "tag-name": "TAG_NAME",
     "invalid-tag-name": "잘못된 태그명입니다"
   },
-  "daily-review": {
-    "title": "날마다 돌아보기",
-    "no-memos": "앗, 아무것도 없네요."
-  },
   "setting": {
     "my-account": "내 계정",
     "preference": "개인 설정",
@@ -193,7 +189,6 @@
       "telegram-user-id-placeholder": "서버의 텔레그램 봇에 아무 메세지나 보내서 받을 수 있습니다",
       "created_ts": "생성된 시각",
       "updated_ts": "변경된 시각",
-      "daily-review-time-offset": "날마다 돌아보기 기준 시각",
       "auto-collapse": "자동 축소"
     },
     "storage-section": {

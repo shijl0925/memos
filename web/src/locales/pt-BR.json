@@ -150,10 +150,6 @@
     "all-tags": "Todas as Tags",
     "tag-name": "NOME_DA_TAG"
   },
-  "daily-review": {
-    "title": "Resumo Diário",
-    "no-memos": "Não há memos"
-  },
   "setting": {
     "my-account": "Minha conta",
     "preference": "Preferências",
@@ -186,7 +182,6 @@
       "default-memo-sort-option": "Memo display time",
       "created_ts": "Hora de criação",
       "updated_ts": "Hora de atualização",
-      "daily-review-time-offset": "Compensação de tempo do Resumo Diário",
       "auto-collapse": "Recolher automaticamente"
     },
     "storage-section": {
