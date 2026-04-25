@@ -61,7 +61,7 @@ const HomeSidebar = () => {
   const activeTagFilter = filterStore.state.tag;
 
   return (
-    <aside className="sticky top-0 w-72 shrink-0 h-screen max-h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1">
+    <aside className="sticky top-0 w-72 shrink-0 h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1">
       {/* Search */}
       <div className="w-full px-4 mb-2">
         <SearchBar />

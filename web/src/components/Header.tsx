@@ -48,16 +48,13 @@ const Header = () => {
         onClick={() => layoutStore.setHeaderStatus(false)}
       />
       <header
-        className={`relative w-14 sm:w-full h-full max-h-screen overflow-auto hide-scrollbar flex flex-col justify-between items-center py-4 z-30 bg-zinc-100 dark:bg-zinc-800 sm:bg-transparent sm:shadow-none transition-all duration-300 -translate-x-full sm:translate-x-0 ${
+        className={`relative w-14 sm:w-full h-full max-h-screen overflow-auto hide-scrollbar flex flex-col justify-between items-center py-4 z-30 bg-zinc-100 dark:bg-zinc-800 sm:bg-transparent sm:border-r sm:border-gray-200 sm:dark:border-zinc-700 sm:shadow-none transition-all duration-300 -translate-x-full sm:translate-x-0 ${
           showHeader && "translate-x-0 shadow-2xl"
         }`}
       >
         {/* Top: user avatar (display only) */}
         <div className="flex flex-col items-center">
-          <div
-            className="w-10 h-10 rounded-full overflow-clip"
-            title={user?.nickname || user?.username || "Memos"}
-          >
+          <div className="w-10 h-10 rounded-full overflow-clip" title={user?.nickname || user?.username || "Memos"}>
             <UserAvatar avatarUrl={user?.avatarUrl} className="w-10 h-10" />
           </div>
         </div>
