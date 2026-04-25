@@ -49,6 +49,14 @@ const HomeSidebar = () => {
 
   const activeType = filterStore.state.type;
 
+  const handleTodoChip = () => {
+    filterStore.setMemoTypeFilter(activeType === "TODO" ? undefined : "TODO");
+  };
+
+  const handleCodeChip = () => {
+    filterStore.setMemoTypeFilter(activeType === "CODE" ? undefined : "CODE");
+  };
+
   const handleLinkChip = () => {
     filterStore.setMemoTypeFilter(activeType === "LINKED" ? undefined : "LINKED");
   };
@@ -84,14 +92,28 @@ const HomeSidebar = () => {
             <Icon.Link2 className="w-3.5 h-auto" />
             Links {linkCount}
           </button>
-          <span className="flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 select-none">
+          <button
+            onClick={handleTodoChip}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+              activeType === "TODO"
+                ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
+                : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
+            }`}
+          >
             <Icon.CheckSquare className="w-3.5 h-auto" />
             To-do {todoDone}/{todoTotal}
-          </span>
-          <span className="flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 select-none">
+          </button>
+          <button
+            onClick={handleCodeChip}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+              activeType === "CODE"
+                ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
+                : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
+            }`}
+          >
             <Icon.Code2 className="w-3.5 h-auto" />
             Code {codeCount}
-          </span>
+          </button>
         </div>
       )}
 
@@ -100,9 +122,9 @@ const HomeSidebar = () => {
         <div className="w-full px-3 mb-1">
           <div className="flex items-center justify-between py-1">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Shortcuts</span>
-            <span className="flex items-center justify-center w-6 h-6 rounded text-gray-300 dark:text-zinc-600 cursor-default">
+            <button className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400 cursor-pointer">
               <Icon.Plus className="w-4 h-4" />
-            </span>
+            </button>
           </div>
         </div>
       )}

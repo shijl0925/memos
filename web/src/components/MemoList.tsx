@@ -9,6 +9,10 @@ import Empty from "./Empty";
 import Memo from "./Memo";
 import "@/less/memo-list.less";
 
+const TODO_REG = /- \[[ x]\] /;
+const CODE_BLOCK_REG = /```[\s\S]*?```/;
+const INLINE_CODE_REG = /`[^`]+`/;
+
 interface Props {
   showCreator?: boolean;
 }
@@ -61,6 +65,10 @@ const MemoList: React.FC<Props> = (props: Props) => {
             if (memoType === "NOT_TAGGED" && memo.content.match(TAG_REG) !== null) {
               shouldShow = false;
             } else if (memoType === "LINKED" && (memo.content.match(LINK_REG) === null && memo.content.match(PLAIN_LINK_REG) === null)) {
+              shouldShow = false;
+            } else if (memoType === "TODO" && !memo.content.match(TODO_REG)) {
+              shouldShow = false;
+            } else if (memoType === "CODE" && !memo.content.match(CODE_BLOCK_REG) && !memo.content.match(INLINE_CODE_REG)) {
               shouldShow = false;
             }
           }
