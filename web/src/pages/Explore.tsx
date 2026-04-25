@@ -89,7 +89,7 @@ const Explore = () => {
   };
 
   return (
-    <section className="w-full max-w-3xl min-h-full flex flex-col justify-start items-center px-4 sm:px-2 sm:pt-4 pb-8 bg-zinc-100 dark:bg-zinc-800">
+    <section className="w-full max-w-3xl mx-auto min-h-full flex flex-col justify-start items-center px-4 py-4 pb-8 bg-zinc-100 dark:bg-zinc-800">
       <MobileHeader showSearch={false} />
       {globalStore.isDev() && (
         <div className="mb-4 mt-2 w-full">
