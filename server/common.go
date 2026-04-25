@@ -57,6 +57,8 @@ func convertServiceError(err error) error {
 		return newHTTPError(http.StatusNotFound, common.ErrorMessage(err))
 	case common.Invalid:
 		return newHTTPError(http.StatusBadRequest, common.ErrorMessage(err))
+	case common.Conflict:
+		return newHTTPError(http.StatusConflict, common.ErrorMessage(err))
 	default:
 		return newHTTPErrorWithInternal(http.StatusInternalServerError, common.ErrorMessage(err), err)
 	}

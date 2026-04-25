@@ -174,7 +174,7 @@ func JWTMiddleware(server *Server, secret string) MiddlewareFunc {
 						return nil, errors.Errorf("unexpected refresh token kid=%v", t.Header["kid"])
 					})
 					if err != nil {
-						if err == jwt.ErrSignatureInvalid {
+						if errors.Is(err, jwt.ErrSignatureInvalid) {
 							return unauthorizedError("Failed to generate access token. Invalid refresh token signature.")
 						}
 						return internalError(fmt.Sprintf("Server error to refresh expired token. User Id %d", userID), err)

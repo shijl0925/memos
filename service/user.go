@@ -57,6 +57,10 @@ func (s *Service) UpdateUser(ctx context.Context, currentUserID, userID int, pat
 		return nil, common.Errorf(common.NotAuthorized, fmt.Errorf("access forbidden for current session user"))
 	}
 
+	if err := patch.Validate(); err != nil {
+		return nil, common.Errorf(common.Invalid, err)
+	}
+
 	if patch.Password != nil && *patch.Password != "" {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(*patch.Password), bcrypt.DefaultCost)
 		if err != nil {
@@ -69,10 +73,6 @@ func (s *Service) UpdateUser(ctx context.Context, currentUserID, userID int, pat
 	if patch.ResetOpenID != nil && *patch.ResetOpenID {
 		openID := common.GenUUID()
 		patch.OpenID = &openID
-	}
-
-	if err := patch.Validate(); err != nil {
-		return nil, common.Errorf(common.Invalid, err)
 	}
 
 	currentTs := time.Now().Unix()
