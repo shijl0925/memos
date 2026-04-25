@@ -15,7 +15,6 @@ type Resource struct {
 	ExternalLink string `json:"externalLink"`
 	Type         string `json:"type"`
 	Size         int64  `json:"size"`
-	PublicID     string `json:"publicId"`
 
 	// Related fields
 	LinkedMemoAmount int `json:"linkedMemoAmount"`
@@ -32,7 +31,6 @@ type ResourceCreate struct {
 	ExternalLink string `json:"externalLink"`
 	Type         string `json:"type"`
 	Size         int64  `json:"-"`
-	PublicID     string `json:"publicId"`
 }
 
 type ResourceFind struct {
@@ -44,7 +42,6 @@ type ResourceFind struct {
 	// Domain specific fields
 	Filename *string `json:"filename"`
 	MemoID   *int
-	PublicID *string `json:"publicId"`
 	GetBlob  bool
 
 	// Pagination
@@ -59,9 +56,7 @@ type ResourcePatch struct {
 	UpdatedTs *int64
 
 	// Domain specific fields
-	Filename      *string `json:"filename"`
-	ResetPublicID *bool   `json:"resetPublicId"`
-	PublicID      *string `json:"-"`
+	Filename *string `json:"filename"`
 }
 
 type ResourceDelete struct {

@@ -77,9 +77,7 @@ CREATE TABLE resource (
   external_link TEXT NOT NULL DEFAULT '',
   type TEXT NOT NULL DEFAULT '',
   size INTEGER NOT NULL DEFAULT 0,
-  internal_path TEXT NOT NULL DEFAULT '',
-  public_id TEXT NOT NULL DEFAULT '',
-  UNIQUE(id, public_id)
+  internal_path TEXT NOT NULL DEFAULT ''
 );
 
 -- memo_resource
@@ -89,6 +87,14 @@ CREATE TABLE memo_resource (
   created_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
   updated_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
   UNIQUE(memo_id, resource_id)
+);
+
+-- memo_relation
+CREATE TABLE memo_relation (
+  memo_id INTEGER NOT NULL,
+  related_memo_id INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  UNIQUE(memo_id, related_memo_id, type)
 );
 
 -- tag

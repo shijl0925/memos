@@ -141,7 +141,6 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		}
 	}
 
-	create.PublicID = common.GenUUID()
 	resource, err := s.Store.CreateResource(ctx, create)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
@@ -160,11 +159,6 @@ func (s *Service) UpdateResource(ctx context.Context, userID, resourceID int, pa
 	}
 	if resource.CreatorID != userID {
 		return nil, common.Errorf(common.NotAuthorized, fmt.Errorf("unauthorized"))
-	}
-
-	if patch.ResetPublicID != nil && *patch.ResetPublicID {
-		publicID := common.GenUUID()
-		patch.PublicID = &publicID
 	}
 
 	currentTs := time.Now().Unix()

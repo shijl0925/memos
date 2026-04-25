@@ -43,6 +43,9 @@ func (raw *memoRaw) toMemo() *api.Memo {
 		Content:    raw.Content,
 		Visibility: raw.Visibility,
 		Pinned:     raw.Pinned,
+
+		// DisplayTs defaults to CreatedTs (can be overridden via patch)
+		DisplayTs: raw.CreatedTs,
 	}
 }
 
@@ -53,8 +56,20 @@ func (s *Store) composeMemo(ctx context.Context, memo *api.Memo) (*api.Memo, err
 	if err := s.composeMemoResourceList(ctx, memo); err != nil {
 		return nil, err
 	}
+	if err := s.composeMemoRelationList(ctx, memo); err != nil {
+		return nil, err
+	}
 
 	return memo, nil
+}
+
+func (s *Store) composeMemoRelationList(ctx context.Context, memo *api.Memo) error {
+	relationList, err := s.FindMemoRelationList(ctx, &api.MemoRelationFind{MemoID: &memo.ID})
+	if err != nil {
+		return err
+	}
+	memo.RelationList = relationList
+	return nil
 }
 
 func (s *Store) CreateMemo(ctx context.Context, create *api.MemoCreate) (*api.Memo, error) {
@@ -385,6 +400,12 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 		return nil, err
 	}
 
+	// Build a relation map keyed by memoID using a single batch query.
+	relationListMap, err := findMemoRelationListMap(ctx, tx, memoIDList)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, raw := range memoRawList {
 		memo := raw.toMemo()
 		user, ok := userMap[memo.CreatorID]
@@ -396,11 +417,18 @@ func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, memoRawList []*
 		} else {
 			memo.CreatorName = user.Username
 		}
+		memo.CreatorUsername = user.Username
 
 		if resourceList, ok := resourceListMap[memo.ID]; ok {
 			memo.ResourceList = resourceList
 		} else {
 			memo.ResourceList = []*api.Resource{}
+		}
+
+		if relationList, ok := relationListMap[memo.ID]; ok {
+			memo.RelationList = relationList
+		} else {
+			memo.RelationList = []*api.MemoRelation{}
 		}
 
 		list = append(list, memo)

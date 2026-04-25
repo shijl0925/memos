@@ -38,7 +38,6 @@
     "sign-up": "Registrar",
     "sign-out": "Sair",
     "type": "Tipo",
-    "shortcuts": "Atalhos",
     "title": "Título",
     "filter": "Filtro",
     "filter-period": "{{from}} até {{to}}",
@@ -60,7 +59,15 @@
     "visibility": "Visibilidade",
     "learn-more": "Saiba mais",
     "e.g": "ex.",
-    "beta": "Beta"
+    "beta": "Beta",
+    "dialog": {
+      "error": "Erro",
+      "help": "Ajuda",
+      "info": "Informação",
+      "success": "Sucesso",
+      "warning": "Aviso"
+    },
+    "mark": "Mark"
   },
   "router": {
     "back-to-home": "Voltar ao início"
@@ -110,7 +117,7 @@
     "reset-link-prompt": "Tem certeza de que deseja redefinir o link?\nIsso quebrará todos os vínculos atuais.\n\nESTA AÇÃO É IRREVERSÍVEL❗",
     "delete-resource": "Deletar recurso",
     "linked-amount": "Quantidade de vínculos",
-    "warning-text": "Tem certeza de que deseja deletar este recurso?\n\nESTA AÇÃO É IRREVERSÍVEL❗",    
+    "warning-text": "Tem certeza de que deseja deletar este recurso?\n\nESTA AÇÃO É IRREVERSÍVEL❗",
     "warning-text-unused": "Tem certeza de que deseja deletar este recurso não utilizado?\n\nESTA AÇÃO É IRREVERSÍVEL❗",
     "no-unused-resources": "Nenhum recurso não utilizado",
     "delete-selected-resources": "Deletar recursos selecionados",
@@ -118,6 +125,7 @@
     "upload-successfully": "Carregado com êxito",
     "file-drag-drop-prompt": "Arraste e solte o arquivo aqui para carregá-lo",
     "search-bar-placeholder": "Pesquisar recurso",
+    "clear": "Clear",
     "create-dialog": {
       "title": "Criar recurso",
       "upload-method": "Método de carregamento",
@@ -136,24 +144,11 @@
       }
     }
   },
-  "shortcut-list": {
-    "shortcut-title": "título do atalho",
-    "create-shortcut": "Criar atalho",
-    "edit-shortcut": "Editar atalho",
-    "eligible-memo": "memo elegível",
-    "fill-previous": "Por favor, preencha o valor do filtro anterior",
-    "title-required": "O título do atalho é obrigatório",
-    "value-required": "O valor do filtro é obrigatório"
-  },
   "tag-list": {
     "tip-text": "Insira `#tag` para criar uma nova",
     "create-tag": "Criar Tag",
     "all-tags": "Todas as Tags",
     "tag-name": "NOME_DA_TAG"
-  },
-  "daily-review": {
-    "title": "Resumo Diário",
-    "no-memos": "Não há memos"
   },
   "setting": {
     "my-account": "Minha conta",
@@ -187,10 +182,10 @@
       "default-memo-sort-option": "Memo display time",
       "created_ts": "Hora de criação",
       "updated_ts": "Hora de atualização",
-      "daily-review-time-offset": "Compensação de tempo do Resumo Diário"
+      "auto-collapse": "Recolher automaticamente"
     },
     "storage-section": {
-      "current-storage": "Armazenamento atual",
+      "current-storage": "Armazenamento de objetos atual",
       "type-database": "Banco de dados",
       "type-local": "Local",
       "storage-services-list": "Lista de serviços de armazenamento",
@@ -215,7 +210,7 @@
       "bucket-placeholder": "Nome do bucket",
       "path": "Caminho do armazenamento",
       "path-description": "Você pode usar as mesmas variáveis dinâmicas do armazenamento local, como {filename}",
-      "path-placeholder": "caminho/personalizado",
+      "path-placeholder": "caminho",
       "url-prefix": "Prefixo da URL",
       "url-prefix-placeholder": "Prefixo personalizado da URL, opcional",
       "url-suffix": "Sufixo da URL",
@@ -242,6 +237,8 @@
       "allow-user-signup": "Permitir registro de usuário",
       "ignore-version-upgrade": "Ignorar atualização de versão",
       "disable-public-memos": "Desabilitar memos públicos",
+      "max-upload-size": "Tamanho máximo de upload (MiB)",
+      "max-upload-size-hint": "O valor recomendado é 32 MiB.",
       "additional-style": "Estilo adicional",
       "additional-script": "Script adicional",
       "additional-style-placeholder": "Código CSS adicional",
@@ -250,7 +247,8 @@
       "openai-api-key-description": "Obter chave de API",
       "openai-api-key-placeholder": "Sua chave de API da OpenAI",
       "openai-api-host": "OpenAI: Host de API",
-      "openai-api-host-placeholder": "Padrão: https://api.openai.com/"
+      "openai-api-host-placeholder": "Padrão: https://api.openai.com/",
+      "display-with-updated-time": "Display with updated time"
     },
     "appearance-option": {
       "system": "Sistema",
@@ -348,7 +346,9 @@
     "succeed-update-customized-profile": "Perfil personalizado com êxito.",
     "succeed-update-additional-script": "Script adicional atualizado com êxito.",
     "update-succeed": "Atualizado com êxito",
-    "page-not-found": "404 - Página não encontrada 😥"
+    "page-not-found": "404 - Página não encontrada 😥",
+    "maximum-upload-size-is": "O tamanho máximo permitido para upload é {{size}} MiB",
+    "file-exceeds-upload-limit-of": "O arquivo {{file}} excede o limite de upload de {{size}} MiB"
   },
   "days": {
     "mon": "Seg",
@@ -372,8 +372,8 @@
     "copy": "Copiar"
   },
   "heatmap": {
-    "memo-in": "{{amount}} memo em {{period}}",
-    "memos-in": "{{amount}} memos em {{period}}",
+    "memo-in": "memo em {{period}}",
+    "memos-in": "memos em {{period}}",
     "memo-on": "{{amount}} memo em {{date}}",
     "memos-on": "{{amount}} memos em {{date}}",
     "day": "dia",

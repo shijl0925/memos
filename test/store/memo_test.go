@@ -82,7 +82,6 @@ func TestFindMemoListComposesCreatorsAndResourcesInBatch(t *testing.T) {
 		Blob:      []byte("first"),
 		Type:      "image/png",
 		Size:      5,
-		PublicID:  "first-resource",
 	})
 	require.NoError(t, err)
 	secondResource, err := store.CreateResource(ctx, &api.ResourceCreate{
@@ -91,7 +90,6 @@ func TestFindMemoListComposesCreatorsAndResourcesInBatch(t *testing.T) {
 		Blob:      []byte("second"),
 		Type:      "image/png",
 		Size:      6,
-		PublicID:  "second-resource",
 	})
 	require.NoError(t, err)
 

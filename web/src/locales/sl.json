@@ -4,7 +4,6 @@
     "home": "Domov",
     "resources": "Viri",
     "settings": "Nastavitve",
-    "daily-review": "Dnevno",
     "ask-ai": "Vprašaj AI",
     "archived": "Arhivirani",
     "email": "Email",
@@ -39,7 +38,6 @@
     "sign-out": "Odjavi se",
     "back-to-home": "Nazaj domov",
     "type": "Tip",
-    "shortcuts": "Bližnjice",
     "title": "Naslov",
     "filter": "Filter",
     "tags": "Značke",
@@ -53,7 +51,8 @@
     "link": "Povezava",
     "vacuum": "Skrči",
     "select": "Izberi",
-    "database": "Baza"
+    "database": "Baza",
+    "mark": "Mark"
   },
   "auth": {
     "signup-as-host": "Prijavite se kot gostitelj",
@@ -129,15 +128,6 @@
     "fetching-data": "pridobivam podatke...",
     "fetch-more": "Kliknite tu da pridobite še več"
   },
-  "shortcut-list": {
-    "shortcut-title": "naslov bližnjice",
-    "create-shortcut": "Kreiraj bližnjico",
-    "edit-shortcut": "Uredi bližnjico",
-    "eligible-memo": "upravičene beležke",
-    "fill-previous": "Prosim izpolnite prejšnje vrednosti filtra",
-    "title-required": "Naslov je obvezen",
-    "value-required": "Vrednost filtra je obvezna"
-  },
   "filter": {
     "new-filter": "Nov filter",
     "type": {
@@ -198,7 +188,7 @@
       "default-memo-sort-option": "Čas prikaza beležke",
       "created_ts": "Čas ustvarjanja",
       "updated_ts": "Čas posodobitve",
-      "daily-review-time-offset": "Časovni odmik dnevnega pregleda"
+      "auto-collapse": "Samodejno strni"
     },
     "storage-section": {
       "storage-services-list": "Seznam storitev shramb",
@@ -223,7 +213,8 @@
       "additional-style": "Dodatni stili",
       "additional-script": "Dodatne skripte",
       "additional-style-placeholder": "Dodatna CSS koda",
-      "additional-script-placeholder": "Dodatna JavaScript koda"
+      "additional-script-placeholder": "Dodatna JavaScript koda",
+      "display-with-updated-time": "Display with updated time"
     },
     "appearance-option": {
       "system": "Sledi sistemu",

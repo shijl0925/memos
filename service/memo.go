@@ -74,6 +74,16 @@ func (s *Service) CreateMemo(ctx context.Context, userID int, create *api.MemoCr
 		}
 	}
 
+	for _, relation := range create.RelationList {
+		if _, err := s.Store.UpsertMemoRelation(ctx, &api.MemoRelation{
+			MemoID:        memo.ID,
+			RelatedMemoID: relation.RelatedMemoID,
+			Type:          relation.Type,
+		}); err != nil {
+			return nil, fmt.Errorf("failed to upsert memo relation: %w", err)
+		}
+	}
+
 	if err := s.createMemoCreateActivity(ctx, memo); err != nil {
 		return nil, fmt.Errorf("failed to create activity: %w", err)
 	}
@@ -110,6 +120,38 @@ func (s *Service) UpdateMemo(ctx context.Context, userID, memoID int, patch *api
 			ResourceID: resourceID,
 		}); err != nil {
 			return nil, fmt.Errorf("failed to upsert memo resource: %w", err)
+		}
+	}
+
+	if patch.RelationList != nil {
+		oldRelations, err := s.Store.FindMemoRelationList(ctx, &api.MemoRelationFind{MemoID: &memoID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to find memo relations: %w", err)
+		}
+		newRelationMap := make(map[string]bool)
+		for _, r := range patch.RelationList {
+			key := fmt.Sprintf("%d:%s", r.RelatedMemoID, r.Type)
+			newRelationMap[key] = true
+			if _, err := s.Store.UpsertMemoRelation(ctx, &api.MemoRelation{
+				MemoID:        memoID,
+				RelatedMemoID: r.RelatedMemoID,
+				Type:          r.Type,
+			}); err != nil {
+				return nil, fmt.Errorf("failed to upsert memo relation: %w", err)
+			}
+		}
+		for _, old := range oldRelations {
+			key := fmt.Sprintf("%d:%s", old.RelatedMemoID, old.Type)
+			if !newRelationMap[key] {
+				relType := old.Type
+				if err := s.Store.DeleteMemoRelation(ctx, &api.MemoRelationDelete{
+					MemoID:        &memoID,
+					RelatedMemoID: &old.RelatedMemoID,
+					Type:          &relType,
+				}); err != nil {
+					return nil, fmt.Errorf("failed to delete memo relation: %w", err)
+				}
+			}
 		}
 	}
 
