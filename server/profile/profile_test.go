@@ -105,12 +105,16 @@ func TestGetProfile_SQLite_ExplicitDataRelative(t *testing.T) {
 }
 
 // TestGetProfile_NonSQLite verifies that non-SQLite drivers use the dsn flag
-// directly and do not touch the data directory.
+// directly while still resolving a usable data directory for local storage.
 func TestGetProfile_NonSQLite(t *testing.T) {
 	const dsn = "root:password@tcp(localhost:3306)/memos"
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	viper.Reset()
-	viper.SetDefault("mode", "prod")
+	viper.SetDefault("mode", "dev")
 	viper.SetDefault("port", 8081)
 	viper.Set("driver", "mysql")
 	viper.Set("dsn", dsn)
@@ -123,7 +127,20 @@ func TestGetProfile_NonSQLite(t *testing.T) {
 	if prof.DSN != dsn {
 		t.Errorf("DSN = %q, want %q", prof.DSN, dsn)
 	}
-	if prof.Data != "" {
-		t.Errorf("Data = %q, want empty string for non-SQLite", prof.Data)
+	if prof.Data != cwd {
+		t.Errorf("Data = %q, want %q", prof.Data, cwd)
+	}
+}
+
+// TestDefaultDataDir_Prod verifies that prod mode keeps the historical stable
+// default data directory selection.
+func TestDefaultDataDir_Prod(t *testing.T) {
+	wantData := "/var/opt/memos"
+	got, err := defaultDataDir("prod")
+	if err != nil {
+		t.Fatalf("defaultDataDir() returned error: %v", err)
+	}
+	if got != wantData {
+		t.Errorf("defaultDataDir() = %q, want %q", got, wantData)
 	}
 }

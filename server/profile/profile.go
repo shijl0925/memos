@@ -29,6 +29,41 @@ func (p *Profile) IsDev() bool {
 	return p.Mode != "prod"
 }
 
+func defaultDataDir(mode string) (string, error) {
+	if mode == "prod" {
+		return "/var/opt/memos", nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+	return cwd, nil
+}
+
+func resolveDataDir(mode, dataDir string) (string, error) {
+	if dataDir == "" {
+		var err error
+		dataDir, err = defaultDataDir(mode)
+		if err != nil {
+			return "", err
+		}
+	} else if !filepath.IsAbs(dataDir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get working directory: %w", err)
+		}
+		dataDir = filepath.Join(cwd, dataDir)
+	}
+
+	dataDir = filepath.Clean(dataDir)
+	if _, err := os.Stat(dataDir); err != nil {
+		return "", fmt.Errorf("unable to access data folder %s: %w", dataDir, err)
+	}
+
+	return dataDir, nil
+}
+
 // GetProfile will return a profile for dev or prod.
 func GetProfile() (*Profile, error) {
 	profile := Profile{}
@@ -48,35 +83,17 @@ func GetProfile() (*Profile, error) {
 
 	profile.Version = version.GetCurrentVersion(profile.Mode)
 
+	dataDir, err := resolveDataDir(profile.Mode, profile.Data)
+	if err != nil {
+		return nil, err
+	}
+	profile.Data = dataDir
+
 	if driver != "sqlite3" {
 		profile.DSN = viper.GetString("dsn")
 		return &profile, nil
 	}
 
-	// For SQLite, resolve the data directory relative to the current working
-	// directory (project root) so the DB file is always predictably located
-	// next to the project sources / binary.  An explicit --data flag still
-	// takes precedence.
-	dataDir := profile.Data
-	if dataDir == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get working directory: %w", err)
-		}
-		dataDir = cwd
-	} else if !filepath.IsAbs(dataDir) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get working directory: %w", err)
-		}
-		dataDir = filepath.Join(cwd, dataDir)
-	}
-
-	if _, err := os.Stat(dataDir); err != nil {
-		return nil, fmt.Errorf("unable to access data folder %s: %w", dataDir, err)
-	}
-
-	profile.Data = dataDir
 	profile.DSN = fmt.Sprintf("%s/memos_%s.db", dataDir, profile.Mode)
 
 	return &profile, nil

@@ -155,7 +155,11 @@ func initConfig() {
 	println("---")
 	println("Server profile")
 	println("driver:", profile.Driver)
-	println("dsn:", profile.DSN)
+	if profile.Driver == "sqlite3" {
+		println("dsn:", profile.DSN)
+	} else {
+		println("dsn:", "[redacted]")
+	}
 	println("port:", profile.Port)
 	println("mode:", profile.Mode)
 	println("version:", profile.Version)
