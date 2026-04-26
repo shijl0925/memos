@@ -4,9 +4,7 @@ const csrfCookieName = "_csrf";
 const csrfHeaderName = "X-CSRF-Token";
 
 const getCookieValue = (name: string) => {
-  const cookie = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith(`${encodeURIComponent(name)}=`));
+  const cookie = document.cookie.split("; ").find((row) => row.startsWith(`${encodeURIComponent(name)}=`));
   return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
 };
 
@@ -34,12 +32,7 @@ axios.interceptors.response.use(
   (response) => {
     const url = response.config.url ?? "";
     // Only process relative URLs that target our own backend
-    if (
-      url.startsWith("/api") &&
-      response.data !== null &&
-      typeof response.data === "object" &&
-      "data" in response.data
-    ) {
+    if (url.startsWith("/api") && response.data !== null && typeof response.data === "object" && "data" in response.data) {
       response.data = (response.data as { data: unknown }).data;
     }
     return response;
@@ -298,6 +291,7 @@ export function deleteMemoResource(memoId: MemoId, resourceId: ResourceId) {
 }
 
 export function getTagList(tagFind?: TagFind) {
+  void tagFind;
   // The v0.12.2 backend tag endpoint uses the authenticated user from the JWT;
   // it does not accept a creatorId/creatorUsername query parameter.  In visitor
   // mode this means we will show the logged-in user's tags instead of the
