@@ -117,3 +117,29 @@ func TestSignUp_PasswordTooShort(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, common.Invalid, common.ErrorCode(err))
 }
+
+func TestSignUp_DuplicateUsername(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(ctx, t)
+
+	_, err := svc.SignUp(ctx, &api.SignUp{
+		Username: "firstuser",
+		Password: "password123",
+	}, "127.0.0.1")
+	require.NoError(t, err)
+
+	// Enable sign-up so the second attempt is not blocked by the policy check.
+	_, err = svc.Store.UpsertSystemSetting(ctx, &api.SystemSettingUpsert{
+		Name:  api.SystemSettingAllowSignUpName,
+		Value: "true",
+	})
+	require.NoError(t, err)
+
+	// Attempt to sign up again with the same username should return Conflict, not Internal.
+	_, err = svc.SignUp(ctx, &api.SignUp{
+		Username: "firstuser",
+		Password: "password456",
+	}, "127.0.0.1")
+	require.Error(t, err)
+	require.Equal(t, common.Conflict, common.ErrorCode(err))
+}
