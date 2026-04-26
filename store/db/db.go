@@ -57,6 +57,19 @@ func (db *DB) Open(ctx context.Context) (err error) {
 }
 
 func (db *DB) openSQLite(ctx context.Context) error {
+	// Demo mode must always start with fresh seed data.  Any stale DB file
+	// (e.g. left from a previous demo run) would cause the HOST user to be
+	// missing or corrupted, which manifests as:
+	//   - /auth showing only the Sign-Up button (no Sign-In)
+	//   - sign-up as "demohero" returning 409 Conflict
+	// Deleting the files before sql.Open ensures that the lazy-creation of
+	// the SQLite file triggers a full schema + seed bootstrap below.
+	if db.profile.Mode == "demo" {
+		_ = os.Remove(db.profile.DSN)
+		_ = os.Remove(db.profile.DSN + "-wal")
+		_ = os.Remove(db.profile.DSN + "-shm")
+	}
+
 	sqliteDB, err := sql.Open("sqlite3", db.profile.DSN+"?cache=shared&_foreign_keys=0&_journal_mode=WAL")
 	if err != nil {
 		return fmt.Errorf("failed to open db with dsn: %s, err: %w", db.profile.DSN, err)
