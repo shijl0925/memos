@@ -74,6 +74,7 @@ func TestGinUseCSRFSetsCookieAndProtectsUnsafeRequests(t *testing.T) {
 
 	protectedRequest := httptest.NewRequest(http.MethodPost, "/submit", nil)
 	protectedRequest.AddCookie(cookies[0])
+	protectedRequest.Header.Set(csrfHeaderName, cookies[0].Value)
 	protectedRecorder := httptest.NewRecorder()
 	app.app.ServeHTTP(protectedRecorder, protectedRequest)
 	require.Equal(t, http.StatusOK, protectedRecorder.Code)

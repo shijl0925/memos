@@ -18,6 +18,7 @@ import (
 )
 
 const ginSessionStoreContextKey = "session-store"
+const csrfHeaderName = "X-CSRF-Token"
 
 func newGinApp() App {
 	gin.SetMode(gin.ReleaseMode)
@@ -91,8 +92,8 @@ func (a *ginApp) UseCSRF(tokenLookup string, skipper func(Context) bool) {
 		}
 
 		if !isSafeHTTPMethod(c.Request.Method) {
-			requestToken, err := c.Cookie(cookieName)
-			if err != nil || requestToken == "" || requestToken != token {
+			requestToken := c.GetHeader(csrfHeaderName)
+			if requestToken == "" || requestToken != token {
 				writeGinError(c, forbiddenError("Invalid CSRF token"))
 				c.Abort()
 				return
@@ -461,7 +462,6 @@ func ensureCSRFCookie(c *gin.Context, cookieName string) (string, error) {
 		Name:     cookieName,
 		Value:    token,
 		Path:     "/",
-		HttpOnly: true,
 		Secure:   requestScheme(c.Request) == "https",
 		SameSite: http.SameSiteStrictMode,
 	})

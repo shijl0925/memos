@@ -23,14 +23,30 @@ func DefaultAPIRequestSkipper(c Context) bool {
 	return common.HasPrefixes(c.Path(), "/api")
 }
 
+func isOpenIDMemoCreateRequest(c Context) bool {
+	return c.Request().Method == http.MethodPost && c.Path() == "/api/memo" && c.QueryParam("openId") != ""
+}
+
 func (server *Server) DefaultAuthSkipper(c Context) bool {
-	ctx := c.Request().Context()
 	path := c.Path()
 
 	if common.HasPrefixes(path, "/api/auth") {
 		return true
 	}
 
+	if isOpenIDMemoCreateRequest(c) {
+		return server.authenticateOpenID(c)
+	}
+
+	return false
+}
+
+func (server *Server) DefaultCSRFSkipper(c Context) bool {
+	return server.DefaultAuthSkipper(c)
+}
+
+func (server *Server) authenticateOpenID(c Context) bool {
+	ctx := c.Request().Context()
 	openID := c.QueryParam("openId")
 	if openID != "" {
 		user, err := server.Store.FindUser(ctx, &api.UserFind{OpenID: &openID})
