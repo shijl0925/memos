@@ -291,6 +291,7 @@ export function deleteMemoResource(memoId: MemoId, resourceId: ResourceId) {
 }
 
 export function getTagList(tagFind?: TagFind) {
+  // Kept for compatibility with callers that still pass v0.14 tag filters; this backend endpoint ignores them.
   void tagFind;
   // The v0.12.2 backend tag endpoint uses the authenticated user from the JWT;
   // it does not accept a creatorId/creatorUsername query parameter.  In visitor

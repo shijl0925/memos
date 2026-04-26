@@ -220,7 +220,7 @@ func replacePathTemplate(template, filename string) string {
 
 func sanitizeUploadFilename(filename string) (string, error) {
 	filename = path.Base(strings.ReplaceAll(filename, "\\", "/"))
-	if filename == "" || filename == "." || filename == ".." || strings.ContainsAny(filename, `/\`) {
+	if filename == "" || filename == "." || filename == ".." {
 		return "", fmt.Errorf("invalid filename")
 	}
 	return filename, nil
