@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/viper"
 	"github.com/usememos/memos/server/version"
@@ -30,31 +29,10 @@ func (p *Profile) IsDev() bool {
 	return p.Mode != "prod"
 }
 
-func checkDSN(dataDir string) (string, error) {
-	// Convert to absolute path if relative path is supplied.
-	if !filepath.IsAbs(dataDir) {
-		absDir, err := filepath.Abs(filepath.Dir(os.Args[0]) + "/" + dataDir)
-		if err != nil {
-			return "", err
-		}
-		dataDir = absDir
-	}
-
-	// Trim trailing / in case user supplies
-	dataDir = strings.TrimRight(dataDir, "/")
-
-	if _, err := os.Stat(dataDir); err != nil {
-		return "", fmt.Errorf("unable to access data folder %s, err %w", dataDir, err)
-	}
-
-	return dataDir, nil
-}
-
 // GetProfile will return a profile for dev or prod.
 func GetProfile() (*Profile, error) {
 	profile := Profile{}
-	err := viper.Unmarshal(&profile)
-	if err != nil {
+	if err := viper.Unmarshal(&profile); err != nil {
 		return nil, err
 	}
 
@@ -75,14 +53,27 @@ func GetProfile() (*Profile, error) {
 		return &profile, nil
 	}
 
-	if profile.Mode == "prod" && profile.Data == "" {
-		profile.Data = "/var/opt/memos"
+	// For SQLite, resolve the data directory relative to the current working
+	// directory (project root) so the DB file is always predictably located
+	// next to the project sources / binary.  An explicit --data flag still
+	// takes precedence.
+	dataDir := profile.Data
+	if dataDir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get working directory: %w", err)
+		}
+		dataDir = cwd
+	} else if !filepath.IsAbs(dataDir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get working directory: %w", err)
+		}
+		dataDir = filepath.Join(cwd, dataDir)
 	}
 
-	dataDir, err := checkDSN(profile.Data)
-	if err != nil {
-		fmt.Printf("Failed to check dsn: %s, err: %+v\n", dataDir, err)
-		return nil, err
+	if _, err := os.Stat(dataDir); err != nil {
+		return nil, fmt.Errorf("unable to access data folder %s: %w", dataDir, err)
 	}
 
 	profile.Data = dataDir
