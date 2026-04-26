@@ -282,4 +282,3 @@ func (s *Server) registerMemoRoutes(g Group) {
 		return c.JSON(http.StatusOK, true)
 	})
 }
-

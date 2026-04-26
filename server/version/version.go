@@ -15,7 +15,7 @@ var Version = "0.14.4"
 var DevVersion = "0.14.4"
 
 func GetCurrentVersion(mode string) string {
-	if mode == "dev" || mode == "demo" {
+	if mode == "dev" {
 		return DevVersion
 	}
 	return Version

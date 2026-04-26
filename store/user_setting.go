@@ -29,7 +29,7 @@ func (s *Store) UpsertUserSetting(ctx context.Context, upsert *api.UserSettingUp
 	}
 	defer tx.Rollback()
 
-	userSettingRaw, err := upsertUserSetting(ctx, tx, upsert)
+	userSettingRaw, err := upsertUserSetting(ctx, tx, s.driver, upsert)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (s *Store) FindUserSettingList(ctx context.Context, find *api.UserSettingFi
 	}
 	defer tx.Rollback()
 
-	userSettingRawList, err := findUserSettingList(ctx, tx, find)
+	userSettingRawList, err := findUserSettingList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (s *Store) FindUserSetting(ctx context.Context, find *api.UserSettingFind) 
 	}
 	defer tx.Rollback()
 
-	list, err := findUserSettingList(ctx, tx, find)
+	list, err := findUserSettingList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -94,17 +94,20 @@ func (s *Store) FindUserSetting(ctx context.Context, find *api.UserSettingFind) 
 	return userSettingRaw.toUserSetting(), nil
 }
 
-func upsertUserSetting(ctx context.Context, tx *sql.Tx, upsert *api.UserSettingUpsert) (*userSettingRaw, error) {
-	query := `
-		INSERT INTO user_setting (
-			user_id, key, value
-		)
-		VALUES (?, ?, ?)
-		ON CONFLICT(user_id, key) DO UPDATE 
-		SET
-			value = EXCLUDED.value
-		RETURNING user_id, key, value
-	`
+func upsertUserSetting(ctx context.Context, tx *sql.Tx, driver string, upsert *api.UserSettingUpsert) (*userSettingRaw, error) {
+	keyCol := quotedKeyCol(driver)
+	if driver == "mysql" {
+		_, err := tx.ExecContext(ctx, `INSERT INTO user_setting (user_id, `+keyCol+`, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)`, upsert.UserID, upsert.Key, upsert.Value)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findUserSettingList(ctx, tx, driver, &api.UserSettingFind{UserID: upsert.UserID, Key: upsert.Key})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+	query := formatQuery(driver, `INSERT INTO user_setting (user_id, `+keyCol+`, value) VALUES (?, ?, ?) ON CONFLICT(user_id, `+keyCol+`) DO UPDATE SET value=EXCLUDED.value RETURNING user_id, `+keyCol+`, value`)
 	var userSettingRaw userSettingRaw
 	if err := tx.QueryRowContext(ctx, query, upsert.UserID, upsert.Key, upsert.Value).Scan(
 		&userSettingRaw.UserID,
@@ -117,22 +120,17 @@ func upsertUserSetting(ctx context.Context, tx *sql.Tx, upsert *api.UserSettingU
 	return &userSettingRaw, nil
 }
 
-func findUserSettingList(ctx context.Context, tx *sql.Tx, find *api.UserSettingFind) ([]*userSettingRaw, error) {
+func findUserSettingList(ctx context.Context, tx *sql.Tx, driver string, find *api.UserSettingFind) ([]*userSettingRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
+	keyCol := quotedKeyCol(driver)
 
 	if v := find.Key.String(); v != "" {
-		where, args = append(where, "key = ?"), append(args, v)
+		where, args = append(where, keyCol+" = ?"), append(args, v)
 	}
 
 	where, args = append(where, "user_id = ?"), append(args, find.UserID)
 
-	query := `
-		SELECT
-			user_id,
-		  key,
-			value
-		FROM user_setting
-		WHERE ` + strings.Join(where, " AND ")
+	query := formatQuery(driver, `SELECT user_id, `+keyCol+`, value FROM user_setting WHERE `+strings.Join(where, " AND "))
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
@@ -160,17 +158,8 @@ func findUserSettingList(ctx context.Context, tx *sql.Tx, find *api.UserSettingF
 	return userSettingRawList, nil
 }
 
-func vacuumUserSetting(ctx context.Context, tx *sql.Tx) error {
-	stmt := `
-	DELETE FROM 
-		user_setting 
-	WHERE 
-		user_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				user
-		)`
+func vacuumUserSetting(ctx context.Context, tx *sql.Tx, driver string) error {
+	stmt := `DELETE FROM user_setting WHERE user_id NOT IN (SELECT id FROM ` + userTableName(driver) + `)`
 	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return FormatError(err)

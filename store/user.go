@@ -64,6 +64,7 @@ func (s *Store) composeMemoCreator(ctx context.Context, memo *api.Memo) error {
 	memo.CreatorUsername = user.Username
 	return nil
 }
+
 func (s *Store) CreateUser(ctx context.Context, create *api.UserCreate) (*api.User, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -71,7 +72,7 @@ func (s *Store) CreateUser(ctx context.Context, create *api.UserCreate) (*api.Us
 	}
 	defer tx.Rollback()
 
-	userRaw, err := createUser(ctx, tx, create)
+	userRaw, err := createUser(ctx, tx, s.driver, create)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (s *Store) PatchUser(ctx context.Context, patch *api.UserPatch) (*api.User,
 	}
 	defer tx.Rollback()
 
-	userRaw, err := patchUser(ctx, tx, patch)
+	userRaw, err := patchUser(ctx, tx, s.driver, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +114,7 @@ func (s *Store) FindUserList(ctx context.Context, find *api.UserFind) ([]*api.Us
 	}
 	defer tx.Rollback()
 
-	userRawList, err := findUserList(ctx, tx, find)
+	userRawList, err := findUserList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +140,7 @@ func (s *Store) FindUser(ctx context.Context, find *api.UserFind) (*api.User, er
 	}
 	defer tx.Rollback()
 
-	list, err := findUserList(ctx, tx, find)
+	list, err := findUserList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -161,10 +162,10 @@ func (s *Store) DeleteUser(ctx context.Context, delete *api.UserDelete) error {
 	}
 	defer tx.Rollback()
 
-	if err := deleteUser(ctx, tx, delete); err != nil {
+	if err := deleteUser(ctx, tx, s.driver, delete); err != nil {
 		return err
 	}
-	if err := vacuum(ctx, tx); err != nil {
+	if err := vacuum(ctx, tx, s.driver); err != nil {
 		return err
 	}
 
@@ -176,39 +177,34 @@ func (s *Store) DeleteUser(ctx context.Context, delete *api.UserDelete) error {
 	return nil
 }
 
-func createUser(ctx context.Context, tx *sql.Tx, create *api.UserCreate) (*userRaw, error) {
-	query := `
-		INSERT INTO user (
-			username,
-			role,
-			email,
-			nickname,
-			password_hash,
-			open_id
-		)
-		VALUES (?, ?, ?, ?, ?, ?)
-		RETURNING id, username, role, email, nickname, password_hash, open_id, avatar_url, created_ts, updated_ts, row_status
-	`
+func createUser(ctx context.Context, tx *sql.Tx, driver string, create *api.UserCreate) (*userRaw, error) {
+	tbl := userTableName(driver)
+	if driver == "mysql" {
+		result, err := tx.ExecContext(ctx, `INSERT INTO `+tbl+` (username, role, email, nickname, password_hash, open_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			create.Username, create.Role, create.Email, create.Nickname, create.PasswordHash, create.OpenID)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		idInt := int(id)
+		list, err := findUserList(ctx, tx, driver, &api.UserFind{ID: &idInt})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `INSERT INTO `+tbl+` (username, role, email, nickname, password_hash, open_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING id, username, role, email, nickname, password_hash, open_id, avatar_url, created_ts, updated_ts, row_status`)
 	var userRaw userRaw
 	if err := tx.QueryRowContext(ctx, query,
-		create.Username,
-		create.Role,
-		create.Email,
-		create.Nickname,
-		create.PasswordHash,
-		create.OpenID,
+		create.Username, create.Role, create.Email, create.Nickname, create.PasswordHash, create.OpenID,
 	).Scan(
-		&userRaw.ID,
-		&userRaw.Username,
-		&userRaw.Role,
-		&userRaw.Email,
-		&userRaw.Nickname,
-		&userRaw.PasswordHash,
-		&userRaw.OpenID,
-		&userRaw.AvatarURL,
-		&userRaw.CreatedTs,
-		&userRaw.UpdatedTs,
-		&userRaw.RowStatus,
+		&userRaw.ID, &userRaw.Username, &userRaw.Role, &userRaw.Email, &userRaw.Nickname,
+		&userRaw.PasswordHash, &userRaw.OpenID, &userRaw.AvatarURL,
+		&userRaw.CreatedTs, &userRaw.UpdatedTs, &userRaw.RowStatus,
 	); err != nil {
 		return nil, FormatError(err)
 	}
@@ -216,7 +212,7 @@ func createUser(ctx context.Context, tx *sql.Tx, create *api.UserCreate) (*userR
 	return &userRaw, nil
 }
 
-func patchUser(ctx context.Context, tx *sql.Tx, patch *api.UserPatch) (*userRaw, error) {
+func patchUser(ctx context.Context, tx *sql.Tx, driver string, patch *api.UserPatch) (*userRaw, error) {
 	set, args := []string{}, []any{}
 
 	if v := patch.UpdatedTs; v != nil {
@@ -245,26 +241,25 @@ func patchUser(ctx context.Context, tx *sql.Tx, patch *api.UserPatch) (*userRaw,
 	}
 
 	args = append(args, patch.ID)
+	tbl := userTableName(driver)
 
-	query := `
-		UPDATE user
-		SET ` + strings.Join(set, ", ") + `
-		WHERE id = ?
-		RETURNING id, username, role, email, nickname, password_hash, open_id, avatar_url, created_ts, updated_ts, row_status
-	`
+	if driver == "mysql" {
+		if _, err := tx.ExecContext(ctx, `UPDATE `+tbl+` SET `+strings.Join(set, ", ")+` WHERE id = ?`, args...); err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findUserList(ctx, tx, driver, &api.UserFind{ID: &patch.ID})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+
+	query := formatQuery(driver, `UPDATE `+tbl+` SET `+strings.Join(set, ", ")+` WHERE id = ? RETURNING id, username, role, email, nickname, password_hash, open_id, avatar_url, created_ts, updated_ts, row_status`)
 	var userRaw userRaw
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(
-		&userRaw.ID,
-		&userRaw.Username,
-		&userRaw.Role,
-		&userRaw.Email,
-		&userRaw.Nickname,
-		&userRaw.PasswordHash,
-		&userRaw.OpenID,
-		&userRaw.AvatarURL,
-		&userRaw.CreatedTs,
-		&userRaw.UpdatedTs,
-		&userRaw.RowStatus,
+		&userRaw.ID, &userRaw.Username, &userRaw.Role, &userRaw.Email, &userRaw.Nickname,
+		&userRaw.PasswordHash, &userRaw.OpenID, &userRaw.AvatarURL,
+		&userRaw.CreatedTs, &userRaw.UpdatedTs, &userRaw.RowStatus,
 	); err != nil {
 		return nil, FormatError(err)
 	}
@@ -272,7 +267,7 @@ func patchUser(ctx context.Context, tx *sql.Tx, patch *api.UserPatch) (*userRaw,
 	return &userRaw, nil
 }
 
-func findUserList(ctx context.Context, tx *sql.Tx, find *api.UserFind) ([]*userRaw, error) {
+func findUserList(ctx context.Context, tx *sql.Tx, driver string, find *api.UserFind) ([]*userRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.ID; v != nil {
@@ -294,23 +289,8 @@ func findUserList(ctx context.Context, tx *sql.Tx, find *api.UserFind) ([]*userR
 		where, args = append(where, "open_id = ?"), append(args, *v)
 	}
 
-	query := `
-		SELECT 
-			id,
-			username,
-			role,
-			email,
-			nickname,
-			password_hash,
-			open_id,
-			avatar_url,
-			created_ts,
-			updated_ts,
-			row_status
-		FROM user
-		WHERE ` + strings.Join(where, " AND ") + `
-		ORDER BY created_ts DESC, row_status DESC
-	`
+	tbl := userTableName(driver)
+	query := formatQuery(driver, `SELECT id, username, role, email, nickname, password_hash, open_id, avatar_url, created_ts, updated_ts, row_status FROM `+tbl+` WHERE `+strings.Join(where, " AND ")+` ORDER BY created_ts DESC, row_status DESC`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
@@ -321,17 +301,9 @@ func findUserList(ctx context.Context, tx *sql.Tx, find *api.UserFind) ([]*userR
 	for rows.Next() {
 		var userRaw userRaw
 		if err := rows.Scan(
-			&userRaw.ID,
-			&userRaw.Username,
-			&userRaw.Role,
-			&userRaw.Email,
-			&userRaw.Nickname,
-			&userRaw.PasswordHash,
-			&userRaw.OpenID,
-			&userRaw.AvatarURL,
-			&userRaw.CreatedTs,
-			&userRaw.UpdatedTs,
-			&userRaw.RowStatus,
+			&userRaw.ID, &userRaw.Username, &userRaw.Role, &userRaw.Email, &userRaw.Nickname,
+			&userRaw.PasswordHash, &userRaw.OpenID, &userRaw.AvatarURL,
+			&userRaw.CreatedTs, &userRaw.UpdatedTs, &userRaw.RowStatus,
 		); err != nil {
 			return nil, FormatError(err)
 		}
@@ -345,7 +317,7 @@ func findUserList(ctx context.Context, tx *sql.Tx, find *api.UserFind) ([]*userR
 	return userRawList, nil
 }
 
-func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, idList []int) (map[int]*userRaw, error) {
+func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, driver string, idList []int) (map[int]*userRaw, error) {
 	userMap := make(map[int]*userRaw, len(idList))
 	if len(idList) == 0 {
 		return userMap, nil
@@ -358,22 +330,8 @@ func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, idList []int) (map[
 		args = append(args, id)
 	}
 
-	query := `
-		SELECT
-			id,
-			username,
-			role,
-			email,
-			nickname,
-			password_hash,
-			open_id,
-			avatar_url,
-			created_ts,
-			updated_ts,
-			row_status
-		FROM user
-		WHERE id IN (` + strings.Join(wherePlaceholder, ", ") + `)
-	`
+	tbl := userTableName(driver)
+	query := formatQuery(driver, `SELECT id, username, role, email, nickname, password_hash, open_id, avatar_url, created_ts, updated_ts, row_status FROM `+tbl+` WHERE id IN (`+strings.Join(wherePlaceholder, ", ")+`)`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
@@ -383,17 +341,9 @@ func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, idList []int) (map[
 	for rows.Next() {
 		var userRaw userRaw
 		if err := rows.Scan(
-			&userRaw.ID,
-			&userRaw.Username,
-			&userRaw.Role,
-			&userRaw.Email,
-			&userRaw.Nickname,
-			&userRaw.PasswordHash,
-			&userRaw.OpenID,
-			&userRaw.AvatarURL,
-			&userRaw.CreatedTs,
-			&userRaw.UpdatedTs,
-			&userRaw.RowStatus,
+			&userRaw.ID, &userRaw.Username, &userRaw.Role, &userRaw.Email, &userRaw.Nickname,
+			&userRaw.PasswordHash, &userRaw.OpenID, &userRaw.AvatarURL,
+			&userRaw.CreatedTs, &userRaw.UpdatedTs, &userRaw.RowStatus,
 		); err != nil {
 			return nil, FormatError(err)
 		}
@@ -407,10 +357,9 @@ func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, idList []int) (map[
 	return userMap, nil
 }
 
-func deleteUser(ctx context.Context, tx *sql.Tx, delete *api.UserDelete) error {
-	result, err := tx.ExecContext(ctx, `
-		DELETE FROM user WHERE id = ?
-	`, delete.ID)
+func deleteUser(ctx context.Context, tx *sql.Tx, driver string, delete *api.UserDelete) error {
+	tbl := userTableName(driver)
+	result, err := tx.ExecContext(ctx, `DELETE FROM `+tbl+` WHERE id = ?`, delete.ID)
 	if err != nil {
 		return FormatError(err)
 	}

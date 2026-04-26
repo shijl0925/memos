@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/viper"
 	"github.com/usememos/memos/server/version"
@@ -12,7 +11,7 @@ import (
 
 // Profile is the configuration to start main server.
 type Profile struct {
-	// Mode can be "prod" or "dev" or "demo"
+	// Mode can be "prod" or "dev"
 	Mode string `json:"mode"`
 	// Port is the binding port for server
 	Port int `json:"-"`
@@ -20,6 +19,8 @@ type Profile struct {
 	Data string `json:"-"`
 	// DSN points to where Memos stores its own data
 	DSN string `json:"-"`
+	// Driver is the database driver: sqlite3, mysql, or postgres
+	Driver string `json:"-"`
 	// Version is the current version of server
 	Version string `json:"version"`
 }
@@ -28,21 +29,36 @@ func (p *Profile) IsDev() bool {
 	return p.Mode != "prod"
 }
 
-func checkDSN(dataDir string) (string, error) {
-	// Convert to absolute path if relative path is supplied.
-	if !filepath.IsAbs(dataDir) {
-		absDir, err := filepath.Abs(filepath.Dir(os.Args[0]) + "/" + dataDir)
+func defaultDataDir(mode string) (string, error) {
+	if mode == "prod" {
+		return "/var/opt/memos", nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+	return cwd, nil
+}
+
+func resolveDataDir(mode, dataDir string) (string, error) {
+	if dataDir == "" {
+		var err error
+		dataDir, err = defaultDataDir(mode)
 		if err != nil {
 			return "", err
 		}
-		dataDir = absDir
+	} else if !filepath.IsAbs(dataDir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get working directory: %w", err)
+		}
+		dataDir = filepath.Join(cwd, dataDir)
 	}
 
-	// Trim trailing / in case user supplies
-	dataDir = strings.TrimRight(dataDir, "/")
-
+	dataDir = filepath.Clean(dataDir)
 	if _, err := os.Stat(dataDir); err != nil {
-		return "", fmt.Errorf("unable to access data folder %s, err %w", dataDir, err)
+		return "", fmt.Errorf("unable to access data folder %s: %w", dataDir, err)
 	}
 
 	return dataDir, nil
@@ -51,28 +67,34 @@ func checkDSN(dataDir string) (string, error) {
 // GetProfile will return a profile for dev or prod.
 func GetProfile() (*Profile, error) {
 	profile := Profile{}
-	err := viper.Unmarshal(&profile)
-	if err != nil {
+	if err := viper.Unmarshal(&profile); err != nil {
 		return nil, err
 	}
 
-	if profile.Mode != "demo" && profile.Mode != "dev" && profile.Mode != "prod" {
-		profile.Mode = "demo"
+	if profile.Mode != "dev" && profile.Mode != "prod" {
+		profile.Mode = "dev"
 	}
 
-	if profile.Mode == "prod" && profile.Data == "" {
-		profile.Data = "/var/opt/memos"
+	driver := viper.GetString("driver")
+	if driver == "" {
+		driver = "sqlite3"
 	}
+	profile.Driver = driver
 
-	dataDir, err := checkDSN(profile.Data)
-	if err != nil {
-		fmt.Printf("Failed to check dsn: %s, err: %+v\n", dataDir, err)
-		return nil, err
-	}
-
-	profile.Data = dataDir
-	profile.DSN = fmt.Sprintf("%s/memos_%s.db", dataDir, profile.Mode)
 	profile.Version = version.GetCurrentVersion(profile.Mode)
+
+	dataDir, err := resolveDataDir(profile.Mode, profile.Data)
+	if err != nil {
+		return nil, err
+	}
+	profile.Data = dataDir
+
+	if driver != "sqlite3" {
+		profile.DSN = viper.GetString("dsn")
+		return &profile, nil
+	}
+
+	profile.DSN = fmt.Sprintf("%s/memos_%s.db", dataDir, profile.Mode)
 
 	return &profile, nil
 }

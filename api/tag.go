@@ -12,6 +12,7 @@ type TagUpsert struct {
 
 type TagFind struct {
 	CreatorID int
+	Name      *string
 }
 
 type TagDelete struct {

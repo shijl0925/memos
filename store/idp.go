@@ -76,27 +76,31 @@ func (s *Store) CreateIdentityProvider(ctx context.Context, create *IdentityProv
 	} else {
 		return nil, fmt.Errorf("unsupported idp type %s", string(create.Type))
 	}
-	query := `
-		INSERT INTO idp (
-			name,
-			type,
-			identifier_filter,
-			config
-		)
-		VALUES (?, ?, ?, ?)
-		RETURNING id
-	`
-	if err := tx.QueryRowContext(
-		ctx,
-		query,
-		create.Name,
-		create.Type,
-		create.IdentifierFilter,
-		string(configBytes),
-	).Scan(
-		&create.ID,
-	); err != nil {
-		return nil, FormatError(err)
+	if s.driver == "mysql" {
+		result, err := tx.ExecContext(ctx, `INSERT INTO idp (name, type, identifier_filter, config) VALUES (?, ?, ?, ?)`,
+			create.Name, create.Type, create.IdentifierFilter, string(configBytes))
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		create.ID = int(id)
+	} else {
+		query := formatQuery(s.driver, `
+			INSERT INTO idp (
+				name,
+				type,
+				identifier_filter,
+				config
+			)
+			VALUES (?, ?, ?, ?)
+			RETURNING id
+		`)
+		if err := tx.QueryRowContext(ctx, query, create.Name, create.Type, create.IdentifierFilter, string(configBytes)).Scan(&create.ID); err != nil {
+			return nil, FormatError(err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, FormatError(err)
@@ -113,7 +117,7 @@ func (s *Store) ListIdentityProviders(ctx context.Context, find *FindIdentityPro
 	}
 	defer tx.Rollback()
 
-	list, err := listIdentityProviders(ctx, tx, find)
+	list, err := listIdentityProviders(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +141,7 @@ func (s *Store) GetIdentityProvider(ctx context.Context, find *FindIdentityProvi
 	}
 	defer tx.Rollback()
 
-	list, err := listIdentityProviders(ctx, tx, find)
+	list, err := listIdentityProviders(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -178,22 +182,33 @@ func (s *Store) UpdateIdentityProvider(ctx context.Context, update *UpdateIdenti
 	}
 	args = append(args, update.ID)
 
-	query := `
-		UPDATE idp
-		SET ` + strings.Join(set, ", ") + `
-		WHERE id = ?
-		RETURNING id, name, type, identifier_filter, config
-	`
 	var identityProviderMessage IdentityProviderMessage
 	var identityProviderConfig string
-	if err := tx.QueryRowContext(ctx, query, args...).Scan(
-		&identityProviderMessage.ID,
-		&identityProviderMessage.Name,
-		&identityProviderMessage.Type,
-		&identityProviderMessage.IdentifierFilter,
-		&identityProviderConfig,
-	); err != nil {
-		return nil, FormatError(err)
+	if s.driver == "mysql" {
+		stmt := `UPDATE idp SET ` + strings.Join(set, ", ") + ` WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, FormatError(err)
+		}
+		row := tx.QueryRowContext(ctx, `SELECT id, name, type, identifier_filter, config FROM idp WHERE id = ?`, update.ID)
+		if err := row.Scan(&identityProviderMessage.ID, &identityProviderMessage.Name, &identityProviderMessage.Type, &identityProviderMessage.IdentifierFilter, &identityProviderConfig); err != nil {
+			return nil, FormatError(err)
+		}
+	} else {
+		query := formatQuery(s.driver, `
+			UPDATE idp
+			SET `+strings.Join(set, ", ")+`
+			WHERE id = ?
+			RETURNING id, name, type, identifier_filter, config
+		`)
+		if err := tx.QueryRowContext(ctx, query, args...).Scan(
+			&identityProviderMessage.ID,
+			&identityProviderMessage.Name,
+			&identityProviderMessage.Type,
+			&identityProviderMessage.IdentifierFilter,
+			&identityProviderConfig,
+		); err != nil {
+			return nil, FormatError(err)
+		}
 	}
 	if identityProviderMessage.Type == IdentityProviderOAuth2 {
 		oauth2Config := &IdentityProviderOAuth2Config{}
@@ -241,13 +256,13 @@ func (s *Store) DeleteIdentityProvider(ctx context.Context, delete *DeleteIdenti
 	return nil
 }
 
-func listIdentityProviders(ctx context.Context, tx *sql.Tx, find *FindIdentityProviderMessage) ([]*IdentityProviderMessage, error) {
+func listIdentityProviders(ctx context.Context, tx *sql.Tx, driver string, find *FindIdentityProviderMessage) ([]*IdentityProviderMessage, error) {
 	where, args := []string{"TRUE"}, []any{}
 	if v := find.ID; v != nil {
-		where, args = append(where, fmt.Sprintf("id = $%d", len(args)+1)), append(args, *v)
+		where, args = append(where, "id = ?"), append(args, *v)
 	}
 
-	rows, err := tx.QueryContext(ctx, `
+	query := formatQuery(driver, `
 		SELECT
 			id,
 			name,
@@ -255,9 +270,8 @@ func listIdentityProviders(ctx context.Context, tx *sql.Tx, find *FindIdentityPr
 			identifier_filter,
 			config
 		FROM idp
-		WHERE `+strings.Join(where, " AND ")+` ORDER BY id ASC`,
-		args...,
-	)
+		WHERE `+strings.Join(where, " AND ")+` ORDER BY id ASC`)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
 	}

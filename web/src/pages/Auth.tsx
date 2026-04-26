@@ -16,7 +16,6 @@ const Auth = () => {
   const userStore = useUserStore();
   const actionBtnLoadingState = useLoading(false);
   const { appearance, locale, systemStatus } = globalStore.state;
-  const mode = systemStatus.profile.mode;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const disablePasswordLogin = systemStatus.disablePasswordLogin;
@@ -29,13 +28,6 @@ const Auth = () => {
     };
     fetchIdentityProviderList();
   }, []);
-
-  useEffect(() => {
-    if (mode === "demo") {
-      setUsername("demohero");
-      setPassword("secret");
-    }
-  }, [mode]);
 
   const handleUsernameInputChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value as string;

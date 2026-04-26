@@ -29,7 +29,7 @@ func (s *Store) UpsertTag(ctx context.Context, upsert *api.TagUpsert) (*api.Tag,
 	}
 	defer tx.Rollback()
 
-	tagRaw, err := upsertTag(ctx, tx, upsert)
+	tagRaw, err := upsertTag(ctx, tx, s.driver, upsert)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (s *Store) FindTagList(ctx context.Context, find *api.TagFind) ([]*api.Tag,
 	}
 	defer tx.Rollback()
 
-	tagRawList, err := findTagList(ctx, tx, find)
+	tagRawList, err := findTagList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -81,17 +81,22 @@ func (s *Store) DeleteTag(ctx context.Context, delete *api.TagDelete) error {
 	return nil
 }
 
-func upsertTag(ctx context.Context, tx *sql.Tx, upsert *api.TagUpsert) (*tagRaw, error) {
-	query := `
-		INSERT INTO tag (
-			name, creator_id
-		)
-		VALUES (?, ?)
-		ON CONFLICT(name, creator_id) DO UPDATE 
-		SET
-			name = EXCLUDED.name
-		RETURNING name, creator_id
-	`
+func upsertTag(ctx context.Context, tx *sql.Tx, driver string, upsert *api.TagUpsert) (*tagRaw, error) {
+	if driver == "mysql" {
+		_, err := tx.ExecContext(ctx, `INSERT INTO tag (name, creator_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)`, upsert.Name, upsert.CreatorID)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findTagList(ctx, tx, driver, &api.TagFind{CreatorID: upsert.CreatorID, Name: &upsert.Name})
+		if err != nil {
+			return nil, err
+		}
+		if len(list) == 0 {
+			return nil, fmt.Errorf("tag not found after upsert")
+		}
+		return list[0], nil
+	}
+	query := formatQuery(driver, `INSERT INTO tag (name, creator_id) VALUES (?, ?) ON CONFLICT(name, creator_id) DO UPDATE SET name=EXCLUDED.name RETURNING name, creator_id`)
 	var tagRaw tagRaw
 	if err := tx.QueryRowContext(ctx, query, upsert.Name, upsert.CreatorID).Scan(
 		&tagRaw.Name,
@@ -103,17 +108,14 @@ func upsertTag(ctx context.Context, tx *sql.Tx, upsert *api.TagUpsert) (*tagRaw,
 	return &tagRaw, nil
 }
 
-func findTagList(ctx context.Context, tx *sql.Tx, find *api.TagFind) ([]*tagRaw, error) {
+func findTagList(ctx context.Context, tx *sql.Tx, driver string, find *api.TagFind) ([]*tagRaw, error) {
 	where, args := []string{"creator_id = ?"}, []any{find.CreatorID}
 
-	query := `
-		SELECT
-			name,
-			creator_id
-		FROM tag
-		WHERE ` + strings.Join(where, " AND ") + `
-		ORDER BY name ASC
-	`
+	if v := find.Name; v != nil {
+		where, args = append(where, "name = ?"), append(args, *v)
+	}
+
+	query := formatQuery(driver, `SELECT name, creator_id FROM tag WHERE `+strings.Join(where, " AND ")+` ORDER BY name ASC`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)
@@ -157,17 +159,8 @@ func deleteTag(ctx context.Context, tx *sql.Tx, delete *api.TagDelete) error {
 	return nil
 }
 
-func vacuumTag(ctx context.Context, tx *sql.Tx) error {
-	stmt := `
-	DELETE FROM 
-		tag 
-	WHERE 
-		creator_id NOT IN (
-			SELECT 
-				id 
-			FROM 
-				user
-		)`
+func vacuumTag(ctx context.Context, tx *sql.Tx, driver string) error {
+	stmt := `DELETE FROM tag WHERE creator_id NOT IN (SELECT id FROM ` + userTableName(driver) + `)`
 	_, err := tx.ExecContext(ctx, stmt)
 	if err != nil {
 		return FormatError(err)

@@ -48,7 +48,7 @@ func (s *Store) CreateActivity(ctx context.Context, create *api.ActivityCreate) 
 	}
 	defer tx.Rollback()
 
-	activityRaw, err := createActivity(ctx, tx, create)
+	activityRaw, err := createActivity(ctx, tx, s.driver, create)
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +62,28 @@ func (s *Store) CreateActivity(ctx context.Context, create *api.ActivityCreate) 
 }
 
 // createActivity creates a new activity.
-func createActivity(ctx context.Context, tx *sql.Tx, create *api.ActivityCreate) (*activityRaw, error) {
-	query := `
+func createActivity(ctx context.Context, tx *sql.Tx, driver string, create *api.ActivityCreate) (*activityRaw, error) {
+	if driver == "mysql" {
+		query := `
+			INSERT INTO activity (creator_id, type, level, payload)
+			VALUES (?, ?, ?, ?)
+		`
+		result, err := tx.ExecContext(ctx, query, create.CreatorID, create.Type, create.Level, create.Payload)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		var raw activityRaw
+		row := tx.QueryRowContext(ctx, `SELECT id, type, level, payload, creator_id, created_ts FROM activity WHERE id = ?`, id)
+		if err := row.Scan(&raw.ID, &raw.Type, &raw.Level, &raw.Payload, &raw.CreatorID, &raw.CreatedTs); err != nil {
+			return nil, FormatError(err)
+		}
+		return &raw, nil
+	}
+	query := formatQuery(driver, `
 		INSERT INTO activity (
 			creator_id, 
 			type, 
@@ -72,7 +92,7 @@ func createActivity(ctx context.Context, tx *sql.Tx, create *api.ActivityCreate)
 		)
 		VALUES (?, ?, ?, ?)
 		RETURNING id, type, level, payload, creator_id, created_ts
-	`
+	`)
 	var activityRaw activityRaw
 	if err := tx.QueryRowContext(ctx, query, create.CreatorID, create.Type, create.Level, create.Payload).Scan(
 		&activityRaw.ID,

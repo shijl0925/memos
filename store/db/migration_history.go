@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 )
 
@@ -26,7 +27,7 @@ func (db *DB) FindMigrationHistoryList(ctx context.Context, find *MigrationHisto
 	}
 	defer tx.Rollback()
 
-	list, err := findMigrationHistoryList(ctx, tx, find)
+	list, err := findMigrationHistoryList(ctx, tx, db.profile.Driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func (db *DB) UpsertMigrationHistory(ctx context.Context, upsert *MigrationHisto
 	}
 	defer tx.Rollback()
 
-	migrationHistory, err := upsertMigrationHistory(ctx, tx, upsert)
+	migrationHistory, err := upsertMigrationHistory(ctx, tx, db.profile.Driver, upsert)
 	if err != nil {
 		return nil, err
 	}
@@ -53,22 +54,14 @@ func (db *DB) UpsertMigrationHistory(ctx context.Context, upsert *MigrationHisto
 	return migrationHistory, nil
 }
 
-func findMigrationHistoryList(ctx context.Context, tx *sql.Tx, find *MigrationHistoryFind) ([]*MigrationHistory, error) {
+func findMigrationHistoryList(ctx context.Context, tx *sql.Tx, driver string, find *MigrationHistoryFind) ([]*MigrationHistory, error) {
 	where, args := []string{"1 = 1"}, []any{}
 
 	if v := find.Version; v != nil {
 		where, args = append(where, "version = ?"), append(args, *v)
 	}
 
-	query := `
-		SELECT 
-			version,
-			created_ts
-		FROM
-			migration_history
-		WHERE ` + strings.Join(where, " AND ") + `
-		ORDER BY version DESC
-	`
+	query := dbFormatQuery(driver, `SELECT version, created_ts FROM migration_history WHERE `+strings.Join(where, " AND ")+` ORDER BY version DESC`)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -95,17 +88,23 @@ func findMigrationHistoryList(ctx context.Context, tx *sql.Tx, find *MigrationHi
 	return migrationHistoryList, nil
 }
 
-func upsertMigrationHistory(ctx context.Context, tx *sql.Tx, upsert *MigrationHistoryUpsert) (*MigrationHistory, error) {
-	query := `
-		INSERT INTO migration_history (
-			version
-		)
-		VALUES (?)
-		ON CONFLICT(version) DO UPDATE
-		SET
-			version=EXCLUDED.version
-		RETURNING version, created_ts
-	`
+func upsertMigrationHistory(ctx context.Context, tx *sql.Tx, driver string, upsert *MigrationHistoryUpsert) (*MigrationHistory, error) {
+	if driver == "mysql" {
+		_, err := tx.ExecContext(ctx, `INSERT INTO migration_history (version) VALUES (?) ON DUPLICATE KEY UPDATE version=VALUES(version)`, upsert.Version)
+		if err != nil {
+			return nil, err
+		}
+		list, err := findMigrationHistoryList(ctx, tx, driver, &MigrationHistoryFind{Version: &upsert.Version})
+		if err != nil {
+			return nil, err
+		}
+		if len(list) == 0 {
+			return nil, fmt.Errorf("migration history not found after upsert")
+		}
+		return list[0], nil
+	}
+
+	query := dbFormatQuery(driver, `INSERT INTO migration_history (version) VALUES (?) ON CONFLICT(version) DO UPDATE SET version=EXCLUDED.version RETURNING version, created_ts`)
 	var migrationHistory MigrationHistory
 	if err := tx.QueryRowContext(ctx, query, upsert.Version).Scan(
 		&migrationHistory.Version,
@@ -115,4 +114,22 @@ func upsertMigrationHistory(ctx context.Context, tx *sql.Tx, upsert *MigrationHi
 	}
 
 	return &migrationHistory, nil
+}
+
+// dbFormatQuery converts ? placeholders to $1, $2, ... for PostgreSQL.
+func dbFormatQuery(driver, query string) string {
+	if driver != "postgres" {
+		return query
+	}
+	var b strings.Builder
+	idx := 1
+	for _, ch := range query {
+		if ch == '?' {
+			fmt.Fprintf(&b, "$%d", idx)
+			idx++
+		} else {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
 }

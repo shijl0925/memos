@@ -31,7 +31,7 @@ func (s *Store) UpsertSystemSetting(ctx context.Context, upsert *api.SystemSetti
 	}
 	defer tx.Rollback()
 
-	systemSettingRaw, err := upsertSystemSetting(ctx, tx, upsert)
+	systemSettingRaw, err := upsertSystemSetting(ctx, tx, s.driver, upsert)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (s *Store) FindSystemSettingList(ctx context.Context, find *api.SystemSetti
 	}
 	defer tx.Rollback()
 
-	systemSettingRawList, err := findSystemSettingList(ctx, tx, find)
+	systemSettingRawList, err := findSystemSettingList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (s *Store) FindSystemSetting(ctx context.Context, find *api.SystemSettingFi
 	}
 	defer tx.Rollback()
 
-	systemSettingRawList, err := findSystemSettingList(ctx, tx, find)
+	systemSettingRawList, err := findSystemSettingList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -88,18 +88,19 @@ func (s *Store) FindSystemSetting(ctx context.Context, find *api.SystemSettingFi
 	return systemSettingRawList[0].toSystemSetting(), nil
 }
 
-func upsertSystemSetting(ctx context.Context, tx *sql.Tx, upsert *api.SystemSettingUpsert) (*systemSettingRaw, error) {
-	query := `
-		INSERT INTO system_setting (
-			name, value, description
-		)
-		VALUES (?, ?, ?)
-		ON CONFLICT(name) DO UPDATE 
-		SET
-			value = EXCLUDED.value,
-			description = EXCLUDED.description
-		RETURNING name, value, description
-	`
+func upsertSystemSetting(ctx context.Context, tx *sql.Tx, driver string, upsert *api.SystemSettingUpsert) (*systemSettingRaw, error) {
+	if driver == "mysql" {
+		_, err := tx.ExecContext(ctx, `INSERT INTO system_setting (name, value, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value), description=VALUES(description)`, upsert.Name, upsert.Value, upsert.Description)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		list, err := findSystemSettingList(ctx, tx, driver, &api.SystemSettingFind{Name: upsert.Name})
+		if err != nil {
+			return nil, err
+		}
+		return list[0], nil
+	}
+	query := formatQuery(driver, `INSERT INTO system_setting (name, value, description) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value, description=EXCLUDED.description RETURNING name, value, description`)
 	var systemSettingRaw systemSettingRaw
 	if err := tx.QueryRowContext(ctx, query, upsert.Name, upsert.Value, upsert.Description).Scan(
 		&systemSettingRaw.Name,
@@ -112,19 +113,13 @@ func upsertSystemSetting(ctx context.Context, tx *sql.Tx, upsert *api.SystemSett
 	return &systemSettingRaw, nil
 }
 
-func findSystemSettingList(ctx context.Context, tx *sql.Tx, find *api.SystemSettingFind) ([]*systemSettingRaw, error) {
+func findSystemSettingList(ctx context.Context, tx *sql.Tx, driver string, find *api.SystemSettingFind) ([]*systemSettingRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 	if find.Name.String() != "" {
 		where, args = append(where, "name = ?"), append(args, find.Name.String())
 	}
 
-	query := `
-		SELECT
-			name,
-		  value,
-			description
-		FROM system_setting
-		WHERE ` + strings.Join(where, " AND ")
+	query := formatQuery(driver, `SELECT name, value, description FROM system_setting WHERE `+strings.Join(where, " AND "))
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, FormatError(err)

@@ -32,7 +32,7 @@ func (s *Store) UpsertMemoRelation(ctx context.Context, upsert *api.MemoRelation
 	}
 	defer tx.Rollback()
 
-	raw, err := upsertMemoRelation(ctx, tx, upsert)
+	raw, err := upsertMemoRelation(ctx, tx, s.driver, upsert)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (s *Store) FindMemoRelationList(ctx context.Context, find *api.MemoRelation
 	}
 	defer tx.Rollback()
 
-	rawList, err := findMemoRelationList(ctx, tx, find)
+	rawList, err := findMemoRelationList(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (s *Store) DeleteMemoRelation(ctx context.Context, delete *api.MemoRelation
 	}
 	defer tx.Rollback()
 
-	if err := deleteMemoRelation(ctx, tx, delete); err != nil {
+	if err := deleteMemoRelation(ctx, tx, s.driver, delete); err != nil {
 		return err
 	}
 
@@ -83,18 +83,28 @@ func (s *Store) DeleteMemoRelation(ctx context.Context, delete *api.MemoRelation
 	return nil
 }
 
-func upsertMemoRelation(ctx context.Context, tx *sql.Tx, upsert *api.MemoRelation) (*memoRelationRaw, error) {
-	stmt := `
-		INSERT INTO memo_relation (
-			memo_id,
-			related_memo_id,
-			type
-		)
+func upsertMemoRelation(ctx context.Context, tx *sql.Tx, driver string, upsert *api.MemoRelation) (*memoRelationRaw, error) {
+	if driver == "mysql" {
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO memo_relation (memo_id, related_memo_id, type) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE type=VALUES(type)`,
+			upsert.MemoID, upsert.RelatedMemoID, upsert.Type)
+		if err != nil {
+			return nil, FormatError(err)
+		}
+		raw := &memoRelationRaw{}
+		row := tx.QueryRowContext(ctx, `SELECT memo_id, related_memo_id, type FROM memo_relation WHERE memo_id=? AND related_memo_id=? AND type=?`,
+			upsert.MemoID, upsert.RelatedMemoID, upsert.Type)
+		if err := row.Scan(&raw.MemoID, &raw.RelatedMemoID, &raw.Type); err != nil {
+			return nil, FormatError(err)
+		}
+		return raw, nil
+	}
+	stmt := formatQuery(driver, `
+		INSERT INTO memo_relation (memo_id, related_memo_id, type)
 		VALUES (?, ?, ?)
-		ON CONFLICT (memo_id, related_memo_id, type) DO UPDATE SET
-			type = EXCLUDED.type
+		ON CONFLICT (memo_id, related_memo_id, type) DO UPDATE SET type = EXCLUDED.type
 		RETURNING memo_id, related_memo_id, type
-	`
+	`)
 	raw := &memoRelationRaw{}
 	if err := tx.QueryRowContext(ctx, stmt, upsert.MemoID, upsert.RelatedMemoID, upsert.Type).Scan(
 		&raw.MemoID,
@@ -106,7 +116,7 @@ func upsertMemoRelation(ctx context.Context, tx *sql.Tx, upsert *api.MemoRelatio
 	return raw, nil
 }
 
-func findMemoRelationList(ctx context.Context, tx *sql.Tx, find *api.MemoRelationFind) ([]*memoRelationRaw, error) {
+func findMemoRelationList(ctx context.Context, tx *sql.Tx, driver string, find *api.MemoRelationFind) ([]*memoRelationRaw, error) {
 	where, args := []string{"1 = 1"}, []any{}
 	if find.MemoID != nil {
 		where, args = append(where, "memo_id = ?"), append(args, *find.MemoID)
@@ -118,10 +128,8 @@ func findMemoRelationList(ctx context.Context, tx *sql.Tx, find *api.MemoRelatio
 		where, args = append(where, "type = ?"), append(args, string(*find.Type))
 	}
 
-	rows, err := tx.QueryContext(ctx, `
-		SELECT memo_id, related_memo_id, type
-		FROM memo_relation
-		WHERE `+strings.Join(where, " AND "), args...)
+	q := formatQuery(driver, `SELECT memo_id, related_memo_id, type FROM memo_relation WHERE `+strings.Join(where, " AND "))
+	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, FormatError(err)
 	}
@@ -141,7 +149,7 @@ func findMemoRelationList(ctx context.Context, tx *sql.Tx, find *api.MemoRelatio
 	return rawList, nil
 }
 
-func deleteMemoRelation(ctx context.Context, tx *sql.Tx, delete *api.MemoRelationDelete) error {
+func deleteMemoRelation(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoRelationDelete) error {
 	where, args := []string{"1 = 1"}, []any{}
 	if delete.MemoID != nil {
 		where, args = append(where, "memo_id = ?"), append(args, *delete.MemoID)
@@ -161,7 +169,7 @@ func deleteMemoRelation(ctx context.Context, tx *sql.Tx, delete *api.MemoRelatio
 
 // findMemoRelationListMap returns memo relations for a set of memoIDs in a single query,
 // keyed by memoID. This avoids N+1 queries when building a list of memos.
-func findMemoRelationListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) (map[int][]*api.MemoRelation, error) {
+func findMemoRelationListMap(ctx context.Context, tx *sql.Tx, driver string, memoIDList []int) (map[int][]*api.MemoRelation, error) {
 	relationListMap := make(map[int][]*api.MemoRelation, len(memoIDList))
 	if len(memoIDList) == 0 {
 		return relationListMap, nil
@@ -174,12 +182,8 @@ func findMemoRelationListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) 
 		args = append(args, id)
 	}
 
-	rows, err := tx.QueryContext(ctx, `
-		SELECT memo_id, related_memo_id, type
-		FROM memo_relation
-		WHERE memo_id IN (`+strings.Join(placeholder, ", ")+`)
-		ORDER BY memo_id
-	`, args...)
+	q := formatQuery(driver, `SELECT memo_id, related_memo_id, type FROM memo_relation WHERE memo_id IN (`+strings.Join(placeholder, ", ")+`) ORDER BY memo_id`)
+	rows, err := tx.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, FormatError(err)
 	}
@@ -198,11 +202,7 @@ func findMemoRelationListMap(ctx context.Context, tx *sql.Tx, memoIDList []int) 
 	return relationListMap, nil
 }
 
-func vacuumMemoRelations(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `
-		DELETE FROM memo_relation
-		WHERE memo_id NOT IN (SELECT id FROM memo)
-		   OR related_memo_id NOT IN (SELECT id FROM memo)
-	`)
+func vacuumMemoRelations(ctx context.Context, tx *sql.Tx, driver string) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM memo_relation WHERE memo_id NOT IN (SELECT id FROM memo) OR related_memo_id NOT IN (SELECT id FROM memo)`)
 	return err
 }

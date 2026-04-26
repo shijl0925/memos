@@ -115,7 +115,7 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVarP(&mode, "mode", "m", "demo", `mode of server, can be "prod" or "dev" or "demo"`)
+	rootCmd.PersistentFlags().StringVarP(&mode, "mode", "m", "dev", `mode of server, can be "prod" or "dev"`)
 	rootCmd.PersistentFlags().IntVarP(&port, "port", "p", 8081, "port of server")
 	rootCmd.PersistentFlags().StringVarP(&data, "data", "d", "", "data directory")
 
@@ -132,8 +132,9 @@ func init() {
 		panic(err)
 	}
 
-	viper.SetDefault("mode", "demo")
+	viper.SetDefault("mode", "dev")
 	viper.SetDefault("port", 8081)
+	viper.SetDefault("driver", "sqlite3")
 	viper.SetEnvPrefix("memos")
 
 	setupCmd.Flags().String(setupCmdFlagHostUsername, "", "Owner username")
@@ -153,7 +154,12 @@ func initConfig() {
 
 	println("---")
 	println("Server profile")
-	println("dsn:", profile.DSN)
+	println("driver:", profile.Driver)
+	if profile.Driver == "sqlite3" {
+		println("dsn:", profile.DSN)
+	} else {
+		println("dsn:", "[redacted]")
+	}
 	println("port:", profile.Port)
 	println("mode:", profile.Mode)
 	println("version:", profile.Version)
