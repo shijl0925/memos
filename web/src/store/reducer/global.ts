@@ -14,7 +14,7 @@ const globalSlice = createSlice({
     systemStatus: {
       host: undefined,
       profile: {
-        mode: "demo",
+        mode: "dev",
         version: "",
       },
       dbSize: 0,

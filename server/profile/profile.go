@@ -11,7 +11,7 @@ import (
 
 // Profile is the configuration to start main server.
 type Profile struct {
-	// Mode can be "prod" or "dev" or "demo"
+	// Mode can be "prod" or "dev"
 	Mode string `json:"mode"`
 	// Port is the binding port for server
 	Port int `json:"-"`
@@ -36,8 +36,8 @@ func GetProfile() (*Profile, error) {
 		return nil, err
 	}
 
-	if profile.Mode != "demo" && profile.Mode != "dev" && profile.Mode != "prod" {
-		profile.Mode = "demo"
+	if profile.Mode != "dev" && profile.Mode != "prod" {
+		profile.Mode = "dev"
 	}
 
 	driver := viper.GetString("driver")

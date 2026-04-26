@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { useGlobalStore, useUserStore } from "@/store/module";
+import { useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 import { generateDialog } from "./Dialog";
 import Icon from "./Icon";
@@ -10,17 +10,8 @@ type Props = DialogProps;
 const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
   const t = useTranslate();
   const userStore = useUserStore();
-  const globalStore = useGlobalStore();
-  const profile = globalStore.state.systemStatus.profile;
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordAgain, setNewPasswordAgain] = useState("");
-
-  useEffect(() => {
-    if (profile.mode === "demo" && userStore.state.user?.id === userStore.state.host?.id) {
-      toast.error("Demo mode does not support this operation.");
-      destroy();
-    }
-  }, []);
 
   const handleCloseBtnClick = () => {
     destroy();

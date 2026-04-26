@@ -20,7 +20,7 @@ func TestGetProfile_SQLite_DefaultsToWorkingDirectory(t *testing.T) {
 	}
 
 	viper.Reset()
-	viper.SetDefault("mode", "demo")
+	viper.SetDefault("mode", "dev")
 	viper.SetDefault("port", 8081)
 	viper.SetDefault("driver", "sqlite3")
 
@@ -44,7 +44,7 @@ func TestGetProfile_SQLite_ExplicitDataAbsolute(t *testing.T) {
 	dir := t.TempDir()
 
 	viper.Reset()
-	viper.SetDefault("mode", "demo")
+	viper.SetDefault("mode", "dev")
 	viper.SetDefault("port", 8081)
 	viper.SetDefault("driver", "sqlite3")
 	viper.Set("data", dir)
