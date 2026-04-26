@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 )
@@ -49,6 +50,9 @@ func (server *Server) authenticateOpenID(c Context) bool {
 	ctx := c.Request().Context()
 	openID := c.QueryParam("openId")
 	if openID != "" {
+		if _, err := uuid.Parse(openID); err != nil {
+			return false
+		}
 		user, err := server.Store.FindUser(ctx, &api.UserFind{OpenID: &openID})
 		if err != nil && common.ErrorCode(err) != common.NotFound {
 			return false

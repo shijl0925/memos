@@ -84,7 +84,8 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		if !strings.Contains(filePath, "{filename}") {
 			filePath = path.Join(filePath, "{filename}")
 		}
-		filePath = filepath.Join(s.Profile.Data, filepath.FromSlash(replacePathTemplate(filePath, filename)))
+		resolvedTemplate := replacePathTemplate(filePath, filename)
+		filePath = filepath.Join(s.Profile.Data, filepath.FromSlash(resolvedTemplate))
 		dataPath, err := filepath.Abs(s.Profile.Data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve data directory: %w", err)
@@ -97,7 +98,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate file path: %w", err)
 		}
-		if relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) || filepath.IsAbs(relPath) {
+		if isPathTraversal(relPath) {
 			return nil, common.Errorf(common.Invalid, fmt.Errorf("invalid upload path"))
 		}
 		dir, filename := filepath.Split(filePath)
@@ -224,4 +225,8 @@ func sanitizeUploadFilename(filename string) (string, error) {
 		return "", fmt.Errorf("invalid filename")
 	}
 	return filename, nil
+}
+
+func isPathTraversal(relPath string) bool {
+	return relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) || filepath.IsAbs(relPath)
 }

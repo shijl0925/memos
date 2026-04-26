@@ -459,9 +459,10 @@ func ensureCSRFCookie(c *gin.Context, cookieName string) (string, error) {
 
 	token = common.GenUUID()
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     cookieName,
-		Value:    token,
-		Path:     "/",
+		Name:  cookieName,
+		Value: token,
+		Path:  "/",
+		// The frontend reads this cookie and mirrors it into X-CSRF-Token.
 		Secure:   requestScheme(c.Request) == "https",
 		SameSite: http.SameSiteStrictMode,
 	})
