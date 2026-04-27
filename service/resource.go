@@ -36,6 +36,10 @@ func (s *Service) CreateResource(ctx context.Context, userID int, create *api.Re
 // CreateResourceFromBlob handles file upload, selects the storage backend,
 // writes the file and persists the resource record.
 func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file multipart.File, header *multipart.FileHeader) (*api.Resource, error) {
+	filename, err := sanitizeUploadFilename(header.Filename)
+	if err != nil {
+		return nil, common.Errorf(common.Invalid, err)
+	}
 	filetype := header.Header.Get("Content-Type")
 	size := header.Size
 
@@ -59,7 +63,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		}
 		create = &api.ResourceCreate{
 			CreatorID: userID,
-			Filename:  header.Filename,
+			Filename:  filename,
 			Type:      filetype,
 			Size:      size,
 			Blob:      fileBytes,
@@ -80,7 +84,23 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		if !strings.Contains(filePath, "{filename}") {
 			filePath = path.Join(filePath, "{filename}")
 		}
-		filePath = path.Join(s.Profile.Data, replacePathTemplate(filePath, header.Filename))
+		resolvedTemplate := replacePathTemplate(filePath, filename)
+		filePath = filepath.Join(s.Profile.Data, filepath.FromSlash(resolvedTemplate))
+		dataPath, err := filepath.Abs(s.Profile.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve data directory: %w", err)
+		}
+		filePath, err = filepath.Abs(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve file path: %w", err)
+		}
+		relPath, err := filepath.Rel(dataPath, filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate file path: %w", err)
+		}
+		if isPathTraversal(relPath) {
+			return nil, common.Errorf(common.Invalid, fmt.Errorf("invalid upload path"))
+		}
 		dir, filename := filepath.Split(filePath)
 		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 			return nil, fmt.Errorf("failed to create directory: %w", err)
@@ -127,7 +147,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		if !strings.Contains(filePath, "{filename}") {
 			filePath = path.Join(filePath, "{filename}")
 		}
-		filePath = replacePathTemplate(filePath, header.Filename)
+		filePath = replacePathTemplate(filePath, filename)
 		_, filename := filepath.Split(filePath)
 		link, err := s3Client.UploadFile(ctx, filePath, filetype, file)
 		if err != nil {
@@ -197,4 +217,16 @@ func replacePathTemplate(template, filename string) string {
 	template = strings.ReplaceAll(template, "{day}", fmt.Sprintf("%02d", t.Day()))
 	template = strings.ReplaceAll(template, "{uuid}", common.GenUUID())
 	return template
+}
+
+func sanitizeUploadFilename(filename string) (string, error) {
+	filename = path.Base(strings.ReplaceAll(filename, "\\", "/"))
+	if filename == "" || filename == "." || filename == ".." {
+		return "", fmt.Errorf("invalid filename")
+	}
+	return filename, nil
+}
+
+func isPathTraversal(relPath string) bool {
+	return relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) || filepath.IsAbs(relPath)
 }

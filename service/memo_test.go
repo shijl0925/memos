@@ -23,14 +23,19 @@ func newTestService(ctx context.Context, t *testing.T) *Service {
 // layer so that tests have a valid actor without needing a prior sign-up.
 func createTestHostUser(ctx context.Context, svc *Service, t *testing.T) *api.User {
 	t.Helper()
+	return createTestUser(ctx, svc, t, "host", api.Host)
+}
+
+func createTestUser(ctx context.Context, svc *Service, t *testing.T, username string, role api.Role) *api.User {
+	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte("test_password"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 	user, err := svc.Store.CreateUser(ctx, &api.UserCreate{
-		Username:     "host",
-		Role:         api.Host,
-		Nickname:     "host_nickname",
-		Email:        "host@test.com",
-		OpenID:       "host-open-id",
+		Username:     username,
+		Role:         role,
+		Nickname:     username + "_nickname",
+		Email:        username + "@test.com",
+		OpenID:       username + "-open-id",
 		PasswordHash: string(hash),
 	})
 	require.NoError(t, err)
@@ -157,6 +162,45 @@ func TestUpdateMemo_NonOwnerDenied(t *testing.T) {
 	newContent := "updated content"
 	notOwnerID := owner.ID + 999
 	_, err = svc.UpdateMemo(ctx, notOwnerID, memo.ID, &api.MemoPatch{Content: &newContent})
+	require.Error(t, err)
+	require.Equal(t, common.NotAuthorized, common.ErrorCode(err))
+}
+
+func TestCreateMemo_DeniesResourceOwnedByOtherUser(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(ctx, t)
+	memoOwner := createTestHostUser(ctx, svc, t)
+	resourceOwner := createTestUser(ctx, svc, t, "resource-owner", api.NormalUser)
+	resource, err := svc.CreateResource(ctx, resourceOwner.ID, &api.ResourceCreate{
+		Filename: "secret.txt",
+		Type:     "text/plain",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.CreateMemo(ctx, memoOwner.ID, &api.MemoCreate{
+		Content:        "memo with foreign resource",
+		ResourceIDList: []int{resource.ID},
+	})
+	require.Error(t, err)
+	require.Equal(t, common.NotAuthorized, common.ErrorCode(err))
+}
+
+func TestUpdateMemo_DeniesResourceOwnedByOtherUser(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService(ctx, t)
+	memoOwner := createTestHostUser(ctx, svc, t)
+	resourceOwner := createTestUser(ctx, svc, t, "resource-owner", api.NormalUser)
+	memo, err := svc.CreateMemo(ctx, memoOwner.ID, &api.MemoCreate{Content: "memo"})
+	require.NoError(t, err)
+	resource, err := svc.CreateResource(ctx, resourceOwner.ID, &api.ResourceCreate{
+		Filename: "secret.txt",
+		Type:     "text/plain",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.UpdateMemo(ctx, memoOwner.ID, memo.ID, &api.MemoPatch{
+		ResourceIDList: []int{resource.ID},
+	})
 	require.Error(t, err)
 	require.Equal(t, common.NotAuthorized, common.ErrorCode(err))
 }

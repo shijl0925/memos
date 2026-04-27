@@ -142,6 +142,15 @@ func (s *Server) registerResourceRoutes(g Group) {
 func (s *Server) registerResourcePublicRoutes(g Group) {
 	// Helper that streams a resource blob to the client.
 	serveResource := func(c Context, resource *api.Resource) error {
+		ctx := c.Request().Context()
+		var currentUserID *int
+		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
+			currentUserID = &id
+		}
+		if err := s.Service.CanAccessResource(ctx, currentUserID, resource.ID); err != nil {
+			return convertServiceError(err)
+		}
+
 		blob := resource.Blob
 		if resource.InternalPath != "" {
 			src, err := os.Open(resource.InternalPath)

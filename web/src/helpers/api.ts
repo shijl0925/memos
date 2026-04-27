@@ -1,28 +1,5 @@
 import axios from "axios";
 
-const csrfCookieName = "_csrf";
-const csrfHeaderName = "X-CSRF-Token";
-
-const getCookieValue = (name: string) => {
-  const cookie = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
-  return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
-};
-
-axios.interceptors.request.use((config) => {
-  const method = config.method?.toUpperCase() ?? "GET";
-  const isSafeMethod = ["GET", "HEAD", "OPTIONS", "TRACE"].includes(method);
-  const url = config.url ?? "";
-  const isOwnAPI = url.startsWith("/api");
-  if (!isSafeMethod && isOwnAPI) {
-    const csrfToken = getCookieValue(csrfCookieName);
-    if (csrfToken) {
-      config.headers = config.headers ?? {};
-      config.headers[csrfHeaderName] = csrfToken;
-    }
-  }
-  return config;
-});
-
 // ---------------------------------------------------------------------------
 // Axios response interceptor: unwrap the { data: T } envelope that the v0.12.2
 // backend wraps every API response in.  External calls (e.g. GitHub API) are

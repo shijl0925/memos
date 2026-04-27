@@ -173,9 +173,14 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("memoId")), err)
 		}
 
-		resourceList, err := s.Store.FindResourceList(ctx, &api.ResourceFind{MemoID: &memoID})
+		var currentUserID *int
+		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
+			currentUserID = &id
+		}
+
+		resourceList, err := s.Service.ListMemoResources(ctx, currentUserID, memoID)
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch resource list", err)
+			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(resourceList))
 	})
