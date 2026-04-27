@@ -304,12 +304,7 @@ func (s *Service) UnbindMemoResource(ctx context.Context, userID, memoID, resour
 }
 
 func (s *Service) validateResourceOwnership(ctx context.Context, userID int, resourceIDList []int) error {
-	seen := map[int]bool{}
-	for _, resourceID := range resourceIDList {
-		if seen[resourceID] {
-			continue
-		}
-		seen[resourceID] = true
+	for _, resourceID := range uniqueResourceIDs(resourceIDList) {
 		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID})
 		if err != nil {
 			return fmt.Errorf("failed to fetch resource: %w", err)
@@ -319,6 +314,19 @@ func (s *Service) validateResourceOwnership(ctx context.Context, userID int, res
 		}
 	}
 	return nil
+}
+
+func uniqueResourceIDs(resourceIDList []int) []int {
+	seen := map[int]bool{}
+	unique := []int{}
+	for _, resourceID := range resourceIDList {
+		if seen[resourceID] {
+			continue
+		}
+		seen[resourceID] = true
+		unique = append(unique, resourceID)
+	}
+	return unique
 }
 
 // GetMemoStats returns a list of createdTs values for the memos visible to the caller.

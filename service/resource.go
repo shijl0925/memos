@@ -221,7 +221,9 @@ func replacePathTemplate(template, filename string) string {
 
 func sanitizeUploadFilename(filename string) (string, error) {
 	filename = path.Base(strings.ReplaceAll(filename, "\\", "/"))
-	if filename == "" || filename == "." || filename == ".." || strings.ContainsRune(filename, 0) || isWindowsReservedFilename(filename) {
+	isEmptyOrSpecial := filename == "" || filename == "." || filename == ".."
+	hasNullByte := strings.ContainsRune(filename, 0)
+	if isEmptyOrSpecial || hasNullByte || isWindowsReservedFilename(filename) {
 		return "", fmt.Errorf("invalid filename")
 	}
 	for _, r := range filename {
