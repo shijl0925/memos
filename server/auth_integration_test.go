@@ -189,20 +189,6 @@ func (ts *authTestServer) signOut(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, "POST /api/auth/signout: unexpected status")
 }
 
-func (ts *authTestServer) csrfCookie(t *testing.T) *http.Cookie {
-	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
-	rec := ts.serve(req)
-	require.Equal(t, http.StatusOK, rec.Code)
-	for _, cookie := range rec.Result().Cookies() {
-		if cookie.Name == "_csrf" {
-			return cookie
-		}
-	}
-	t.Fatal("missing csrf cookie")
-	return nil
-}
-
 // ---------- Shared auth-flow scenario ----------
 
 // runAuthFlow exercises the complete sign-up / sign-in lifecycle and asserts
@@ -269,13 +255,10 @@ func TestOpenIDOnlyAuthenticatesMemoCreate(t *testing.T) {
 	rec := ts.serve(req)
 	require.Equal(t, http.StatusOK, rec.Code, "POST /api/memo with openId should remain supported: %s", rec.Body.String())
 
-	csrfCookie := ts.csrfCookie(t)
 	nickname := "hacked"
 	patchPayload, _ := json.Marshal(api.UserPatch{Nickname: &nickname})
 	req = httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/user/%d?openId=%s", user.ID, user.OpenID), bytes.NewReader(patchPayload))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(csrfHeaderName, csrfCookie.Value)
-	req.AddCookie(csrfCookie)
 	rec = ts.serve(req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code, "openId must not authenticate arbitrary APIs")
 }

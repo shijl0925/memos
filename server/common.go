@@ -42,10 +42,6 @@ func (server *Server) DefaultAuthSkipper(c Context) bool {
 	return false
 }
 
-func (server *Server) DefaultCSRFSkipper(c Context) bool {
-	return server.DefaultAuthSkipper(c)
-}
-
 func (server *Server) authenticateOpenID(c Context) bool {
 	ctx := c.Request().Context()
 	openID := c.QueryParam("openId")

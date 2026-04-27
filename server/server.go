@@ -39,7 +39,6 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 		`"method":"${method}","uri":"${uri}",` +
 		`"status":${status},"error":"${error}"}` + "\n")
 	s.app.UseGzip()
-	s.app.UseCSRF("cookie:_csrf", s.DefaultCSRFSkipper)
 	s.app.UseCORS()
 	s.app.UseSecure(SecureConfig{
 		Skipper:            DefaultGetRequestSkipper,

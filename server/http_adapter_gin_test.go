@@ -48,39 +48,6 @@ func TestGinUseGzip(t *testing.T) {
 	require.Equal(t, "hello world", string(body))
 }
 
-func TestGinUseCSRFSetsCookieAndProtectsUnsafeRequests(t *testing.T) {
-	app := newTestGinApp(t)
-	app.UseCSRF("cookie:_csrf", nil)
-	group := app.Group("")
-	group.GET("/", func(c Context) error {
-		return c.String(http.StatusOK, "ok")
-	})
-	group.POST("/submit", func(c Context) error {
-		return c.String(http.StatusOK, "submitted")
-	})
-
-	getRequest := httptest.NewRequest(http.MethodGet, "/", nil)
-	getRecorder := httptest.NewRecorder()
-	app.app.ServeHTTP(getRecorder, getRequest)
-
-	require.Equal(t, http.StatusOK, getRecorder.Code)
-	cookies := getRecorder.Result().Cookies()
-	require.NotEmpty(t, cookies)
-
-	postRequest := httptest.NewRequest(http.MethodPost, "/submit", nil)
-	postRecorder := httptest.NewRecorder()
-	app.app.ServeHTTP(postRecorder, postRequest)
-	require.Equal(t, http.StatusForbidden, postRecorder.Code)
-
-	protectedRequest := httptest.NewRequest(http.MethodPost, "/submit", nil)
-	protectedRequest.AddCookie(cookies[0])
-	protectedRequest.Header.Set(csrfHeaderName, cookies[0].Value)
-	protectedRecorder := httptest.NewRecorder()
-	app.app.ServeHTTP(protectedRecorder, protectedRequest)
-	require.Equal(t, http.StatusOK, protectedRecorder.Code)
-	require.Equal(t, "submitted", protectedRecorder.Body.String())
-}
-
 func TestGinUseTimeout(t *testing.T) {
 	app := newTestGinApp(t)
 	app.UseTimeout(10*time.Millisecond, "Request timeout")
