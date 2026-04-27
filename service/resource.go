@@ -80,32 +80,32 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 			}
 		}
 
-		filePath := localStoragePath
-		if !strings.Contains(filePath, "{filename}") {
-			filePath = path.Join(filePath, "{filename}")
+		templatePath := localStoragePath
+		if !strings.Contains(templatePath, "{filename}") {
+			templatePath = path.Join(templatePath, "{filename}")
 		}
-		resolvedTemplate := replacePathTemplate(filePath, filename)
-		filePath = filepath.Join(s.Profile.Data, filepath.FromSlash(resolvedTemplate))
+		resolvedTemplate := replacePathTemplate(templatePath, filename)
+		resolvedPath := filepath.Join(s.Profile.Data, filepath.FromSlash(resolvedTemplate))
 		dataPath, err := filepath.Abs(s.Profile.Data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve data directory: %w", err)
 		}
-		filePath, err = filepath.Abs(filePath)
+		resolvedPath, err = filepath.Abs(resolvedPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve file path: %w", err)
 		}
-		relPath, err := filepath.Rel(dataPath, filePath)
+		relPath, err := filepath.Rel(dataPath, resolvedPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate file path: %w", err)
 		}
 		if isPathTraversal(relPath) {
 			return nil, common.Errorf(common.Invalid, fmt.Errorf("invalid upload path"))
 		}
-		dir, filename := filepath.Split(filePath)
+		dir, filename := filepath.Split(resolvedPath)
 		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 			return nil, fmt.Errorf("failed to create directory: %w", err)
 		}
-		dst, err := os.Create(filePath)
+		dst, err := os.Create(resolvedPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create file: %w", err)
 		}
@@ -118,7 +118,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 			Filename:     filename,
 			Type:         filetype,
 			Size:         size,
-			InternalPath: filePath,
+			InternalPath: resolvedPath,
 		}
 	} else {
 		storage, err := s.Store.FindStorage(ctx, &api.StorageFind{ID: &storageServiceID})
@@ -221,10 +221,30 @@ func replacePathTemplate(template, filename string) string {
 
 func sanitizeUploadFilename(filename string) (string, error) {
 	filename = path.Base(strings.ReplaceAll(filename, "\\", "/"))
-	if filename == "" || filename == "." || filename == ".." {
+	if filename == "" || filename == "." || filename == ".." || strings.ContainsRune(filename, 0) || isWindowsReservedFilename(filename) {
 		return "", fmt.Errorf("invalid filename")
 	}
+	for _, r := range filename {
+		if r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("invalid filename")
+		}
+	}
 	return filename, nil
+}
+
+func isWindowsReservedFilename(filename string) bool {
+	name := strings.ToUpper(filename)
+	if dot := strings.IndexByte(name, '.'); dot >= 0 {
+		name = name[:dot]
+	}
+	switch name {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	if len(name) == 4 && (strings.HasPrefix(name, "COM") || strings.HasPrefix(name, "LPT")) && name[3] >= '1' && name[3] <= '9' {
+		return true
+	}
+	return false
 }
 
 func isPathTraversal(relPath string) bool {

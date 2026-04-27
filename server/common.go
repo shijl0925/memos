@@ -24,7 +24,7 @@ func DefaultAPIRequestSkipper(c Context) bool {
 	return common.HasPrefixes(c.Path(), "/api")
 }
 
-func isOpenIDMemoCreateRequest(c Context) bool {
+func isOpenIDMemoCreateAttempt(c Context) bool {
 	return c.Request().Method == http.MethodPost && c.Path() == "/api/memo" && c.QueryParam("openId") != ""
 }
 
@@ -35,7 +35,7 @@ func (server *Server) DefaultAuthSkipper(c Context) bool {
 		return true
 	}
 
-	if isOpenIDMemoCreateRequest(c) {
+	if isOpenIDMemoCreateAttempt(c) {
 		return server.authenticateOpenID(c)
 	}
 
