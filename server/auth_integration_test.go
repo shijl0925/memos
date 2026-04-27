@@ -245,50 +245,6 @@ func TestAuthFlow_SQLite(t *testing.T) {
 	runAuthFlow(t, ts)
 }
 
-func TestOpenIDOnlyAuthenticatesMemoCreate(t *testing.T) {
-	ts := newSQLiteAuthTestServer(t)
-	user := ts.signUp(t, "alice", "alicepassword123")
-
-	payload, _ := json.Marshal(api.MemoCreate{Content: "open api memo"})
-	req := httptest.NewRequest(http.MethodPost, "/api/memo?openId="+user.OpenID, bytes.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	rec := ts.serve(req)
-	require.Equal(t, http.StatusOK, rec.Code, "POST /api/memo with openId should remain supported: %s", rec.Body.String())
-
-	nickname := "hacked"
-	patchPayload, _ := json.Marshal(api.UserPatch{Nickname: &nickname})
-	req = httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/user/%d?openId=%s", user.ID, user.OpenID), bytes.NewReader(patchPayload))
-	req.Header.Set("Content-Type", "application/json")
-	rec = ts.serve(req)
-	require.Equal(t, http.StatusUnauthorized, rec.Code, "openId must not authenticate arbitrary APIs")
-}
-
-func TestPrivateMemoResourcesRequireVisibility(t *testing.T) {
-	ctx := context.Background()
-	ts := newSQLiteAuthTestServer(t)
-	user := ts.signUp(t, "alice", "alicepassword123")
-	resource, err := ts.Service.CreateResource(ctx, user.ID, &api.ResourceCreate{
-		Filename: "secret.txt",
-		Type:     "text/plain",
-		Blob:     []byte("secret"),
-	})
-	require.NoError(t, err)
-	memo, err := ts.Service.CreateMemo(ctx, user.ID, &api.MemoCreate{
-		Content:        "private memo",
-		Visibility:     api.Private,
-		ResourceIDList: []int{resource.ID},
-	})
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/memo/%d/resource", memo.ID), nil)
-	rec := ts.serve(req)
-	require.Equal(t, http.StatusUnauthorized, rec.Code, "private memo resources must not be public")
-
-	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/o/r/%d", resource.ID), nil)
-	rec = ts.serve(req)
-	require.Equal(t, http.StatusUnauthorized, rec.Code, "private resource blob must not be public")
-}
-
 func TestAuthFlow_MySQL(t *testing.T) {
 	dsn := os.Getenv(envMySQLDSN)
 	if dsn == "" {

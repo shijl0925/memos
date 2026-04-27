@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
+	"github.com/usememos/memos/common"
 )
 
 const ginSessionStoreContextKey = "session-store"
@@ -69,6 +70,35 @@ func (a *ginApp) UseGzip() {
 		c.Header("Content-Encoding", "gzip")
 		c.Header("Content-Length", "")
 		c.Writer = writer
+		c.Next()
+	})
+}
+
+func (a *ginApp) UseCSRF(tokenLookup string, skipper func(Context) bool) {
+	cookieName := csrfCookieName(tokenLookup)
+	a.app.Use(func(c *gin.Context) {
+		ctx := newGinContext(c)
+		if skipper != nil && skipper(ctx) {
+			c.Next()
+			return
+		}
+
+		token, err := ensureCSRFCookie(c, cookieName)
+		if err != nil {
+			writeGinError(c, internalError("Failed to prepare CSRF cookie", err))
+			c.Abort()
+			return
+		}
+
+		if !isSafeHTTPMethod(c.Request.Method) {
+			requestToken, err := c.Cookie(cookieName)
+			if err != nil || requestToken == "" || requestToken != token {
+				writeGinError(c, forbiddenError("Invalid CSRF token"))
+				c.Abort()
+				return
+			}
+		}
+
 		c.Next()
 	})
 }
@@ -407,4 +437,42 @@ func appendVaryHeader(header http.Header, value string) {
 		}
 	}
 	header.Add("Vary", value)
+}
+
+func csrfCookieName(tokenLookup string) string {
+	const cookiePrefix = "cookie:"
+	if strings.HasPrefix(tokenLookup, cookiePrefix) {
+		cookieName := tokenLookup[len(cookiePrefix):]
+		if cookieName != "" {
+			return cookieName
+		}
+	}
+	return "_csrf"
+}
+
+func ensureCSRFCookie(c *gin.Context, cookieName string) (string, error) {
+	token, err := c.Cookie(cookieName)
+	if err == nil && token != "" {
+		return token, nil
+	}
+
+	token = common.GenUUID()
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     cookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   requestScheme(c.Request) == "https",
+		SameSite: http.SameSiteStrictMode,
+	})
+	return token, nil
+}
+
+func isSafeHTTPMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	default:
+		return false
+	}
 }

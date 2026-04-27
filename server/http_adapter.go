@@ -46,6 +46,7 @@ type App interface {
 	Group(prefix string) Group
 	UseLogger(format string)
 	UseGzip()
+	UseCSRF(tokenLookup string, skipper func(Context) bool)
 	UseCORS()
 	UseSecure(config SecureConfig)
 	UseTimeout(timeout time.Duration, errorMessage string)
