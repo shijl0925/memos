@@ -5,7 +5,7 @@ const csrfHeaderName = "X-CSRF-Token";
 const localhostNames = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const getCookieValue = (name: string) => {
-  const cookie = document.cookie.split("; ").find((row) => row.startsWith(`${encodeURIComponent(name)}=`));
+  const cookie = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
   return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
 };
 
