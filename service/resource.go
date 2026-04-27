@@ -234,6 +234,8 @@ func sanitizeUploadFilename(filename string) (string, error) {
 	return filename, nil
 }
 
+// isWindowsReservedFilename rejects Windows device names on every platform so
+// uploaded files remain portable and cannot target special device paths.
 func isWindowsReservedFilename(filename string) bool {
 	name := strings.ToUpper(filename)
 	if dot := strings.IndexByte(name, '.'); dot >= 0 {
@@ -249,6 +251,7 @@ func isWindowsReservedFilename(filename string) bool {
 	return false
 }
 
+// isPathTraversal detects paths that escape the configured storage directory.
 func isPathTraversal(relPath string) bool {
 	return relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) || filepath.IsAbs(relPath)
 }

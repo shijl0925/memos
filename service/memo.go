@@ -318,7 +318,7 @@ func (s *Service) validateResourceOwnership(ctx context.Context, userID int, res
 
 func uniqueResourceIDs(resourceIDList []int) []int {
 	seen := map[int]bool{}
-	unique := []int{}
+	unique := make([]int, 0, len(resourceIDList))
 	for _, resourceID := range resourceIDList {
 		if seen[resourceID] {
 			continue
