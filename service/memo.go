@@ -59,10 +59,6 @@ func (s *Service) CreateMemo(ctx context.Context, userID int, create *api.MemoCr
 		}
 	}
 
-	if err := s.validateResourceOwnership(ctx, userID, create.ResourceIDList); err != nil {
-		return nil, err
-	}
-
 	create.CreatorID = userID
 	memo, err := s.Store.CreateMemo(ctx, create)
 	if err != nil {
@@ -112,10 +108,6 @@ func (s *Service) UpdateMemo(ctx context.Context, userID, memoID int, patch *api
 	currentTs := time.Now().Unix()
 	patch.ID = memoID
 	patch.UpdatedTs = &currentTs
-
-	if err := s.validateResourceOwnership(ctx, userID, patch.ResourceIDList); err != nil {
-		return nil, err
-	}
 
 	memo, err = s.Store.PatchMemo(ctx, patch)
 	if err != nil {
@@ -228,14 +220,6 @@ func (s *Service) UpsertMemoOrganizer(ctx context.Context, userID, memoID int, u
 
 // BindMemoResource validates ownership of a resource and attaches it to a memo.
 func (s *Service) BindMemoResource(ctx context.Context, userID, memoID int, upsert *api.MemoResourceUpsert) (*api.Resource, error) {
-	memo, err := s.Store.FindMemo(ctx, &api.MemoFind{ID: &memoID})
-	if err != nil {
-		return nil, fmt.Errorf("failed to find memo: %w", err)
-	}
-	if memo.CreatorID != userID {
-		return nil, common.Errorf(common.NotAuthorized, fmt.Errorf("unauthorized"))
-	}
-
 	resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &upsert.ResourceID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource: %w", err)
@@ -256,38 +240,6 @@ func (s *Service) BindMemoResource(ctx context.Context, userID, memoID int, upse
 	return resource, nil
 }
 
-// ListMemoResources returns resources for a memo after enforcing memo visibility.
-func (s *Service) ListMemoResources(ctx context.Context, currentUserID *int, memoID int) ([]*api.Resource, error) {
-	if _, err := s.GetMemo(ctx, currentUserID, memoID); err != nil {
-		return nil, err
-	}
-	return s.Store.FindResourceList(ctx, &api.ResourceFind{MemoID: &memoID})
-}
-
-// CanAccessResource checks whether the caller can read a resource directly.
-func (s *Service) CanAccessResource(ctx context.Context, currentUserID *int, resourceID int) error {
-	resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID})
-	if err != nil {
-		return err
-	}
-	if currentUserID != nil && resource.CreatorID == *currentUserID {
-		return nil
-	}
-
-	memoResources, err := s.Store.FindMemoResourceList(ctx, &api.MemoResourceFind{ResourceID: &resourceID})
-	if err != nil {
-		return err
-	}
-	for _, memoResource := range memoResources {
-		if _, err := s.GetMemo(ctx, currentUserID, memoResource.MemoID); err == nil {
-			return nil
-		} else if code := common.ErrorCode(err); code != common.NotAuthorized && code != common.NotFound {
-			return err
-		}
-	}
-	return common.Errorf(common.NotAuthorized, fmt.Errorf("resource is not visible to current user"))
-}
-
 // UnbindMemoResource verifies ownership and removes the resource from the memo.
 func (s *Service) UnbindMemoResource(ctx context.Context, userID, memoID, resourceID int) error {
 	memo, err := s.Store.FindMemo(ctx, &api.MemoFind{ID: &memoID})
@@ -301,24 +253,6 @@ func (s *Service) UnbindMemoResource(ctx context.Context, userID, memoID, resour
 		MemoID:     &memoID,
 		ResourceID: &resourceID,
 	})
-}
-
-func (s *Service) validateResourceOwnership(ctx context.Context, userID int, resourceIDList []int) error {
-	seen := map[int]bool{}
-	for _, resourceID := range resourceIDList {
-		if seen[resourceID] {
-			continue
-		}
-		seen[resourceID] = true
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID})
-		if err != nil {
-			return fmt.Errorf("failed to fetch resource: %w", err)
-		}
-		if resource.CreatorID != userID {
-			return common.Errorf(common.NotAuthorized, fmt.Errorf("unauthorized to bind this resource"))
-		}
-	}
-	return nil
 }
 
 // GetMemoStats returns a list of createdTs values for the memos visible to the caller.
