@@ -22,7 +22,7 @@ const isBackendAPIRequest = (url: string) => {
   if (!requestURL || !requestURL.pathname.startsWith("/api")) {
     return false;
   }
-  if (requestURL.origin === window.location.origin || requestURL.hostname === window.location.hostname) {
+  if (requestURL.origin === window.location.origin) {
     return true;
   }
   return localhostNames.has(requestURL.hostname) && localhostNames.has(window.location.hostname);
