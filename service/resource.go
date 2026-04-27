@@ -36,6 +36,10 @@ func (s *Service) CreateResource(ctx context.Context, userID int, create *api.Re
 // CreateResourceFromBlob handles file upload, selects the storage backend,
 // writes the file and persists the resource record.
 func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file multipart.File, header *multipart.FileHeader) (*api.Resource, error) {
+	filename, err := sanitizeUploadFilename(header.Filename)
+	if err != nil {
+		return nil, common.Errorf(common.Invalid, err)
+	}
 	filetype := header.Header.Get("Content-Type")
 	size := header.Size
 
@@ -59,7 +63,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		}
 		create = &api.ResourceCreate{
 			CreatorID: userID,
-			Filename:  header.Filename,
+			Filename:  filename,
 			Type:      filetype,
 			Size:      size,
 			Blob:      fileBytes,
@@ -76,16 +80,32 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 			}
 		}
 
-		filePath := localStoragePath
-		if !strings.Contains(filePath, "{filename}") {
-			filePath = path.Join(filePath, "{filename}")
+		templatePath := localStoragePath
+		if !strings.Contains(templatePath, "{filename}") {
+			templatePath = path.Join(templatePath, "{filename}")
 		}
-		filePath = path.Join(s.Profile.Data, replacePathTemplate(filePath, header.Filename))
-		dir, filename := filepath.Split(filePath)
+		resolvedTemplate := replacePathTemplate(templatePath, filename)
+		resolvedPath := filepath.Join(s.Profile.Data, filepath.FromSlash(resolvedTemplate))
+		dataPath, err := filepath.Abs(s.Profile.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve data directory: %w", err)
+		}
+		resolvedPath, err = filepath.Abs(resolvedPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve file path: %w", err)
+		}
+		relPath, err := filepath.Rel(dataPath, resolvedPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate file path: %w", err)
+		}
+		if isPathTraversal(relPath) {
+			return nil, common.Errorf(common.Invalid, fmt.Errorf("invalid upload path"))
+		}
+		dir, filename := filepath.Split(resolvedPath)
 		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 			return nil, fmt.Errorf("failed to create directory: %w", err)
 		}
-		dst, err := os.Create(filePath)
+		dst, err := os.Create(resolvedPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create file: %w", err)
 		}
@@ -98,7 +118,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 			Filename:     filename,
 			Type:         filetype,
 			Size:         size,
-			InternalPath: filePath,
+			InternalPath: resolvedPath,
 		}
 	} else {
 		storage, err := s.Store.FindStorage(ctx, &api.StorageFind{ID: &storageServiceID})
@@ -127,7 +147,7 @@ func (s *Service) CreateResourceFromBlob(ctx context.Context, userID int, file m
 		if !strings.Contains(filePath, "{filename}") {
 			filePath = path.Join(filePath, "{filename}")
 		}
-		filePath = replacePathTemplate(filePath, header.Filename)
+		filePath = replacePathTemplate(filePath, filename)
 		_, filename := filepath.Split(filePath)
 		link, err := s3Client.UploadFile(ctx, filePath, filetype, file)
 		if err != nil {
@@ -197,4 +217,41 @@ func replacePathTemplate(template, filename string) string {
 	template = strings.ReplaceAll(template, "{day}", fmt.Sprintf("%02d", t.Day()))
 	template = strings.ReplaceAll(template, "{uuid}", common.GenUUID())
 	return template
+}
+
+func sanitizeUploadFilename(filename string) (string, error) {
+	filename = path.Base(strings.ReplaceAll(filename, "\\", "/"))
+	isEmptyOrSpecial := filename == "" || filename == "." || filename == ".."
+	hasNullByte := strings.ContainsRune(filename, 0)
+	if isEmptyOrSpecial || hasNullByte || isWindowsReservedFilename(filename) {
+		return "", fmt.Errorf("invalid filename")
+	}
+	for _, r := range filename {
+		if r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("invalid filename")
+		}
+	}
+	return filename, nil
+}
+
+// isWindowsReservedFilename rejects Windows device names on every platform so
+// uploaded files remain portable and cannot target special device paths.
+func isWindowsReservedFilename(filename string) bool {
+	name := strings.ToUpper(filename)
+	if dot := strings.IndexByte(name, '.'); dot >= 0 {
+		name = name[:dot]
+	}
+	switch name {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	if len(name) == 4 && (strings.HasPrefix(name, "COM") || strings.HasPrefix(name, "LPT")) && name[3] >= '1' && name[3] <= '9' {
+		return true
+	}
+	return false
+}
+
+// isPathTraversal detects paths that escape the configured storage directory.
+func isPathTraversal(relPath string) bool {
+	return relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) || filepath.IsAbs(relPath)
 }

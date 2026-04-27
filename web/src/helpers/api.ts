@@ -9,12 +9,7 @@ axios.interceptors.response.use(
   (response) => {
     const url = response.config.url ?? "";
     // Only process relative URLs that target our own backend
-    if (
-      url.startsWith("/api") &&
-      response.data !== null &&
-      typeof response.data === "object" &&
-      "data" in response.data
-    ) {
+    if (url.startsWith("/api") && response.data !== null && typeof response.data === "object" && "data" in response.data) {
       response.data = (response.data as { data: unknown }).data;
     }
     return response;
@@ -272,7 +267,7 @@ export function deleteMemoResource(memoId: MemoId, resourceId: ResourceId) {
   return axios.delete(`/api/memo/${memoId}/resource/${resourceId}`);
 }
 
-export function getTagList(tagFind?: TagFind) {
+export function getTagList() {
   // The v0.12.2 backend tag endpoint uses the authenticated user from the JWT;
   // it does not accept a creatorId/creatorUsername query parameter.  In visitor
   // mode this means we will show the logged-in user's tags instead of the

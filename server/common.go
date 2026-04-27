@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/common"
 )
@@ -23,16 +24,31 @@ func DefaultAPIRequestSkipper(c Context) bool {
 	return common.HasPrefixes(c.Path(), "/api")
 }
 
+func isOpenIDMemoCreateAttempt(c Context) bool {
+	return c.Request().Method == http.MethodPost && c.Path() == "/api/memo" && c.QueryParam("openId") != ""
+}
+
 func (server *Server) DefaultAuthSkipper(c Context) bool {
-	ctx := c.Request().Context()
 	path := c.Path()
 
 	if common.HasPrefixes(path, "/api/auth") {
 		return true
 	}
 
+	if isOpenIDMemoCreateAttempt(c) {
+		return server.authenticateOpenID(c)
+	}
+
+	return false
+}
+
+func (server *Server) authenticateOpenID(c Context) bool {
+	ctx := c.Request().Context()
 	openID := c.QueryParam("openId")
 	if openID != "" {
+		if _, err := uuid.Parse(openID); err != nil {
+			return false
+		}
 		user, err := server.Store.FindUser(ctx, &api.UserFind{OpenID: &openID})
 		if err != nil && common.ErrorCode(err) != common.NotFound {
 			return false
