@@ -2,17 +2,40 @@ import axios from "axios";
 
 const csrfCookieName = "_csrf";
 const csrfHeaderName = "X-CSRF-Token";
+const localhostNames = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const getCookieValue = (name: string) => {
   const cookie = document.cookie.split("; ").find((row) => row.startsWith(`${encodeURIComponent(name)}=`));
   return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
 };
 
+const getRequestURL = (url: string) => {
+  try {
+    return new URL(url, window.location.origin);
+  } catch {
+    return null;
+  }
+};
+
+const isBackendAPIRequest = (url: string) => {
+  const requestURL = getRequestURL(url);
+  if (!requestURL || !requestURL.pathname.startsWith("/api")) {
+    return false;
+  }
+  if (requestURL.origin === window.location.origin || requestURL.hostname === window.location.hostname) {
+    return true;
+  }
+  return localhostNames.has(requestURL.hostname) && localhostNames.has(window.location.hostname);
+};
+
 axios.interceptors.request.use((config) => {
   const method = config.method?.toUpperCase() ?? "GET";
   const isSafeMethod = ["GET", "HEAD", "OPTIONS", "TRACE"].includes(method);
   const url = config.url ?? "";
-  const isOwnAPI = url.startsWith("/api");
+  const isOwnAPI = isBackendAPIRequest(url);
+  if (isOwnAPI) {
+    config.withCredentials = true;
+  }
   if (!isSafeMethod && isOwnAPI) {
     const csrfToken = getCookieValue(csrfCookieName);
     if (csrfToken) {
