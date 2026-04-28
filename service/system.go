@@ -93,7 +93,7 @@ func (s *Service) GetSystemStatus(ctx context.Context, userID *int) (*api.System
 		if err != nil {
 			return nil, fmt.Errorf("failed to find user: %w", err)
 		}
-		if user != nil && user.Role == api.Host {
+		if user != nil && user.Role == api.Host && s.Profile.Driver == "sqlite3" {
 			fi, err := os.Stat(s.Profile.DSN)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read database fileinfo: %w", err)

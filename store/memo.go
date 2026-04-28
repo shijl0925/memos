@@ -343,7 +343,7 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 			memo.row_status,
 			memo.content,
 			memo.visibility,
-			COALESCE(memo_organizer.pinned, 0) AS pinned
+			COALESCE(memo_organizer.pinned, FALSE) AS pinned
 		FROM memo
 		LEFT JOIN memo_organizer ON memo_organizer.memo_id = memo.id AND memo_organizer.user_id = memo.creator_id
 		WHERE `+strings.Join(where, " AND ")+`
