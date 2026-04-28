@@ -212,7 +212,7 @@ func deleteMemoResource(ctx context.Context, tx *sql.Tx, delete *api.MemoResourc
 	return nil
 }
 
-func vacuumMemoResource(ctx context.Context, tx *sql.Tx, driver string) error {
+func vacuumMemoResource(ctx context.Context, tx *sql.Tx, _ string) error {
 	stmt := `
 	DELETE FROM 
 		memo_resource 

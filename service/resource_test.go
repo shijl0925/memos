@@ -17,7 +17,7 @@ type testMultipartFile struct {
 	*bytes.Reader
 }
 
-func (f testMultipartFile) Close() error {
+func (_ testMultipartFile) Close() error {
 	return nil
 }
 

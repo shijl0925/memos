@@ -149,7 +149,7 @@ func findMemoRelationList(ctx context.Context, tx *sql.Tx, driver string, find *
 	return rawList, nil
 }
 
-func deleteMemoRelation(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoRelationDelete) error {
+func deleteMemoRelation(ctx context.Context, tx *sql.Tx, _ string, delete *api.MemoRelationDelete) error {
 	where, args := []string{"1 = 1"}, []any{}
 	if delete.MemoID != nil {
 		where, args = append(where, "memo_id = ?"), append(args, *delete.MemoID)
@@ -202,7 +202,7 @@ func findMemoRelationListMap(ctx context.Context, tx *sql.Tx, driver string, mem
 	return relationListMap, nil
 }
 
-func vacuumMemoRelations(ctx context.Context, tx *sql.Tx, driver string) error {
+func vacuumMemoRelations(ctx context.Context, tx *sql.Tx, _ string) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM memo_relation WHERE memo_id NOT IN (SELECT id FROM memo) OR related_memo_id NOT IN (SELECT id FROM memo)`)
 	return err
 }

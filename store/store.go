@@ -77,9 +77,5 @@ func vacuum(ctx context.Context, tx *sql.Tx, driver string) error {
 	if err := vacuumMemoRelations(ctx, tx, driver); err != nil {
 		return err
 	}
-	if err := vacuumTag(ctx, tx, driver); err != nil {
-		return err
-	}
-
-	return nil
+	return vacuumTag(ctx, tx, driver)
 }

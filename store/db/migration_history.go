@@ -125,10 +125,10 @@ func dbFormatQuery(driver, query string) string {
 	idx := 1
 	for _, ch := range query {
 		if ch == '?' {
-			fmt.Fprintf(&b, "$%d", idx)
+			_, _ = fmt.Fprintf(&b, "$%d", idx)
 			idx++
 		} else {
-			b.WriteRune(ch)
+			_, _ = b.WriteRune(ch)
 		}
 	}
 	return b.String()

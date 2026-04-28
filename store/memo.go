@@ -409,7 +409,7 @@ func deleteMemo(ctx context.Context, tx *sql.Tx, delete *api.MemoDelete) error {
 	return nil
 }
 
-func (s *Store) composeMemoList(ctx context.Context, tx *sql.Tx, driver string, memoRawList []*memoRaw) ([]*api.Memo, error) {
+func (_ *Store) composeMemoList(ctx context.Context, tx *sql.Tx, driver string, memoRawList []*memoRaw) ([]*api.Memo, error) {
 	list := make([]*api.Memo, 0, len(memoRawList))
 	if len(memoRawList) == 0 {
 		return list, nil
