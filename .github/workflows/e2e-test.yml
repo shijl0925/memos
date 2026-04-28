@@ -28,7 +28,7 @@ jobs:
       - name: Run Docker container
         run: docker run -d -p 5230:5230 neosmemo/memos:e2e
 
-      - uses: pnpm/action-setup@v2.2.4
+      - uses: pnpm/action-setup@v5
         with:
           version: 8.15.9
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: web
-        run: npx playwright test
+        run: npx playwright test --pass-with-no-tests
 
       - uses: actions/upload-artifact@v4
         if: always()

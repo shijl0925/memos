@@ -115,7 +115,10 @@ const Explore = () => {
                   </div>
                 )
               ) : (
-                <p className="m-auto text-center mt-4 italic cursor-pointer text-gray-500 hover:text-green-600" onClick={handleFetchMoreClick}>
+                <p
+                  className="m-auto text-center mt-4 italic cursor-pointer text-gray-500 hover:text-green-600"
+                  onClick={handleFetchMoreClick}
+                >
                   {t("memo.fetch-more")}
                 </p>
               )}
@@ -128,4 +131,3 @@ const Explore = () => {
 };
 
 export default Explore;
-
