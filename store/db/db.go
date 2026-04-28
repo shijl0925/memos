@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/go-sql-driver/mysql" // Register MySQL driver.
+	_ "github.com/lib/pq"              // Register PostgreSQL driver.
+	_ "github.com/mattn/go-sqlite3"    // Register SQLite driver.
 
 	"github.com/usememos/memos/server/profile"
 	"github.com/usememos/memos/server/version"
@@ -277,7 +277,7 @@ func splitSQLStatements(script string) []string {
 
 	for _, ch := range script {
 		if inString {
-			current.WriteRune(ch)
+			_, _ = current.WriteRune(ch)
 			if ch == stringChar {
 				inString = false
 			}
@@ -286,7 +286,7 @@ func splitSQLStatements(script string) []string {
 			case '\'', '"', '`':
 				inString = true
 				stringChar = ch
-				current.WriteRune(ch)
+				_, _ = current.WriteRune(ch)
 			case ';':
 				s := strings.TrimSpace(current.String())
 				if s != "" {
@@ -294,7 +294,7 @@ func splitSQLStatements(script string) []string {
 				}
 				current.Reset()
 			default:
-				current.WriteRune(ch)
+				_, _ = current.WriteRune(ch)
 			}
 		}
 	}
