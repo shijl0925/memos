@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v3
 
@@ -19,15 +18,8 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: neosmemo
-          password: ${{ secrets.DOCKER_NEOSMEMO_TOKEN }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
+          username: shijl0925
+          password: ${{ secrets.DOCKER_SHIJL0925_TOKEN }}
 
       - name: Set up Docker Buildx
         id: buildx
@@ -41,8 +33,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            neosmemo/memos
-            ghcr.io/usememos/memos
+            shijl0925/memos
           flavor: |
             latest=false
           tags: |
