@@ -25,7 +25,7 @@ const splitConditions = (filter: string): string[] => {
   for (let i = 0; i < filter.length; i++) {
     const char = filter[i];
     const next = filter[i + 1];
-    if (char === '"' && filter[i - 1] !== "\\") {
+    if (char === '"' && (i === 0 || filter[i - 1] !== "\\")) {
       inString = !inString;
     }
     if (!inString) {
@@ -181,7 +181,10 @@ export const matchShortcutExpressionFilter = (memo: Memo, filter: string): boole
     if (condition.type === "PINNED") {
       return memo.pinned;
     }
+    if (condition.type === "CREATED_TS_COMPARE") {
+      return matchCreatedTs(memo.createdTs, condition.operator, condition.value);
+    }
 
-    return matchCreatedTs(memo.createdTs, condition.operator, condition.value);
+    return false;
   });
 };

@@ -35,13 +35,13 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
           title: normalizedTitle,
           payload: normalizedPayload,
         });
-        toast.success("Update shortcut successfully");
+        toast.success("Updated shortcut successfully");
       } else {
         await api.createShortcut({
           title: normalizedTitle,
           payload: normalizedPayload,
         });
-        toast.success("Create shortcut successfully");
+        toast.success("Created shortcut successfully");
       }
       onSuccess?.();
       destroy();
