@@ -428,7 +428,8 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 func deleteMemo(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoDelete) error {
 	where, args := []string{"id = ?"}, []any{delete.ID}
 
-	stmt := formatQuery(driver, `DELETE FROM memo WHERE `+strings.Join(where, " AND "))
+	stmt := `DELETE FROM memo WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)
