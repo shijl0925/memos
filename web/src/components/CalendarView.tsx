@@ -154,6 +154,7 @@ const CalendarView = () => {
                 date: getCalendarDateString(cell.timestamp),
               })
             : "";
+          const memoTooltipId = hasMemoCreated ? `calendar-memo-tooltip-${cell.timestamp}` : undefined;
 
           return (
             <div
@@ -162,6 +163,7 @@ const CalendarView = () => {
               onClick={() => handleDayClick(cell)}
             >
               <span
+                aria-describedby={memoTooltipId}
                 className={`
                   group relative w-7 h-7 flex items-center justify-center rounded-full text-xs
                   ${!isCurrentMonth ? "text-gray-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-200"}
@@ -173,9 +175,9 @@ const CalendarView = () => {
                 {cell.day}
                 {hasMemoCreated && (
                   <>
-                    <span className="sr-only">{memoTooltip}</span>
                     <span className="absolute top-0 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
                     <span
+                      id={memoTooltipId}
                       role="tooltip"
                       className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100"
                     >
