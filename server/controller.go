@@ -5,6 +5,7 @@ import ninja "github.com/shijl0925/gin-ninja"
 type serverController struct {
 	middlewares []MiddlewareFunc
 	register    func(Group)
+	registerAPI func(*ninja.Router)
 }
 
 func (c serverController) Register(r *ninja.Router) {
@@ -12,5 +13,10 @@ func (c serverController) Register(r *ninja.Router) {
 	if len(c.middlewares) > 0 {
 		g.Use(c.middlewares...)
 	}
-	c.register(g)
+	if c.registerAPI != nil {
+		c.registerAPI(r)
+	}
+	if c.register != nil {
+		c.register(g)
+	}
 }

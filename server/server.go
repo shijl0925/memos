@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/server/profile"
 	"github.com/usememos/memos/service"
@@ -82,14 +83,16 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 
 	s.app.AddController("/api", serverController{
 		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
+		registerAPI: func(r *ninja.Router) {
+			s.registerUserRoutes(r)
+			s.registerMemoRoutes(r)
+			s.registerTagRoutes(r)
+		},
 		register: func(g Group) {
 			s.registerSystemRoutes(g)
 			s.registerAuthRoutes(g, secret)
-			s.registerUserRoutes(g)
-			s.registerMemoRoutes(g)
 			s.registerShortcutRoutes(g)
 			s.registerResourceRoutes(g)
-			s.registerTagRoutes(g)
 			s.registerStorageRoutes(g)
 			s.registerIdentityProviderRoutes(g)
 			s.registerOpenAIRoutes(g)
