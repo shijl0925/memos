@@ -190,7 +190,11 @@ const CalendarView = () => {
                   ${!isCurrentMonth ? "text-gray-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-200"}
                   ${isToday && !isSelected ? "bg-red-700 text-white font-bold" : ""}
                   ${isSelected ? "bg-blue-500 text-white font-bold" : ""}
-                  ${isCurrentMonth && !isToday && !isSelected ? "group-hover:bg-gray-200 group-focus:bg-gray-200 dark:group-hover:bg-zinc-600 dark:group-focus:bg-zinc-600" : ""}
+                  ${
+                    isCurrentMonth && !isToday && !isSelected
+                      ? "group-hover:bg-gray-200 group-focus:bg-gray-200 dark:group-hover:bg-zinc-600 dark:group-focus:bg-zinc-600"
+                      : ""
+                  }
                 `}
               >
                 {cell.day}
