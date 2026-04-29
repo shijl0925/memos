@@ -50,6 +50,7 @@ const splitConditions = (filter: string): string[] => {
   return conditions;
 };
 
+// Parses a JSON string literal like `"tag1"` and returns its string value.
 const parseStringLiteral = (value: string): string | undefined => {
   try {
     const parsed = JSON.parse(value);
@@ -62,13 +63,10 @@ const parseStringLiteral = (value: string): string | undefined => {
 const parseStringArray = (value: string): string[] | undefined => {
   try {
     const parsed = JSON.parse(`[${value}]`);
-    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
-      return parsed;
-    }
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : undefined;
   } catch {
     return undefined;
   }
-  return undefined;
 };
 
 const parseCondition = (condition: string): ShortcutCondition | undefined => {
