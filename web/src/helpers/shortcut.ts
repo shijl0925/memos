@@ -16,7 +16,7 @@ const TODO_REG = /- \[[ x]\] /;
 const CODE_BLOCK_REG = /```[\s\S]*?```/;
 const INLINE_CODE_REG = /`[^`]+`/;
 
-const normalizeCreatedTsValue = (value: number): number => {
+const normalizeTimestampToMilliseconds = (value: number): number => {
   return value < 1_000_000_000_000 ? value * 1000 : value;
 };
 
@@ -94,7 +94,11 @@ const parseCondition = (condition: string): ShortcutCondition | undefined => {
 
   matched = condition.match(/^created_ts\s*(>=|>|<=|<)\s*(\d+(?:\.\d+)?)$/i);
   if (matched) {
-    return { type: "CREATED_TS_COMPARE", operator: matched[1] as CreatedTsOperator, value: normalizeCreatedTsValue(Number(matched[2])) };
+    return {
+      type: "CREATED_TS_COMPARE",
+      operator: matched[1] as CreatedTsOperator,
+      value: normalizeTimestampToMilliseconds(Number(matched[2])),
+    };
   }
 
   if (condition === "has_link") {

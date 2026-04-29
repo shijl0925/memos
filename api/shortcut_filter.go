@@ -55,7 +55,7 @@ func ApplyShortcutFilter(find *MemoFind, filter string) error {
 			value := true
 			find.Pinned = &value
 		case "CREATED_TS_COMPARE":
-			value := normalizeShortcutTimestamp(condition.Timestamp)
+			value := normalizeTimestampToSeconds(condition.Timestamp)
 			switch condition.Operator {
 			case CreatedTsGreaterThanOrEqual:
 				find.CreatedTsAfter = &value
@@ -209,7 +209,7 @@ func parseShortcutString(value string) (string, error) {
 	return parsed, nil
 }
 
-func normalizeShortcutTimestamp(value int64) int64 {
+func normalizeTimestampToSeconds(value int64) int64 {
 	if value >= 1_000_000_000_000 {
 		return value / 1000
 	}

@@ -79,7 +79,7 @@ const parseLegacyShortcutFilters = (payload: string): Partial<ReturnType<typeof 
     }
     if (from !== undefined && to !== undefined) {
       if (from > to) {
-        console.warn(`Shortcut display time filter has an inverted range (from: ${from} > to: ${to}); swapping values.`);
+        console.warn(`Shortcut date range filter has an inverted range (from: ${from} > to: ${to}); swapping values.`);
       }
       parsed.duration = from > to ? { from: to, to: from } : { from, to };
     }
