@@ -169,7 +169,11 @@ const CalendarView = () => {
                   <>
                     <span className="sr-only">{memoTooltip}</span>
                     <span className="absolute top-0 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <span
+                      role="tooltip"
+                      aria-live="polite"
+                      className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    >
                       {memoTooltip}
                     </span>
                   </>
