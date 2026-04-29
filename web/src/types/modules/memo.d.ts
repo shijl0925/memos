@@ -42,6 +42,7 @@ interface MemoFind {
   rowStatus?: RowStatus;
   pinned?: boolean;
   visibility?: Visibility;
+  shortcut?: string;
   offset?: number;
   limit?: number;
 }

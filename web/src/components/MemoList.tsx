@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { DEFAULT_MEMO_LIMIT } from "@/helpers/consts";
 import { getTimeStampByDate } from "@/helpers/datetime";
+import { matchShortcutExpressionFilter } from "@/helpers/shortcut";
 import { LINK_REG, PLAIN_LINK_REG, TAG_REG } from "@/labs/marked/parser";
 import { useFilterStore, useMemoStore, useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
@@ -30,8 +31,8 @@ const MemoList: React.FC<Props> = (props: Props) => {
   const hasFetchedRef = useRef(false);
 
   const currentUsername = userStore.getCurrentUsername();
-  const { tag: tagQuery, duration, type: memoType, text: textQuery, visibility } = filter;
-  const showMemoFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || visibility);
+  const { tag: tagQuery, duration, type: memoType, text: textQuery, visibility, shortcut } = filter;
+  const showMemoFilter = Boolean(tagQuery || (duration && duration.from < duration.to) || memoType || textQuery || visibility || shortcut);
 
   const shownMemos = (
     showMemoFilter
@@ -78,6 +79,9 @@ const MemoList: React.FC<Props> = (props: Props) => {
           if (visibility) {
             shouldShow = memo.visibility === visibility;
           }
+          if (shortcut && !matchShortcutExpressionFilter(memo, shortcut.payload)) {
+            shouldShow = false;
+          }
 
           return shouldShow;
         })
@@ -98,7 +102,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
   useEffect(() => {
     hasFetchedRef.current = false;
     memoStore
-      .fetchMemos()
+      .fetchMemos(DEFAULT_MEMO_LIMIT, 0, shortcut?.payload, true)
       .then((fetchedMemos) => {
         hasFetchedRef.current = true;
         if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
@@ -111,7 +115,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
         console.error(error);
         toast.error(error.response.data.message);
       });
-  }, [currentUsername]);
+  }, [currentUsername, shortcut?.id, shortcut?.payload]);
 
   useEffect(() => {
     const pageWrapper = document.body.querySelector(".page-wrapper");
@@ -146,7 +150,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
 
   const handleFetchMoreClick = async () => {
     try {
-      const fetchedMemos = await memoStore.fetchMemos(DEFAULT_MEMO_LIMIT, memos.length);
+      const fetchedMemos = await memoStore.fetchMemos(DEFAULT_MEMO_LIMIT, memos.length, shortcut?.payload);
       if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
         setIsComplete(true);
       } else {

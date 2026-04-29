@@ -192,12 +192,12 @@ func (s *Service) ListMemos(ctx context.Context, currentUserID *int, find *api.M
 		if find.CreatorID == nil {
 			return nil, common.Errorf(common.Invalid, fmt.Errorf("missing user id to find memo"))
 		}
-		find.VisibilityList = []api.Visibility{api.Public}
+		find.VisibilityList = intersectVisibilityList(find.VisibilityList, []api.Visibility{api.Public})
 	} else {
 		if find.CreatorID == nil {
 			find.CreatorID = currentUserID
 		} else if *find.CreatorID != *currentUserID {
-			find.VisibilityList = []api.Visibility{api.Public, api.Protected}
+			find.VisibilityList = intersectVisibilityList(find.VisibilityList, []api.Visibility{api.Public, api.Protected})
 		}
 	}
 
@@ -316,6 +316,23 @@ func (s *Service) validateResourceOwnership(ctx context.Context, userID int, res
 	return nil
 }
 
+func intersectVisibilityList(requested, allowed []api.Visibility) []api.Visibility {
+	if len(requested) == 0 {
+		return allowed
+	}
+	allowedSet := make(map[api.Visibility]bool, len(allowed))
+	for _, visibility := range allowed {
+		allowedSet[visibility] = true
+	}
+	intersection := make([]api.Visibility, 0, len(requested))
+	for _, visibility := range requested {
+		if allowedSet[visibility] {
+			intersection = append(intersection, visibility)
+		}
+	}
+	return intersection
+}
+
 func uniqueResourceIDs(resourceIDList []int) []int {
 	seen := map[int]bool{}
 	unique := make([]int, 0, len(resourceIDList))
@@ -360,9 +377,9 @@ func (s *Service) GetMemoStats(ctx context.Context, currentUserID *int, creatorI
 // ListAllMemos lists memos visible to any user (public/protected), used by the explore feed.
 func (s *Service) ListAllMemos(ctx context.Context, authenticated bool, find *api.MemoFind) ([]*api.Memo, error) {
 	if !authenticated {
-		find.VisibilityList = []api.Visibility{api.Public}
+		find.VisibilityList = intersectVisibilityList(find.VisibilityList, []api.Visibility{api.Public})
 	} else {
-		find.VisibilityList = []api.Visibility{api.Public, api.Protected}
+		find.VisibilityList = intersectVisibilityList(find.VisibilityList, []api.Visibility{api.Public, api.Protected})
 	}
 	normalStatus := api.Normal
 	find.RowStatus = &normalStatus

@@ -11,6 +11,7 @@ interface State {
   type?: MemoSpecType;
   text?: string;
   visibility?: Visibility;
+  shortcut?: ShortcutFilter;
 }
 
 export type Filter = State;

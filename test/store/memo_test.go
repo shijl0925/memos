@@ -128,6 +128,59 @@ func TestFindMemoListComposesCreatorsAndResourcesInBatch(t *testing.T) {
 	require.Equal(t, 1, memoList[1].ResourceList[1].LinkedMemoAmount)
 }
 
+func TestFindMemoListShortcutFilters(t *testing.T) {
+	ctx := context.Background()
+	store := NewTestingStore(ctx, t)
+	user, err := createTestingHostUser(ctx, store)
+	require.NoError(t, err)
+
+	firstCreatedTs := int64(100)
+	firstMemo, err := store.CreateMemo(ctx, &api.MemoCreate{
+		CreatorID:  user.ID,
+		CreatedTs:  &firstCreatedTs,
+		Content:    "#tag1 Hello https://example.com\n- [ ] task\n`code`",
+		Visibility: api.Public,
+	})
+	require.NoError(t, err)
+	secondCreatedTs := int64(200)
+	_, err = store.CreateMemo(ctx, &api.MemoCreate{
+		CreatorID:  user.ID,
+		CreatedTs:  &secondCreatedTs,
+		Content:    "#tag2 other content",
+		Visibility: api.Private,
+	})
+	require.NoError(t, err)
+
+	err = store.UpsertMemoOrganizer(ctx, &api.MemoOrganizerUpsert{
+		MemoID: firstMemo.ID,
+		UserID: user.ID,
+		Pinned: true,
+	})
+	require.NoError(t, err)
+
+	pinned := true
+	hasLink := true
+	hasTaskList := true
+	hasCode := true
+	from := int64(100)
+	to := int64(101)
+	memoList, err := store.FindMemoList(ctx, &api.MemoFind{
+		CreatorID:           &user.ID,
+		Pinned:              &pinned,
+		TagSearchList:       []string{"tag1"},
+		ContentContainsList: []string{"hello"},
+		VisibilityList:      []api.Visibility{api.Public},
+		HasLink:             &hasLink,
+		HasTaskList:         &hasTaskList,
+		HasCode:             &hasCode,
+		CreatedTsAfter:      &from,
+		CreatedTsBefore:     &to,
+	})
+	require.NoError(t, err)
+	require.Len(t, memoList, 1)
+	require.Equal(t, firstMemo.ID, memoList[0].ID)
+}
+
 func createTestingUser(ctx context.Context, store *store.Store, userCreate *api.UserCreate) (*api.User, error) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(userCreate.Password), bcrypt.DefaultCost)
 	if err != nil {

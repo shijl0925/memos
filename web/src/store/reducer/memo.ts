@@ -20,6 +20,12 @@ const memoSlice = createSlice({
         memos: uniqBy([...state.memos, ...action.payload], "id"),
       };
     },
+    setMemos: (state, action: PayloadAction<Memo[]>) => {
+      return {
+        ...state,
+        memos: action.payload,
+      };
+    },
     createMemo: (state, action: PayloadAction<Memo>) => {
       return {
         ...state,
@@ -60,6 +66,6 @@ const memoSlice = createSlice({
   },
 });
 
-export const { upsertMemos, createMemo, patchMemo, deleteMemo, setIsFetching } = memoSlice.actions;
+export const { upsertMemos, setMemos, createMemo, patchMemo, deleteMemo, setIsFetching } = memoSlice.actions;
 
 export default memoSlice.reducer;

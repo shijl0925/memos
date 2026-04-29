@@ -146,6 +146,9 @@ export async function getAllMemos(memoFind?: MemoFind) {
   if (memoFind?.limit) {
     queryList.push(`limit=${memoFind.limit}`);
   }
+  if (memoFind?.shortcut) {
+    queryList.push(`shortcut=${encodeURIComponent(memoFind.shortcut)}`);
+  }
 
   if (memoFind?.creatorUsername) {
     const creatorId = await resolveCreatorId(memoFind.creatorUsername);
@@ -178,6 +181,9 @@ export async function getMemoList(memoFind?: MemoFind) {
   }
   if (memoFind?.limit) {
     queryList.push(`limit=${memoFind.limit}`);
+  }
+  if (memoFind?.shortcut) {
+    queryList.push(`shortcut=${encodeURIComponent(memoFind.shortcut)}`);
   }
   const res = await axios.get<Memo[]>(`/api/memo?${queryList.join("&")}`);
   res.data = (Array.isArray(res.data) ? res.data : []).map(normalizeMemo) as Memo[];
@@ -220,6 +226,22 @@ export function unpinMemo(memoId: MemoId) {
 
 export function deleteMemo(memoId: MemoId) {
   return axios.delete(`/api/memo/${memoId}`);
+}
+
+export function getShortcutList() {
+  return axios.get<Shortcut[]>("/api/shortcut");
+}
+
+export function createShortcut(shortcutCreate: ShortcutCreate) {
+  return axios.post<Shortcut>("/api/shortcut", shortcutCreate);
+}
+
+export function patchShortcut(shortcutPatch: ShortcutPatch) {
+  return axios.patch<Shortcut>(`/api/shortcut/${shortcutPatch.id}`, shortcutPatch);
+}
+
+export function deleteShortcut(shortcutId: ShortcutId) {
+  return axios.delete(`/api/shortcut/${shortcutId}`);
 }
 
 export function getResourceList() {
