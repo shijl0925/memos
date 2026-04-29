@@ -359,7 +359,8 @@ func findUserRawMapByIDList(ctx context.Context, tx *sql.Tx, driver string, idLi
 
 func deleteUser(ctx context.Context, tx *sql.Tx, driver string, delete *api.UserDelete) error {
 	tbl := userTableName(driver)
-	result, err := tx.ExecContext(ctx, `DELETE FROM `+tbl+` WHERE id = ?`, delete.ID)
+	stmt := formatQuery(driver, `DELETE FROM `+tbl+` WHERE id = ?`)
+	result, err := tx.ExecContext(ctx, stmt, delete.ID)
 	if err != nil {
 		return FormatError(err)
 	}

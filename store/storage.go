@@ -112,7 +112,7 @@ func (s *Store) DeleteStorage(ctx context.Context, delete *api.StorageDelete) er
 	}
 	defer tx.Rollback()
 
-	if err := deleteStorage(ctx, tx, delete); err != nil {
+	if err := deleteStorage(ctx, tx, s.driver, delete); err != nil {
 		return FormatError(err)
 	}
 
@@ -267,10 +267,11 @@ func findStorageRawList(ctx context.Context, tx *sql.Tx, driver string, find *ap
 	return storageRawList, nil
 }
 
-func deleteStorage(ctx context.Context, tx *sql.Tx, delete *api.StorageDelete) error {
+func deleteStorage(ctx context.Context, tx *sql.Tx, driver string, delete *api.StorageDelete) error {
 	where, args := []string{"id = ?"}, []any{delete.ID}
 
 	stmt := `DELETE FROM storage WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

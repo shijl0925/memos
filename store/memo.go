@@ -181,7 +181,7 @@ func (s *Store) DeleteMemo(ctx context.Context, delete *api.MemoDelete) error {
 	}
 	defer tx.Rollback()
 
-	if err := deleteMemo(ctx, tx, delete); err != nil {
+	if err := deleteMemo(ctx, tx, s.driver, delete); err != nil {
 		return FormatError(err)
 	}
 	if err := vacuum(ctx, tx, s.driver); err != nil {
@@ -425,10 +425,11 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 	return memoRawList, nil
 }
 
-func deleteMemo(ctx context.Context, tx *sql.Tx, delete *api.MemoDelete) error {
+func deleteMemo(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoDelete) error {
 	where, args := []string{"id = ?"}, []any{delete.ID}
 
 	stmt := `DELETE FROM memo WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

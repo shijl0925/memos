@@ -140,7 +140,7 @@ func (s *Store) DeleteShortcut(ctx context.Context, delete *api.ShortcutDelete) 
 	}
 	defer tx.Rollback()
 
-	err = deleteShortcut(ctx, tx, delete)
+	err = deleteShortcut(ctx, tx, s.driver, delete)
 	if err != nil {
 		return FormatError(err)
 	}
@@ -279,7 +279,7 @@ func findShortcutList(ctx context.Context, tx *sql.Tx, driver string, find *api.
 	return shortcutRawList, nil
 }
 
-func deleteShortcut(ctx context.Context, tx *sql.Tx, delete *api.ShortcutDelete) error {
+func deleteShortcut(ctx context.Context, tx *sql.Tx, driver string, delete *api.ShortcutDelete) error {
 	where, args := []string{}, []any{}
 
 	if v := delete.ID; v != nil {
@@ -290,6 +290,7 @@ func deleteShortcut(ctx context.Context, tx *sql.Tx, delete *api.ShortcutDelete)
 	}
 
 	stmt := `DELETE FROM shortcut WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)
