@@ -77,6 +77,9 @@ const parseLegacyShortcutFilters = (payload: string): Partial<ReturnType<typeof 
       }
     }
     if (from !== undefined && to !== undefined) {
+      if (from >= to) {
+        console.warn("Shortcut display time filter has an inverted range; applying the normalized range instead.");
+      }
       parsed.duration = from < to ? { from, to } : { from: to, to: from };
     }
     return parsed;
@@ -106,7 +109,8 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
     let value = "";
     try {
       value = decodeURIComponent(filter.slice(separatorIndex + 1).trim());
-    } catch {
+    } catch (error) {
+      console.warn("Skipping malformed shortcut filter value.", error);
       continue;
     }
     if (!value) {
@@ -137,6 +141,10 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
   }
 
   return parsed;
+};
+
+const hasShortcutFilterValue = (filter: Partial<ReturnType<typeof useFilterStore>["state"]>): boolean => {
+  return Boolean(filter.tag || filter.type || filter.text || filter.visibility || filter.duration);
 };
 
 const HomeSidebar = () => {
@@ -250,6 +258,10 @@ const HomeSidebar = () => {
     }
 
     const nextFilter = parseShortcutPayload(shortcut.payload);
+    if (!hasShortcutFilterValue(nextFilter)) {
+      toast.error("Shortcut filter is invalid");
+      return;
+    }
     filterStore.clearFilter();
     filterStore.setFilter(nextFilter);
     setSelectedShortcutId(shortcut.id);
