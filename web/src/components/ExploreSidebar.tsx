@@ -55,33 +55,33 @@ const ExploreSidebar = () => {
           <SearchBar />
         </div>
 
-      {/* Calendar */}
-      <CalendarView />
+        {/* Calendar */}
+        <CalendarView />
 
-      {/* Tags as chips */}
-      {tags.length > 0 && (
-        <div className="w-full px-3 mt-1">
-          <div className="flex items-center py-1 mb-1">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{t("common.tags")}</span>
+        {/* Tags as chips */}
+        {tags.length > 0 && (
+          <div className="w-full px-3 mt-1">
+            <div className="flex items-center py-1 mb-1">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{t("common.tags")}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => handleTagChipClick(tag)}
+                  className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs transition-colors ${
+                    activeTagFilter === tag
+                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
+                      : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600"
+                  }`}
+                >
+                  <span className="opacity-60">#</span>
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => handleTagChipClick(tag)}
-                className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs transition-colors ${
-                  activeTagFilter === tag
-                    ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
-                    : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600"
-                }`}
-              >
-                <span className="opacity-60">#</span>
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
       </aside>
     </>
   );
