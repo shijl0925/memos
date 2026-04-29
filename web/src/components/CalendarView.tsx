@@ -18,6 +18,7 @@ const CalendarView = () => {
 
   const todayStamp = getDateStampByDate(today);
   const memos = memoStore.state.memos;
+  const memoAmount = memos.length;
   const currentUsername = userStore.getCurrentUsername();
 
   useEffect(() => {
@@ -28,7 +29,7 @@ const CalendarView = () => {
       .catch((error) => {
         console.error(error);
       });
-  }, [memos, currentUsername]);
+  }, [memoAmount, currentUsername]);
 
   // Build calendar grid
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
@@ -150,7 +151,10 @@ const CalendarView = () => {
               >
                 {cell.day}
                 {hasMemoCreated && (
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
+                  <>
+                    <span className="sr-only">Memos created on this day</span>
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
+                  </>
                 )}
               </span>
             </div>
