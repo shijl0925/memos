@@ -315,9 +315,9 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 	}
 	if v := find.Pinned; v != nil {
 		if *v {
-			where = append(where, "COALESCE(memo_organizer.pinned, 0) = 1")
+			where = append(where, fmt.Sprintf("COALESCE(memo_organizer.pinned, %s) = %s", boolLiteral(driver, false), boolLiteral(driver, true)))
 		} else {
-			where = append(where, "COALESCE(memo_organizer.pinned, 0) = 0")
+			where = append(where, fmt.Sprintf("COALESCE(memo_organizer.pinned, %s) = %s", boolLiteral(driver, false), boolLiteral(driver, false)))
 		}
 	}
 	if v := find.ContentSearch; v != nil {
@@ -376,7 +376,7 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 			memo.row_status,
 			memo.content,
 			memo.visibility,
-			COALESCE(memo_organizer.pinned, 0) AS pinned
+			COALESCE(memo_organizer.pinned, `+boolLiteral(driver, false)+`) AS pinned
 		FROM memo
 		LEFT JOIN memo_organizer ON memo_organizer.memo_id = memo.id AND memo_organizer.user_id = memo.creator_id
 		WHERE `+strings.Join(where, " AND ")+`

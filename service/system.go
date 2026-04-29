@@ -94,15 +94,21 @@ func (s *Service) GetSystemStatus(ctx context.Context, userID *int) (*api.System
 			return nil, fmt.Errorf("failed to find user: %w", err)
 		}
 		if user != nil && user.Role == api.Host {
-			fi, err := os.Stat(s.Profile.DSN)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read database fileinfo: %w", err)
+			if isSQLiteDriver(s.Profile.Driver) && s.Profile.DSN != "" {
+				fi, err := os.Stat(s.Profile.DSN)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read database fileinfo: %w", err)
+				}
+				systemStatus.DBSize = fi.Size()
 			}
-			systemStatus.DBSize = fi.Size()
 		}
 	}
 
 	return systemStatus, nil
+}
+
+func isSQLiteDriver(driver string) bool {
+	return driver == "" || driver == "sqlite" || driver == "sqlite3"
 }
 
 // UpsertSystemSetting validates the payload, checks that the caller is a Host,
