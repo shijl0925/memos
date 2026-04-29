@@ -66,7 +66,7 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
           <Input autoFocus placeholder="Title" value={title} onChange={(event) => setTitle(event.target.value)} />
           <Textarea
             minRows={3}
-            placeholder="Filter, e.g. tagSearch:work,property.hasTaskList:true"
+            placeholder="Filter, e.g. tagsearch:work,property.hastasklist:true"
             value={payload}
             onChange={(event) => setPayload(event.target.value)}
           />

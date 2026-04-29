@@ -21,17 +21,26 @@ const CODE_BLOCK_REG = /```[\s\S]*?```/g;
 const INLINE_CODE_REG = /`[^`]+`/g;
 const VALID_MEMO_TYPES = new Set<MemoSpecType>(["NOT_TAGGED", "LINKED", "TODO", "CODE"]);
 const VALID_VISIBILITIES = new Set<Visibility>(["PUBLIC", "PROTECTED", "PRIVATE"]);
+const MEMO_TYPE_ALIASES = new Map<string, MemoSpecType>([
+  ["HASLINK", "LINKED"],
+  ["HAS_LINK", "LINKED"],
+  ["LINK", "LINKED"],
+  ["HASTASKLIST", "TODO"],
+  ["HAS_TASK_LIST", "TODO"],
+  ["TASK", "TODO"],
+  ["TASK_LIST", "TODO"],
+  ["HASCODE", "CODE"],
+  ["HAS_CODE", "CODE"],
+]);
+const TAG_FILTER_FACTORS = new Set(["tag", "tagsearch"]);
+const TEXT_FILTER_FACTORS = new Set(["text", "content", "contentsearch", "search"]);
+const DISPLAY_TIME_FILTER_FACTORS = new Set(["displaytime", "display_time", "date"]);
 
 const normalizeMemoType = (value: string): MemoSpecType | undefined => {
   const normalized = value.trim().toUpperCase().replaceAll("-", "_");
-  if (normalized === "HASLINK" || normalized === "HAS_LINK" || normalized === "LINK") {
-    return "LINKED";
-  }
-  if (normalized === "HASTASKLIST" || normalized === "HAS_TASK_LIST" || normalized === "TASK" || normalized === "TASK_LIST") {
-    return "TODO";
-  }
-  if (normalized === "HASCODE" || normalized === "HAS_CODE") {
-    return "CODE";
+  const memoType = MEMO_TYPE_ALIASES.get(normalized);
+  if (memoType) {
+    return memoType;
   }
   return VALID_MEMO_TYPES.has(normalized as MemoSpecType) ? (normalized as MemoSpecType) : undefined;
 };
@@ -67,8 +76,8 @@ const parseLegacyShortcutFilters = (payload: string): Partial<ReturnType<typeof 
         }
       }
     }
-    if (from !== undefined && to !== undefined && from < to) {
-      parsed.duration = { from, to };
+    if (from !== undefined && to !== undefined) {
+      parsed.duration = from < to ? { from, to } : { from: to, to: from };
     }
     return parsed;
   } catch {
@@ -99,9 +108,9 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
       continue;
     }
 
-    if (factor === "tag" || factor === "tagsearch") {
+    if (TAG_FILTER_FACTORS.has(factor)) {
       parsed.tag = value;
-    } else if (factor === "text" || factor === "content" || factor === "contentsearch" || factor === "search") {
+    } else if (TEXT_FILTER_FACTORS.has(factor)) {
       parsed.text = value;
     } else if (factor === "visibility") {
       const visibility = value.toUpperCase();
@@ -116,7 +125,7 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
       parsed.type = "TODO";
     } else if (factor === "property.hascode") {
       parsed.type = "CODE";
-    } else if (factor === "displaytime" || factor === "display_time" || factor === "date") {
+    } else if (DISPLAY_TIME_FILTER_FACTORS.has(factor)) {
       const from = getDateStampByDate(value);
       parsed.duration = { from, to: from + DAILY_TIMESTAMP };
     }
