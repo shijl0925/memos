@@ -169,19 +169,28 @@ const CalendarView = () => {
           return (
             <div
               key={idx}
-              className={`relative flex items-center justify-center overflow-visible py-0.5 hover:z-50 ${
+              role={isCurrentMonth ? "button" : undefined}
+              tabIndex={isCurrentMonth ? 0 : undefined}
+              className={`group relative flex items-center justify-center overflow-visible py-0.5 hover:z-50 focus:z-50 focus:outline-none ${
                 isCurrentMonth ? "cursor-pointer" : "cursor-default"
               }`}
               onClick={() => handleDayClick(cell)}
+              onKeyDown={(event) => {
+                if (!isCurrentMonth || (event.key !== "Enter" && event.key !== " ")) {
+                  return;
+                }
+                event.preventDefault();
+                handleDayClick(cell);
+              }}
             >
               <span
                 aria-describedby={memoTooltipId}
                 className={`
-                  group relative w-7 h-7 flex items-center justify-center rounded-full text-xs
+                  relative w-7 h-7 flex items-center justify-center rounded-full text-xs
                   ${!isCurrentMonth ? "text-gray-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-200"}
                   ${isToday && !isSelected ? "bg-red-700 text-white font-bold" : ""}
                   ${isSelected ? "bg-blue-500 text-white font-bold" : ""}
-                  ${isCurrentMonth && !isToday && !isSelected ? "hover:bg-gray-200 dark:hover:bg-zinc-600" : ""}
+                  ${isCurrentMonth && !isToday && !isSelected ? "group-hover:bg-gray-200 group-focus:bg-gray-200 dark:group-hover:bg-zinc-600 dark:group-focus:bg-zinc-600" : ""}
                 `}
               >
                 {cell.day}
@@ -191,7 +200,7 @@ const CalendarView = () => {
                     <span
                       id={memoTooltipId}
                       role="tooltip"
-                      className={`pointer-events-none absolute bottom-full z-50 mb-1 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100 ${tooltipPositionClass}`}
+                      className={`pointer-events-none absolute bottom-full z-50 mb-1 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100 ${tooltipPositionClass}`}
                     >
                       {memoTooltip}
                     </span>
