@@ -45,7 +45,6 @@ type HandlerFunc func(Context) error
 type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
 type App interface {
-	Group(prefix string) Group
 	AddController(prefix string, controller ninja.Controller, opts ...ninja.RouterOption)
 	UseLogger(format string)
 	UseGzip()
@@ -57,14 +56,6 @@ type App interface {
 	UseStatic(config StaticFileServerConfig)
 	Start(address string) error
 	Shutdown(ctx context.Context) error
-}
-
-type Group interface {
-	GET(path string, handler HandlerFunc)
-	POST(path string, handler HandlerFunc)
-	PATCH(path string, handler HandlerFunc)
-	DELETE(path string, handler HandlerFunc)
-	Use(middlewares ...MiddlewareFunc)
 }
 
 type SecureConfig struct {
