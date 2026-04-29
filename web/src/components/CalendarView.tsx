@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import { getMemoStats } from "@/helpers/api";
 import { DAILY_TIMESTAMP } from "@/helpers/consts";
-import { getDateStampByDate, getDateString } from "@/helpers/datetime";
+import { getDateStampByDate } from "@/helpers/datetime";
 import { useFilterStore, useMemoStore, useUserStore } from "@/store/module";
 import Icon from "./Icon";
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const getCalendarDateString = (timestamp: number) => {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const CalendarView = () => {
   const filterStore = useFilterStore();
@@ -14,7 +22,7 @@ const CalendarView = () => {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
-  const [memoCreatedDateStamps, setMemoCreatedDateStamps] = useState<Set<number>>(new Set());
+  const [memoCreatedDateCounts, setMemoCreatedDateCounts] = useState<Map<number, number>>(new Map());
 
   const todayStamp = getDateStampByDate(today);
   const memos = memoStore.state.memos;
@@ -24,7 +32,12 @@ const CalendarView = () => {
   useEffect(() => {
     getMemoStats(currentUsername)
       .then(({ data }) => {
-        setMemoCreatedDateStamps(new Set(data.map((createdTs) => getDateStampByDate(createdTs * 1000))));
+        const dateCounts = new Map<number, number>();
+        for (const createdTs of data) {
+          const dateStamp = getDateStampByDate(createdTs * 1000);
+          dateCounts.set(dateStamp, (dateCounts.get(dateStamp) ?? 0) + 1);
+        }
+        setMemoCreatedDateCounts(dateCounts);
       })
       .catch((error) => {
         console.error("Failed to load memo statistics", error);
@@ -132,7 +145,9 @@ const CalendarView = () => {
           const isToday = cell.month === "current" && cell.timestamp === todayStamp;
           const isSelected = cell.month === "current" && cell.timestamp === selectedFrom;
           const isCurrentMonth = cell.month === "current";
-          const hasMemoCreated = isCurrentMonth && memoCreatedDateStamps.has(cell.timestamp);
+          const memoCreatedCount = isCurrentMonth ? memoCreatedDateCounts.get(cell.timestamp) ?? 0 : 0;
+          const hasMemoCreated = memoCreatedCount > 0;
+          const memoTooltip = `${getCalendarDateString(cell.timestamp)} 有 ${memoCreatedCount} 条备忘录`;
 
           return (
             <div
@@ -142,7 +157,7 @@ const CalendarView = () => {
             >
               <span
                 className={`
-                  relative w-7 h-7 flex items-center justify-center rounded-full text-xs
+                  group relative w-7 h-7 flex items-center justify-center rounded-full text-xs
                   ${!isCurrentMonth ? "text-gray-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-200"}
                   ${isToday && !isSelected ? "bg-red-700 text-white font-bold" : ""}
                   ${isSelected ? "bg-blue-500 text-white font-bold" : ""}
@@ -152,8 +167,11 @@ const CalendarView = () => {
                 {cell.day}
                 {hasMemoCreated && (
                   <>
-                    <span className="sr-only">Has memos from {getDateString(cell.timestamp)}</span>
+                    <span className="sr-only">{memoTooltip}</span>
                     <span className="absolute top-0 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      {memoTooltip}
+                    </span>
                   </>
                 )}
               </span>
