@@ -27,7 +27,6 @@ const CalendarView = () => {
   const [memoCreatedDateCounts, setMemoCreatedDateCounts] = useState<Map<number, number>>(new Map());
 
   const todayStamp = getDateStampByDate(today);
-  const memos = memoStore.state.memos;
   const currentUsername = userStore.getCurrentUsername();
 
   useEffect(() => {
@@ -43,7 +42,7 @@ const CalendarView = () => {
       .catch((error) => {
         console.error("Failed to load memo statistics", error);
       });
-  }, [memos.length, currentUsername]);
+  }, [memoStore.state.memos.length, currentUsername]);
 
   // Build calendar grid
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
@@ -109,7 +108,7 @@ const CalendarView = () => {
   const monthName = new Date(viewYear, viewMonth, 1).toLocaleString("default", { month: "long" });
 
   return (
-    <div className="w-full px-3 py-2 select-none">
+    <div className="relative w-full overflow-visible px-3 py-2 select-none">
       {/* Month header */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -141,7 +140,7 @@ const CalendarView = () => {
       </div>
 
       {/* Day cells */}
-      <div className="grid grid-cols-7">
+      <div className="relative grid grid-cols-7 overflow-visible">
         {cells.map((cell, idx) => {
           const isToday = cell.month === "current" && cell.timestamp === todayStamp;
           const isSelected = cell.month === "current" && cell.timestamp === selectedFrom;
@@ -159,7 +158,9 @@ const CalendarView = () => {
           return (
             <div
               key={idx}
-              className={`flex items-center justify-center py-0.5 ${isCurrentMonth ? "cursor-pointer" : "cursor-default"}`}
+              className={`relative flex items-center justify-center overflow-visible py-0.5 hover:z-50 ${
+                isCurrentMonth ? "cursor-pointer" : "cursor-default"
+              }`}
               onClick={() => handleDayClick(cell)}
             >
               <span
@@ -179,7 +180,7 @@ const CalendarView = () => {
                     <span
                       id={memoTooltipId}
                       role="tooltip"
-                      className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       {memoTooltip}
                     </span>
