@@ -146,6 +146,9 @@ export async function getAllMemos(memoFind?: MemoFind) {
   if (memoFind?.limit) {
     queryList.push(`limit=${memoFind.limit}`);
   }
+  if (memoFind?.shortcut) {
+    queryList.push(`shortcut=${encodeURIComponent(memoFind.shortcut)}`);
+  }
 
   if (memoFind?.creatorUsername) {
     const creatorId = await resolveCreatorId(memoFind.creatorUsername);
@@ -178,6 +181,9 @@ export async function getMemoList(memoFind?: MemoFind) {
   }
   if (memoFind?.limit) {
     queryList.push(`limit=${memoFind.limit}`);
+  }
+  if (memoFind?.shortcut) {
+    queryList.push(`shortcut=${encodeURIComponent(memoFind.shortcut)}`);
   }
   const res = await axios.get<Memo[]>(`/api/memo?${queryList.join("&")}`);
   res.data = (Array.isArray(res.data) ? res.data : []).map(normalizeMemo) as Memo[];

@@ -314,16 +314,49 @@ func findMemoRawList(ctx context.Context, tx *sql.Tx, driver string, find *api.M
 		where, args = append(where, "memo.row_status = ?"), append(args, *v)
 	}
 	if v := find.Pinned; v != nil {
-		where = append(where, "memo_organizer.pinned = 1")
+		if *v {
+			where = append(where, "COALESCE(memo_organizer.pinned, 0) = 1")
+		} else {
+			where = append(where, "COALESCE(memo_organizer.pinned, 0) = 0")
+		}
 	}
 	if v := find.ContentSearch; v != nil {
 		where, args = append(where, "memo.content LIKE ?"), append(args, "%"+*v+"%")
 	}
+	for _, content := range find.ContentContainsList {
+		where, args = append(where, "LOWER(memo.content) LIKE ?"), append(args, "%"+strings.ToLower(content)+"%")
+	}
+	if len(find.TagSearchList) != 0 {
+		tagWhere := make([]string, 0, len(find.TagSearchList))
+		for _, tag := range find.TagSearchList {
+			tagWhere = append(tagWhere, "memo.content LIKE ?")
+			args = append(args, "%#"+tag+"%")
+		}
+		where = append(where, "("+strings.Join(tagWhere, " OR ")+")")
+	}
+	if v := find.HasLink; v != nil && *v {
+		where = append(where, "(memo.content LIKE ? OR memo.content LIKE ? OR memo.content LIKE ? OR memo.content LIKE ? OR memo.content LIKE ?)")
+		args = append(args, "%](%)", "%http://%", "%https://%", "%chrome://%", "%edge://%")
+	}
+	if v := find.HasTaskList; v != nil && *v {
+		where = append(where, "(memo.content LIKE ? OR memo.content LIKE ? OR memo.content LIKE ?)")
+		args = append(args, "%- [ ] %", "%- [x] %", "%- [X] %")
+	}
+	if v := find.HasCode; v != nil && *v {
+		where = append(where, "(memo.content LIKE ? OR memo.content LIKE ?)")
+		args = append(args, "%```%", "%`%")
+	}
 	if v := find.CreatedTsAfter; v != nil {
 		where, args = append(where, "memo.created_ts >= ?"), append(args, *v)
 	}
+	if v := find.CreatedTsGreaterThan; v != nil {
+		where, args = append(where, "memo.created_ts > ?"), append(args, *v)
+	}
 	if v := find.CreatedTsBefore; v != nil {
 		where, args = append(where, "memo.created_ts < ?"), append(args, *v)
+	}
+	if v := find.CreatedTsLessThanOrEqualTo; v != nil {
+		where, args = append(where, "memo.created_ts <= ?"), append(args, *v)
 	}
 	if v := find.VisibilityList; len(v) != 0 {
 		placeholders := make([]string, 0, len(v))

@@ -102,7 +102,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
   useEffect(() => {
     hasFetchedRef.current = false;
     memoStore
-      .fetchMemos()
+      .fetchMemos(DEFAULT_MEMO_LIMIT, 0, shortcut?.payload, true)
       .then((fetchedMemos) => {
         hasFetchedRef.current = true;
         if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
@@ -115,7 +115,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
         console.error(error);
         toast.error(error.response.data.message);
       });
-  }, [currentUsername]);
+  }, [currentUsername, shortcut?.id, shortcut?.payload]);
 
   useEffect(() => {
     const pageWrapper = document.body.querySelector(".page-wrapper");
@@ -150,7 +150,7 @@ const MemoList: React.FC<Props> = (props: Props) => {
 
   const handleFetchMoreClick = async () => {
     try {
-      const fetchedMemos = await memoStore.fetchMemos(DEFAULT_MEMO_LIMIT, memos.length);
+      const fetchedMemos = await memoStore.fetchMemos(DEFAULT_MEMO_LIMIT, memos.length, shortcut?.payload);
       if (fetchedMemos.length < DEFAULT_MEMO_LIMIT) {
         setIsComplete(true);
       } else {

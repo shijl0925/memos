@@ -85,6 +85,11 @@ func (s *Server) registerMemoRoutes(g Group) {
 			}
 			memoFind.VisibilityList = visibilityList
 		}
+		if shortcutFilter := c.QueryParam("shortcut"); shortcutFilter != "" {
+			if err := api.ApplyShortcutFilter(memoFind, shortcutFilter); err != nil {
+				return newHTTPErrorWithInternal(http.StatusBadRequest, "Invalid shortcut filter", err)
+			}
+		}
 		if limit, err := strconv.Atoi(c.QueryParam("limit")); err == nil {
 			memoFind.Limit = &limit
 		}
@@ -228,6 +233,11 @@ func (s *Server) registerMemoRoutes(g Group) {
 				visibilityList = append(visibilityList, api.Visibility(visibility))
 			}
 			memoFind.VisibilityList = visibilityList
+		}
+		if shortcutFilter := c.QueryParam("shortcut"); shortcutFilter != "" {
+			if err := api.ApplyShortcutFilter(memoFind, shortcutFilter); err != nil {
+				return newHTTPErrorWithInternal(http.StatusBadRequest, "Invalid shortcut filter", err)
+			}
 		}
 		if from, err := strconv.ParseInt(c.QueryParam("from"), 10, 64); err == nil {
 			memoFind.CreatedTsAfter = &from

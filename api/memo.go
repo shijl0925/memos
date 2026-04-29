@@ -90,13 +90,20 @@ type MemoFind struct {
 	CreatorID *int
 
 	// Domain specific fields
-	Pinned         *bool
-	ContentSearch  *string
-	VisibilityList []Visibility
+	Pinned              *bool
+	ContentSearch       *string
+	ContentContainsList []string
+	TagSearchList       []string
+	VisibilityList      []Visibility
+	HasLink             *bool
+	HasTaskList         *bool
+	HasCode             *bool
 
 	// Date range (Unix seconds, inclusive lower bound, exclusive upper bound)
-	CreatedTsAfter  *int64
-	CreatedTsBefore *int64
+	CreatedTsAfter             *int64
+	CreatedTsBefore            *int64
+	CreatedTsGreaterThan       *int64
+	CreatedTsLessThanOrEqualTo *int64
 
 	// Pagination
 	Limit  *int
