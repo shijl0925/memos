@@ -6,25 +6,28 @@ import (
 	"net/http"
 
 	"github.com/usememos/memos/api"
+	"github.com/usememos/memos/server/profile"
 )
 
 func (s *Server) registerSystemRoutes(r *ninja.Router) {
-	ninja.Get(r, "/ping", adaptNinjaHandler(func(c Context) error {
-		return c.JSON(http.StatusOK, composeResponse(s.Profile))
-	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+	ninja.Get(r, "/ping", adaptNinjaJSONHandler(func(c *ninja.Context, _ *struct{}) (*profile.Profile, error) {
+		return s.Profile, nil
+	}), ninja.SuccessStatus(http.StatusOK))
 
-	ninja.Get(r, "/status", adaptNinjaHandler(func(c Context) error {
-		ctx := c.Request().Context()
+	ninja.Get(r, "/status", adaptNinjaJSONHandler(func(c *ninja.Context, _ *struct{}) (*api.SystemStatus, error) {
+		ctx := c.Request.Context()
 		var userID *int
-		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
-			userID = &id
+		if id, ok := c.Context.Get(getUserIDContextKey()); ok {
+			if id, ok := id.(int); ok {
+				userID = &id
+			}
 		}
 		systemStatus, err := s.Service.GetSystemStatus(ctx, userID)
 		if err != nil {
-			return convertServiceError(err)
+			return nil, convertServiceError(err)
 		}
-		return c.JSON(http.StatusOK, composeResponse(systemStatus))
-	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+		return systemStatus, nil
+	}), ninja.SuccessStatus(http.StatusOK))
 
 	ninja.Post(r, "/system/setting", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()

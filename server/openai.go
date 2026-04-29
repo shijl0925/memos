@@ -27,12 +27,12 @@ func (s *Server) registerOpenAIRoutes(r *ninja.Router) {
 		return c.JSON(http.StatusOK, composeResponse(result))
 	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	ninja.Get(r, "/openai/enabled", adaptNinjaHandler(func(c Context) error {
-		ctx := c.Request().Context()
+	ninja.Get(r, "/openai/enabled", adaptNinjaJSONHandler(func(c *ninja.Context, _ *struct{}) (bool, error) {
+		ctx := c.Request.Context()
 		cfg, err := s.Service.GetOpenAIConfig(ctx)
 		if err != nil {
-			return convertServiceError(err)
+			return false, convertServiceError(err)
 		}
-		return c.JSON(http.StatusOK, composeResponse(cfg.Key != ""))
-	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+		return cfg.Key != "", nil
+	}), ninja.SuccessStatus(http.StatusOK))
 }
