@@ -79,7 +79,7 @@ const parseLegacyShortcutFilters = (payload: string): Partial<ReturnType<typeof 
     }
     if (from !== undefined && to !== undefined) {
       if (from > to) {
-        console.warn("Shortcut display time filter has an inverted range; applying the normalized range instead.");
+        console.warn(`Shortcut display time filter has an inverted range (from: ${from} > to: ${to}); swapping values.`);
       }
       parsed.duration = from < to ? { from, to } : { from: to, to: from };
     }
@@ -111,7 +111,7 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
     try {
       value = decodeURIComponent(filter.slice(separatorIndex + 1).trim());
     } catch (error) {
-      console.warn("Skipping malformed shortcut filter value.", error);
+      console.warn(`Skipping malformed shortcut filter value for '${factor}'.`, error);
       continue;
     }
     if (!value) {
@@ -231,7 +231,7 @@ const HomeSidebar = () => {
     showCommonDialog({
       dialogName: "delete-shortcut-dialog",
       title: "Delete shortcut",
-      content: `Are you sure you want to delete ${JSON.stringify(shortcut.title)}?`,
+      content: `Are you sure you want to delete "${shortcut.title}"?`,
       style: "warning",
       confirmBtnText: t("common.delete"),
       onConfirm: async () => {

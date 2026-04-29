@@ -139,7 +139,7 @@ const getMemoTags = (memo: Memo): Set<string> => {
   return tagsSet;
 };
 
-const matchCreatedTs = (createdTs: number, operator: CreatedTsOperator, value: number): boolean => {
+const evaluateCreatedTsCondition = (createdTs: number, operator: CreatedTsOperator, value: number): boolean => {
   if (operator === ">=") {
     return createdTs >= value;
   }
@@ -182,7 +182,7 @@ export const matchShortcutExpressionFilter = (memo: Memo, filter: string): boole
       return memo.pinned;
     }
     if (condition.type === "CREATED_TS_COMPARE") {
-      return matchCreatedTs(memo.createdTs, condition.operator, condition.value);
+      return evaluateCreatedTsCondition(memo.createdTs, condition.operator, condition.value);
     }
 
     return false;
