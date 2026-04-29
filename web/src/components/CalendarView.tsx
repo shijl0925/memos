@@ -153,7 +153,7 @@ const CalendarView = () => {
                 {hasMemoCreated && (
                   <>
                     <span className="sr-only">Has memos from {getDateString(cell.timestamp)}</span>
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
+                    <span className="absolute top-0 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
                   </>
                 )}
               </span>
