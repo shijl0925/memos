@@ -176,7 +176,7 @@ const CalendarView = () => {
               }`}
               onClick={() => handleDayClick(cell)}
               onKeyDown={(event) => {
-                if (!isCurrentMonth || (event.key !== "Enter" && event.code !== "Space")) {
+                if (!isCurrentMonth || (event.code !== "Enter" && event.code !== "Space")) {
                   return;
                 }
                 event.preventDefault();
