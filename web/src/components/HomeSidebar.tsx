@@ -116,7 +116,7 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
       parsed.type = "TODO";
     } else if (factor === "property.hascode") {
       parsed.type = "CODE";
-    } else if (factor === "displaytime" || factor === "display_time" || factor === "date" || factor === "day") {
+    } else if (factor === "displaytime" || factor === "display_time" || factor === "date") {
       const from = getDateStampByDate(value);
       parsed.duration = { from, to: from + DAILY_TIMESTAMP };
     }

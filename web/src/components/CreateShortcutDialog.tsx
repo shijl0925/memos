@@ -56,7 +56,7 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
   return (
     <>
       <div className="dialog-header-container">
-        <p className="title-text">{isCreating ? t("common.create") : t("common.edit")} Shortcuts</p>
+        <p className="title-text">{isCreating ? t("common.create") : t("common.edit")} Shortcut</p>
         <button className="btn close-btn" onClick={() => destroy()}>
           <Icon.X />
         </button>
