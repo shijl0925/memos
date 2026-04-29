@@ -2,6 +2,7 @@ package server
 
 import (
 	"compress/gzip"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,4 +96,57 @@ func TestGinUseTimeout(t *testing.T) {
 
 	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 	require.Contains(t, recorder.Body.String(), "Request timeout")
+}
+
+func TestDetailedErrorLogEnvDisabledByDefault(t *testing.T) {
+	t.Setenv(detailedErrorLogEnvVarName, "")
+
+	require.False(t, isDetailedErrorLogEnabled())
+}
+
+func TestDetailedErrorLogEnvEnabled(t *testing.T) {
+	t.Setenv(detailedErrorLogEnvVarName, "true")
+
+	require.True(t, isDetailedErrorLogEnabled())
+}
+
+func TestGinWriteErrorOnlyExposesGinErrorWhenDetailedLogsEnabled(t *testing.T) {
+	internalErr := errors.New("database connection refused")
+
+	for _, test := range []struct {
+		name          string
+		envValue      string
+		wantGinErrors int
+	}{
+		{
+			name:          "disabled",
+			envValue:      "false",
+			wantGinErrors: 0,
+		},
+		{
+			name:          "enabled",
+			envValue:      "true",
+			wantGinErrors: 1,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(detailedErrorLogEnvVarName, test.envValue)
+			app := newTestGinApp(t)
+			app.app.Use(func(c *gin.Context) {
+				c.Next()
+				require.Len(t, c.Errors, test.wantGinErrors)
+			})
+			app.Group("").GET("/fail", func(c Context) error {
+				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch memo list", internalErr)
+			})
+
+			request := httptest.NewRequest(http.MethodGet, "/fail?limit=20", nil)
+			request.Header.Set(headerXRealIP, "192.0.2.10")
+			recorder := httptest.NewRecorder()
+			app.app.ServeHTTP(recorder, request)
+
+			require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			require.JSONEq(t, `{"error":"Failed to fetch memo list"}`, recorder.Body.String())
+		})
+	}
 }
