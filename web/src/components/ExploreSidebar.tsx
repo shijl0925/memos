@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { TAG_REG } from "@/labs/marked/parser";
-import { useFilterStore, useMemoStore } from "@/store/module";
+import { useFilterStore, useLayoutStore, useMemoStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 import CalendarView from "./CalendarView";
 import SearchBar from "./SearchBar";
@@ -8,7 +8,9 @@ import SearchBar from "./SearchBar";
 const ExploreSidebar = () => {
   const t = useTranslate();
   const filterStore = useFilterStore();
+  const layoutStore = useLayoutStore();
   const memoStore = useMemoStore();
+  const showHomeSidebar = layoutStore.state.showHomeSidebar;
 
   // Derive visible public/protected memos to build the tag list
   const publicMemos = memoStore.state.memos.filter((m) => m.rowStatus === "NORMAL" && m.visibility !== "PRIVATE");
@@ -34,14 +36,24 @@ const ExploreSidebar = () => {
 
   const handleTagChipClick = (tag: string) => {
     filterStore.setTagFilter(activeTagFilter === tag ? undefined : tag);
+    layoutStore.setHomeSidebarStatus(false);
   };
 
   return (
-    <aside className="sticky top-0 w-72 shrink-0 h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1">
-      {/* Search */}
-      <div className="w-full px-4 mb-2">
-        <SearchBar />
-      </div>
+    <>
+      <div
+        className={`fixed inset-0 z-30 bg-black opacity-60 md:hidden ${showHomeSidebar ? "block" : "hidden"}`}
+        onClick={() => layoutStore.setHomeSidebarStatus(false)}
+      />
+      <aside
+        className={`fixed md:sticky top-0 left-0 z-40 md:z-auto w-72 max-w-[85vw] md:max-w-none shrink-0 h-full md:h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1 transition-transform duration-300 md:translate-x-0 ${
+          showHomeSidebar ? "translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full"
+        }`}
+      >
+        {/* Search */}
+        <div className="w-full px-4 mb-2">
+          <SearchBar />
+        </div>
 
       {/* Calendar */}
       <CalendarView />
@@ -70,7 +82,8 @@ const ExploreSidebar = () => {
           </div>
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 };
 

@@ -6,7 +6,7 @@ import { getDateStampByDate } from "@/helpers/datetime";
 import { parseShortcutExpressionFilter } from "@/helpers/shortcut";
 import { LINK_REG } from "@/labs/marked/parser/Link";
 import { PLAIN_LINK_REG } from "@/labs/marked/parser/PlainLink";
-import { useFilterStore, useMemoStore, useTagStore, useUserStore } from "@/store/module";
+import { useFilterStore, useLayoutStore, useMemoStore, useTagStore, useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 import CalendarView from "./CalendarView";
 import showCreateShortcutDialog from "./CreateShortcutDialog";
@@ -154,6 +154,7 @@ const HomeSidebar = () => {
   const memoStore = useMemoStore();
   const tagStore = useTagStore();
   const userStore = useUserStore();
+  const layoutStore = useLayoutStore();
 
   const memos = memoStore.state.memos.filter((m) => m.creatorUsername === userStore.getCurrentUsername() && m.rowStatus === "NORMAL");
   const tagsText = tagStore.state.tags;
@@ -199,23 +200,32 @@ const HomeSidebar = () => {
 
   const handleTodoChip = () => {
     filterStore.setMemoTypeFilter(activeType === "TODO" ? undefined : "TODO");
+    closeMobileSidebar();
   };
 
   const handleCodeChip = () => {
     filterStore.setMemoTypeFilter(activeType === "CODE" ? undefined : "CODE");
+    closeMobileSidebar();
   };
 
   const handleLinkChip = () => {
     filterStore.setMemoTypeFilter(activeType === "LINKED" ? undefined : "LINKED");
+    closeMobileSidebar();
   };
 
   const handleTagChipClick = (tag: string) => {
     const current = filterStore.state.tag;
     filterStore.setTagFilter(current === tag ? undefined : tag);
+    closeMobileSidebar();
   };
 
   const activeTagFilter = filterStore.state.tag;
   const selectedShortcutId = filterStore.state.shortcut?.id;
+  const showHomeSidebar = layoutStore.state.showHomeSidebar;
+
+  const closeMobileSidebar = () => {
+    layoutStore.setHomeSidebarStatus(false);
+  };
 
   const handleCreateShortcut = () => {
     showCreateShortcutDialog(undefined, fetchShortcuts);
@@ -253,6 +263,7 @@ const HomeSidebar = () => {
   const handleShortcutClick = (shortcut: Shortcut) => {
     if (selectedShortcutId === shortcut.id) {
       filterStore.setShortcutFilter(undefined);
+      closeMobileSidebar();
       return;
     }
 
@@ -262,6 +273,7 @@ const HomeSidebar = () => {
         title: shortcut.title,
         payload: shortcut.payload,
       });
+      closeMobileSidebar();
       return;
     }
 
@@ -272,14 +284,24 @@ const HomeSidebar = () => {
     }
     filterStore.clearFilter();
     filterStore.setFilter(nextFilter);
+    closeMobileSidebar();
   };
 
   return (
-    <aside className="sticky top-0 w-72 shrink-0 h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1">
-      {/* Search */}
-      <div className="w-full px-4 mb-2">
-        <SearchBar />
-      </div>
+    <>
+      <div
+        className={`fixed inset-0 z-30 bg-black opacity-60 md:hidden ${showHomeSidebar ? "block" : "hidden"}`}
+        onClick={closeMobileSidebar}
+      />
+      <aside
+        className={`fixed md:sticky top-0 left-0 z-40 md:z-auto w-72 max-w-[85vw] md:max-w-none shrink-0 h-full md:h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1 transition-transform duration-300 md:translate-x-0 ${
+          showHomeSidebar ? "translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full"
+        }`}
+      >
+        {/* Search */}
+        <div className="w-full px-4 mb-2">
+          <SearchBar />
+        </div>
 
       {/* Calendar */}
       <CalendarView />
@@ -390,7 +412,8 @@ const HomeSidebar = () => {
           </div>
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 };
 
