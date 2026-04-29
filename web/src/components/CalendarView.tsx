@@ -18,7 +18,7 @@ const CalendarView = () => {
 
   const todayStamp = getDateStampByDate(today);
   const memos = memoStore.state.memos;
-  const memoAmount = memos.length;
+  const memoIds = memos.map((memo) => memo.id).join(",");
   const currentUsername = userStore.getCurrentUsername();
 
   useEffect(() => {
@@ -29,7 +29,7 @@ const CalendarView = () => {
       .catch((error) => {
         console.error("Failed to load memo statistics", error);
       });
-  }, [memoAmount, currentUsername]);
+  }, [memoIds, currentUsername]);
 
   // Build calendar grid
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
