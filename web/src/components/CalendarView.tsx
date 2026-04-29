@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMemoStats } from "@/helpers/api";
 import { DAILY_TIMESTAMP } from "@/helpers/consts";
-import { getDateStampByDate } from "@/helpers/datetime";
+import { getDateStampByDate, getDateString } from "@/helpers/datetime";
 import { useFilterStore, useMemoStore, useUserStore } from "@/store/module";
 import Icon from "./Icon";
 
@@ -152,7 +152,7 @@ const CalendarView = () => {
                 {cell.day}
                 {hasMemoCreated && (
                   <>
-                    <span className="sr-only">Memos created on this day</span>
+                    <span className="sr-only">Memos created on {getDateString(cell.timestamp)}</span>
                     <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
                   </>
                 )}
