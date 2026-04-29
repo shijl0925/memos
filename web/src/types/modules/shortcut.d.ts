@@ -21,3 +21,9 @@ interface ShortcutPatch {
   payload?: string;
   rowStatus?: RowStatus;
 }
+
+interface ShortcutFilter {
+  id: ShortcutId;
+  title: string;
+  payload: string;
+}

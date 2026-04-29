@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 import * as api from "@/helpers/api";
 import { DAILY_TIMESTAMP } from "@/helpers/consts";
 import { getDateStampByDate } from "@/helpers/datetime";
+import { parseShortcutExpressionFilter } from "@/helpers/shortcut";
 import { LINK_REG } from "@/labs/marked/parser/Link";
 import { PLAIN_LINK_REG } from "@/labs/marked/parser/PlainLink";
 import { useFilterStore, useMemoStore, useTagStore, useUserStore } from "@/store/module";
@@ -158,7 +159,6 @@ const HomeSidebar = () => {
   const tagsText = tagStore.state.tags;
   const [tags, setTags] = useState<string[]>([]);
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
-  const [selectedShortcutId, setSelectedShortcutId] = useState<ShortcutId | undefined>();
 
   const fetchShortcuts = async () => {
     try {
@@ -212,10 +212,10 @@ const HomeSidebar = () => {
   const handleTagChipClick = (tag: string) => {
     const current = filterStore.state.tag;
     filterStore.setTagFilter(current === tag ? undefined : tag);
-    setSelectedShortcutId(undefined);
   };
 
   const activeTagFilter = filterStore.state.tag;
+  const selectedShortcutId = filterStore.state.shortcut?.id;
 
   const handleCreateShortcut = () => {
     showCreateShortcutDialog(undefined, fetchShortcuts);
@@ -238,7 +238,7 @@ const HomeSidebar = () => {
         try {
           await api.deleteShortcut(shortcut.id);
           if (selectedShortcutId === shortcut.id) {
-            setSelectedShortcutId(undefined);
+            filterStore.setShortcutFilter(undefined);
           }
           await fetchShortcuts();
           toast.success("Shortcut deleted successfully");
@@ -252,8 +252,16 @@ const HomeSidebar = () => {
 
   const handleShortcutClick = (shortcut: Shortcut) => {
     if (selectedShortcutId === shortcut.id) {
-      filterStore.clearFilter();
-      setSelectedShortcutId(undefined);
+      filterStore.setShortcutFilter(undefined);
+      return;
+    }
+
+    if (parseShortcutExpressionFilter(shortcut.payload)) {
+      filterStore.setShortcutFilter({
+        id: shortcut.id,
+        title: shortcut.title,
+        payload: shortcut.payload,
+      });
       return;
     }
 
@@ -264,7 +272,6 @@ const HomeSidebar = () => {
     }
     filterStore.clearFilter();
     filterStore.setFilter(nextFilter);
-    setSelectedShortcutId(shortcut.id);
   };
 
   return (

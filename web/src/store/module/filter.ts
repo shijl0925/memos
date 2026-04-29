@@ -20,6 +20,7 @@ export const useFilterStore = () => {
           duration: undefined,
           text: undefined,
           visibility: undefined,
+          shortcut: undefined,
         })
       );
     },
@@ -62,6 +63,13 @@ export const useFilterStore = () => {
       store.dispatch(
         setFilter({
           visibility: visibility,
+        })
+      );
+    },
+    setShortcutFilter: (shortcut?: ShortcutFilter) => {
+      store.dispatch(
+        setFilter({
+          shortcut,
         })
       );
     },
