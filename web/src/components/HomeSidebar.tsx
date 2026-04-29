@@ -103,7 +103,12 @@ const parseShortcutPayload = (payload: string): Partial<ReturnType<typeof useFil
       continue;
     }
     const factor = filter.slice(0, separatorIndex).trim().toLowerCase();
-    const value = decodeURIComponent(filter.slice(separatorIndex + 1).trim());
+    let value = "";
+    try {
+      value = decodeURIComponent(filter.slice(separatorIndex + 1).trim());
+    } catch {
+      continue;
+    }
     if (!value) {
       continue;
     }
@@ -228,7 +233,7 @@ const HomeSidebar = () => {
             setSelectedShortcutId(undefined);
           }
           await fetchShortcuts();
-          toast.success("Delete shortcut successfully");
+          toast.success("Shortcut deleted successfully");
         } catch (error: any) {
           console.error(error);
           toast.error(error.response?.data?.message ?? "Failed to delete shortcut");
