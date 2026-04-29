@@ -50,7 +50,7 @@ const CalendarView = () => {
         setMemoCreatedDateCounts(dateCounts);
       })
       .catch((error) => {
-        console.error("Failed to load memo statistics", error);
+        console.error("Failed to load memo statistics. Calendar activity indicators will not be displayed.", error);
       });
   }, [memoStore.state.memos.length, currentUsername]);
 
@@ -176,7 +176,7 @@ const CalendarView = () => {
               }`}
               onClick={() => handleDayClick(cell)}
               onKeyDown={(event) => {
-                if (!isCurrentMonth || (event.key !== "Enter" && event.key !== " ")) {
+                if (!isCurrentMonth || (event.key !== "Enter" && event.code !== "Space")) {
                   return;
                 }
                 event.preventDefault();
