@@ -27,7 +27,7 @@ const CalendarView = () => {
         setMemoCreatedDateStamps(new Set(data.map((createdTs) => getDateStampByDate(createdTs * 1000))));
       })
       .catch((error) => {
-        console.error(error);
+        console.error("Failed to load memo statistics", error);
       });
   }, [memoAmount, currentUsername]);
 
@@ -152,7 +152,7 @@ const CalendarView = () => {
                 {cell.day}
                 {hasMemoCreated && (
                   <>
-                    <span className="sr-only">Memos created on {getDateString(cell.timestamp)}</span>
+                    <span className="sr-only">Has memos from {getDateString(cell.timestamp)}</span>
                     <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
                   </>
                 )}
