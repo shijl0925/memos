@@ -237,6 +237,7 @@ func (s *Store) DeleteIdentityProvider(ctx context.Context, delete *DeleteIdenti
 
 	where, args := []string{"id = ?"}, []any{delete.ID}
 	stmt := `DELETE FROM idp WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(s.driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

@@ -38,7 +38,7 @@ func (s *Store) FindMemoOrganizer(ctx context.Context, find *api.MemoOrganizerFi
 	}
 	defer tx.Rollback()
 
-	memoOrganizerRaw, err := findMemoOrganizer(ctx, tx, find)
+	memoOrganizerRaw, err := findMemoOrganizer(ctx, tx, s.driver, find)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (s *Store) DeleteMemoOrganizer(ctx context.Context, delete *api.MemoOrganiz
 	}
 	defer tx.Rollback()
 
-	if err := deleteMemoOrganizer(ctx, tx, delete); err != nil {
+	if err := deleteMemoOrganizer(ctx, tx, s.driver, delete); err != nil {
 		return err
 	}
 
@@ -84,7 +84,7 @@ func (s *Store) DeleteMemoOrganizer(ctx context.Context, delete *api.MemoOrganiz
 	return nil
 }
 
-func findMemoOrganizer(ctx context.Context, tx *sql.Tx, find *api.MemoOrganizerFind) (*memoOrganizerRaw, error) {
+func findMemoOrganizer(ctx context.Context, tx *sql.Tx, driver string, find *api.MemoOrganizerFind) (*memoOrganizerRaw, error) {
 	query := `
 		SELECT
 			id,
@@ -94,6 +94,7 @@ func findMemoOrganizer(ctx context.Context, tx *sql.Tx, find *api.MemoOrganizerF
 		FROM memo_organizer
 		WHERE memo_id = ? AND user_id = ?
 	`
+	query = formatQuery(driver, query)
 	row, err := tx.QueryContext(ctx, query, find.MemoID, find.UserID)
 	if err != nil {
 		return nil, FormatError(err)
@@ -140,7 +141,7 @@ func upsertMemoOrganizer(ctx context.Context, tx *sql.Tx, driver string, upsert 
 	return nil
 }
 
-func deleteMemoOrganizer(ctx context.Context, tx *sql.Tx, delete *api.MemoOrganizerDelete) error {
+func deleteMemoOrganizer(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoOrganizerDelete) error {
 	where, args := []string{}, []any{}
 
 	if v := delete.MemoID; v != nil {
@@ -151,6 +152,7 @@ func deleteMemoOrganizer(ctx context.Context, tx *sql.Tx, delete *api.MemoOrgani
 	}
 
 	stmt := `DELETE FROM memo_organizer WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

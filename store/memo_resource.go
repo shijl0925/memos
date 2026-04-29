@@ -96,7 +96,7 @@ func (s *Store) DeleteMemoResource(ctx context.Context, delete *api.MemoResource
 	}
 	defer tx.Rollback()
 
-	if err := deleteMemoResource(ctx, tx, delete); err != nil {
+	if err := deleteMemoResource(ctx, tx, s.driver, delete); err != nil {
 		return FormatError(err)
 	}
 
@@ -188,7 +188,7 @@ func upsertMemoResource(ctx context.Context, tx *sql.Tx, driver string, upsert *
 	return &memoResourceRaw, nil
 }
 
-func deleteMemoResource(ctx context.Context, tx *sql.Tx, delete *api.MemoResourceDelete) error {
+func deleteMemoResource(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoResourceDelete) error {
 	where, args := []string{}, []any{}
 
 	if v := delete.MemoID; v != nil {
@@ -199,6 +199,7 @@ func deleteMemoResource(ctx context.Context, tx *sql.Tx, delete *api.MemoResourc
 	}
 
 	stmt := `DELETE FROM memo_resource WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

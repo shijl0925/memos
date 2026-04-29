@@ -213,7 +213,7 @@ func (s *Store) DeleteResource(ctx context.Context, delete *api.ResourceDelete) 
 	}
 	defer tx.Rollback()
 
-	if err := deleteResource(ctx, tx, delete); err != nil {
+	if err := deleteResource(ctx, tx, s.driver, delete); err != nil {
 		return err
 	}
 	if err := vacuum(ctx, tx, s.driver); err != nil {
@@ -411,10 +411,11 @@ func findResourceListImpl(ctx context.Context, tx *sql.Tx, driver string, find *
 	return resourceRawList, nil
 }
 
-func deleteResource(ctx context.Context, tx *sql.Tx, delete *api.ResourceDelete) error {
+func deleteResource(ctx context.Context, tx *sql.Tx, driver string, delete *api.ResourceDelete) error {
 	where, args := []string{"id = ?"}, []any{delete.ID}
 
 	stmt := `DELETE FROM resource WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

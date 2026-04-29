@@ -70,7 +70,7 @@ func (s *Store) DeleteTag(ctx context.Context, delete *api.TagDelete) error {
 	}
 	defer tx.Rollback()
 
-	if err := deleteTag(ctx, tx, delete); err != nil {
+	if err := deleteTag(ctx, tx, s.driver, delete); err != nil {
 		return FormatError(err)
 	}
 
@@ -142,10 +142,11 @@ func findTagList(ctx context.Context, tx *sql.Tx, driver string, find *api.TagFi
 	return tagRawList, nil
 }
 
-func deleteTag(ctx context.Context, tx *sql.Tx, delete *api.TagDelete) error {
+func deleteTag(ctx context.Context, tx *sql.Tx, driver string, delete *api.TagDelete) error {
 	where, args := []string{"name = ?", "creator_id = ?"}, []any{delete.Name, delete.CreatorID}
 
 	stmt := `DELETE FROM tag WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	result, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return FormatError(err)

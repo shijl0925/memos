@@ -149,7 +149,7 @@ func findMemoRelationList(ctx context.Context, tx *sql.Tx, driver string, find *
 	return rawList, nil
 }
 
-func deleteMemoRelation(ctx context.Context, tx *sql.Tx, _ string, delete *api.MemoRelationDelete) error {
+func deleteMemoRelation(ctx context.Context, tx *sql.Tx, driver string, delete *api.MemoRelationDelete) error {
 	where, args := []string{"1 = 1"}, []any{}
 	if delete.MemoID != nil {
 		where, args = append(where, "memo_id = ?"), append(args, *delete.MemoID)
@@ -161,6 +161,7 @@ func deleteMemoRelation(ctx context.Context, tx *sql.Tx, _ string, delete *api.M
 		where, args = append(where, "type = ?"), append(args, string(*delete.Type))
 	}
 	stmt := `DELETE FROM memo_relation WHERE ` + strings.Join(where, " AND ")
+	stmt = formatQuery(driver, stmt)
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return FormatError(err)
 	}
