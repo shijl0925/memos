@@ -63,8 +63,15 @@ const CreateShortcutDialog: React.FC<Props> = (props: Props) => {
       </div>
       <div className="dialog-content-container !w-96">
         <div className="w-full flex flex-col gap-3">
-          <Input autoFocus placeholder="Title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <Input
+            aria-label="Shortcut title"
+            autoFocus
+            placeholder="Title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
           <Textarea
+            aria-label="Shortcut filter"
             minRows={3}
             placeholder='Filter, e.g. tag in ["tag1", "tag2"]'
             value={payload}

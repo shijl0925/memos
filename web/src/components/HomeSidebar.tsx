@@ -166,7 +166,7 @@ const HomeSidebar = () => {
       setShortcuts(data.filter((shortcut) => shortcut.rowStatus === "NORMAL"));
     } catch (error: any) {
       console.error(error);
-      toast.error(error.response?.data?.message ?? "Failed to fetch shortcuts");
+      toast.error(error.response?.data?.message ?? "Failed to fetch shortcuts. Please try again.");
     }
   };
 
@@ -267,7 +267,7 @@ const HomeSidebar = () => {
 
     const nextFilter = parseShortcutPayload(shortcut.payload);
     if (!hasShortcutFilterValue(nextFilter)) {
-      toast.error("Shortcut filter is invalid");
+      toast.error("Shortcut filter is invalid or empty. Please check the filter syntax.");
       return;
     }
     filterStore.clearFilter();

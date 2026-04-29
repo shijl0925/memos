@@ -2,7 +2,7 @@ import { LINK_REG, PLAIN_LINK_REG, TAG_REG } from "@/labs/marked/parser";
 
 type ShortcutCondition =
   | { type: "TAG_IN"; values: string[] }
-  | { type: "CONTENT_CONTAINS"; value: string }
+  | { type: "CONTENT_CONTAINS"; value: string; normalizedValue: string }
   | { type: "VISIBILITY_IN"; values: string[] }
   | { type: "HAS_LINK" }
   | { type: "HAS_TASK_LIST" }
@@ -50,7 +50,7 @@ const splitConditions = (filter: string): string[] => {
   return conditions;
 };
 
-// Parses a JSON string literal like `"tag1"` and returns its string value.
+// Parses a quoted JSON string literal such as `"tag1"` and returns its string value.
 const parseStringLiteral = (value: string): string | undefined => {
   try {
     const parsed = JSON.parse(value);
@@ -79,7 +79,7 @@ const parseCondition = (condition: string): ShortcutCondition | undefined => {
   matched = condition.match(/^content\.contains\((.*)\)$/i);
   if (matched) {
     const value = parseStringLiteral(matched[1].trim());
-    return value ? { type: "CONTENT_CONTAINS", value } : undefined;
+    return value ? { type: "CONTENT_CONTAINS", value, normalizedValue: value.toLowerCase() } : undefined;
   }
 
   matched = condition.match(/^visibility\s+in\s+\[(.*)\]$/i);
@@ -162,7 +162,7 @@ export const matchShortcutExpressionFilter = (memo: Memo, filter: string): boole
       return condition.values.some((tag) => tags.has(tag));
     }
     if (condition.type === "CONTENT_CONTAINS") {
-      return memo.content.toLowerCase().includes(condition.value.toLowerCase());
+      return memo.content.toLowerCase().includes(condition.normalizedValue);
     }
     if (condition.type === "VISIBILITY_IN") {
       return condition.values.includes(memo.visibility);
