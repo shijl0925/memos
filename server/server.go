@@ -66,26 +66,35 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 		}
 	}
 
-	rootGroup := s.app.Group("")
-	s.registerRSSRoutes(rootGroup)
+	s.app.AddController("", serverController{
+		register: func(g Group) {
+			s.registerRSSRoutes(g)
+		},
+	})
 
-	publicGroup := s.app.Group("/o")
-	publicGroup.Use(JWTMiddleware(s, secret))
-	registerGetterPublicRoutes(publicGroup)
-	s.registerResourcePublicRoutes(publicGroup)
+	s.app.AddController("/o", serverController{
+		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
+		register: func(g Group) {
+			registerGetterPublicRoutes(g)
+			s.registerResourcePublicRoutes(g)
+		},
+	})
 
-	apiGroup := s.app.Group("/api")
-	apiGroup.Use(JWTMiddleware(s, secret))
-	s.registerSystemRoutes(apiGroup)
-	s.registerAuthRoutes(apiGroup, secret)
-	s.registerUserRoutes(apiGroup)
-	s.registerMemoRoutes(apiGroup)
-	s.registerShortcutRoutes(apiGroup)
-	s.registerResourceRoutes(apiGroup)
-	s.registerTagRoutes(apiGroup)
-	s.registerStorageRoutes(apiGroup)
-	s.registerIdentityProviderRoutes(apiGroup)
-	s.registerOpenAIRoutes(apiGroup)
+	s.app.AddController("/api", serverController{
+		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
+		register: func(g Group) {
+			s.registerSystemRoutes(g)
+			s.registerAuthRoutes(g, secret)
+			s.registerUserRoutes(g)
+			s.registerMemoRoutes(g)
+			s.registerShortcutRoutes(g)
+			s.registerResourceRoutes(g)
+			s.registerTagRoutes(g)
+			s.registerStorageRoutes(g)
+			s.registerIdentityProviderRoutes(g)
+			s.registerOpenAIRoutes(g)
+		},
+	})
 
 	return s, nil
 }

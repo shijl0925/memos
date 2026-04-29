@@ -6,6 +6,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"time"
+
+	ninja "github.com/shijl0925/gin-ninja"
 )
 
 const (
@@ -44,6 +46,7 @@ type MiddlewareFunc func(HandlerFunc) HandlerFunc
 
 type App interface {
 	Group(prefix string) Group
+	AddController(prefix string, controller ninja.Controller, opts ...ninja.RouterOption)
 	UseLogger(format string)
 	UseGzip()
 	UseCSRF(tokenLookup string, skipper func(Context) bool)

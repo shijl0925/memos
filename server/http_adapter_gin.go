@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/usememos/memos/common"
 	"github.com/usememos/memos/common/log"
 	"go.uber.org/zap"
@@ -28,9 +29,18 @@ const (
 
 func newGinApp() App {
 	gin.SetMode(gin.ReleaseMode)
-	app := gin.New()
+	api := ninja.New(ninja.Config{
+		Title:             "Memos API",
+		Version:           "1.0.0",
+		DisableGinDefault: true,
+		DisableDocs:       true,
+		DisableOpenAPI:    true,
+		DisableHomepage:   true,
+	})
+	app := api.Engine()
 	app.Use(gin.Recovery())
 	return &ginApp{
+		api: api,
 		app: app,
 		server: &http.Server{
 			Handler: app,
@@ -39,12 +49,17 @@ func newGinApp() App {
 }
 
 type ginApp struct {
+	api    *ninja.NinjaAPI
 	app    *gin.Engine
 	server *http.Server
 }
 
 func (a *ginApp) Group(prefix string) Group {
 	return &ginGroup{group: a.app.Group(prefix)}
+}
+
+func (a *ginApp) AddController(prefix string, controller ninja.Controller, opts ...ninja.RouterOption) {
+	a.api.AddController(prefix, controller, opts...)
 }
 
 func (a *ginApp) UseLogger(_ string) {
