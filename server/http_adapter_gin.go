@@ -9,15 +9,22 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
 	"github.com/usememos/memos/common"
+	"github.com/usememos/memos/common/log"
+	"go.uber.org/zap"
 )
 
-const ginSessionStoreContextKey = "session-store"
+const (
+	ginSessionStoreContextKey  = "session-store"
+	detailedErrorLogEnvVarName = "MEMOS_ENABLE_DETAILED_ERROR_LOGS"
+)
 
 func newGinApp() App {
 	gin.SetMode(gin.ReleaseMode)
@@ -243,14 +250,48 @@ func toGinMiddleware(middleware MiddlewareFunc) gin.HandlerFunc {
 func writeGinError(c *gin.Context, err error) {
 	var httpErr *httpError
 	if unwrapHTTPError(err, &httpErr) {
+		if isDetailedErrorLogEnabled() {
+			_ = c.Error(err)
+			logGinError(c, httpErr.code, httpErr.message, httpErr.internal)
+		}
 		c.JSON(httpErr.code, gin.H{
 			"error": httpErr.message,
 		})
 		return
 	}
+	if isDetailedErrorLogEnabled() {
+		_ = c.Error(err)
+		logGinError(c, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), err)
+	}
 	c.JSON(http.StatusInternalServerError, gin.H{
 		"error": http.StatusText(http.StatusInternalServerError),
 	})
+}
+
+func isDetailedErrorLogEnabled() bool {
+	value, ok := os.LookupEnv(detailedErrorLogEnvVarName)
+	if !ok {
+		return false
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return false
+	}
+	return enabled
+}
+
+func logGinError(c *gin.Context, status int, message string, internal error) {
+	fields := []zap.Field{
+		zap.String("method", c.Request.Method),
+		zap.String("path", c.Request.URL.RequestURI()),
+		zap.Int("status", status),
+		zap.String("client_ip", getClientIP(newGinContext(c))),
+		zap.String("error", message),
+	}
+	if internal != nil {
+		fields = append(fields, zap.Error(internal), zap.String("internal_error", internal.Error()))
+	}
+	log.Error("Server error", fields...)
 }
 
 type ginContext struct {
