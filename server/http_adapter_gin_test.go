@@ -98,6 +98,41 @@ func TestGinUseTimeout(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), "Request timeout")
 }
 
+func TestGinAddControllerRegistersNinjaController(t *testing.T) {
+	app := newTestGinApp(t)
+	app.AddController("/api", serverController{
+		middlewares: []MiddlewareFunc{
+			func(next HandlerFunc) HandlerFunc {
+				return func(c Context) error {
+					c.Set("controller-middleware", true)
+					return next(c)
+				}
+			},
+		},
+		register: func(g Group) {
+			g.GET("/ping", func(c Context) error {
+				enabled, _ := c.Get("controller-middleware").(bool)
+				return c.JSON(http.StatusOK, composeResponse(enabled))
+			})
+			g.GET("/fail", func(c Context) error {
+				return newHTTPError(http.StatusBadRequest, "controller error")
+			})
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
+	recorder := httptest.NewRecorder()
+	app.app.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.JSONEq(t, `{"data":true}`, recorder.Body.String())
+
+	errorRequest := httptest.NewRequest(http.MethodGet, "/api/fail", nil)
+	errorRecorder := httptest.NewRecorder()
+	app.app.ServeHTTP(errorRecorder, errorRequest)
+	require.Equal(t, http.StatusBadRequest, errorRecorder.Code)
+	require.JSONEq(t, `{"error":"controller error"}`, errorRecorder.Body.String())
+}
+
 func TestDetailedErrorLogEnvDisabledByDefault(t *testing.T) {
 	t.Setenv(detailedErrorLogEnvVarName, "")
 

@@ -14,4 +14,3 @@ func (c serverController) Register(r *ninja.Router) {
 	}
 	c.register(g)
 }
-

@@ -54,4 +54,3 @@ func adaptNinjaVoidHandler(handler HandlerFunc) func(*ninja.Context, *emptyNinja
 		return nil
 	}
 }
-
