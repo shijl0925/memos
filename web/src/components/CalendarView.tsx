@@ -16,6 +16,16 @@ const getCalendarDateString = (timestamp: number) => {
   return `${year}-${month}-${day}`;
 };
 
+const getTooltipPositionClass = (dayIndex: number) => {
+  if (dayIndex <= 1) {
+    return "left-0";
+  }
+  if (dayIndex >= 5) {
+    return "right-0";
+  }
+  return "left-1/2 -translate-x-1/2";
+};
+
 const CalendarView = () => {
   const t = useTranslate();
   const filterStore = useFilterStore();
@@ -154,6 +164,7 @@ const CalendarView = () => {
               })
             : "";
           const memoTooltipId = hasMemoCreated ? `calendar-memo-tooltip-${cell.timestamp}` : undefined;
+          const tooltipPositionClass = getTooltipPositionClass(idx % 7);
 
           return (
             <div
@@ -180,7 +191,7 @@ const CalendarView = () => {
                     <span
                       id={memoTooltipId}
                       role="tooltip"
-                      className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      className={`pointer-events-none absolute bottom-full z-50 mb-1 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100 ${tooltipPositionClass}`}
                     >
                       {memoTooltip}
                     </span>
