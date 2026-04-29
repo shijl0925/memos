@@ -28,7 +28,6 @@ const CalendarView = () => {
 
   const todayStamp = getDateStampByDate(today);
   const memos = memoStore.state.memos;
-  const memoIds = memos.map((memo) => memo.id).join(",");
   const currentUsername = userStore.getCurrentUsername();
 
   useEffect(() => {
@@ -44,7 +43,7 @@ const CalendarView = () => {
       .catch((error) => {
         console.error("Failed to load memo statistics", error);
       });
-  }, [memoIds, currentUsername]);
+  }, [memos.length, currentUsername]);
 
   // Build calendar grid
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
@@ -149,8 +148,12 @@ const CalendarView = () => {
           const isCurrentMonth = cell.month === "current";
           const memoCreatedCount = isCurrentMonth ? memoCreatedDateCounts.get(cell.timestamp) ?? 0 : 0;
           const hasMemoCreated = memoCreatedCount > 0;
-          const memoTooltipOpts = { amount: memoCreatedCount, date: getCalendarDateString(cell.timestamp) };
-          const memoTooltip = memoCreatedCount === 1 ? t("heatmap.memo-on", memoTooltipOpts) : t("heatmap.memos-on", memoTooltipOpts);
+          const memoTooltip = hasMemoCreated
+            ? t(memoCreatedCount === 1 ? "heatmap.memo-on" : "heatmap.memos-on", {
+                amount: memoCreatedCount,
+                date: getCalendarDateString(cell.timestamp),
+              })
+            : "";
 
           return (
             <div
