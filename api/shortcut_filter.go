@@ -135,10 +135,7 @@ func splitShortcutConditions(filter string) []string {
 func parseShortcutCondition(condition string) (ShortcutCondition, error) {
 	lowerCondition := strings.ToLower(condition)
 	if strings.HasPrefix(lowerCondition, "tag in ") {
-		values, ok := strings.CutPrefix(condition, condition[:len("tag in ")])
-		if !ok {
-			return ShortcutCondition{}, fmt.Errorf("invalid tag condition")
-		}
+		values := condition[len("tag in "):]
 		list, err := parseShortcutStringArray(values)
 		if err != nil || len(list) == 0 {
 			return ShortcutCondition{}, fmt.Errorf("invalid tag condition")
@@ -156,10 +153,7 @@ func parseShortcutCondition(condition string) (ShortcutCondition, error) {
 	}
 
 	if strings.HasPrefix(lowerCondition, "visibility in ") {
-		values, ok := strings.CutPrefix(condition, condition[:len("visibility in ")])
-		if !ok {
-			return ShortcutCondition{}, fmt.Errorf("invalid visibility condition")
-		}
+		values := condition[len("visibility in "):]
 		list, err := parseShortcutStringArray(values)
 		if err != nil || len(list) == 0 {
 			return ShortcutCondition{}, fmt.Errorf("invalid visibility condition")
@@ -210,7 +204,7 @@ func parseShortcutString(value string) (string, error) {
 }
 
 func normalizeTimestampToSeconds(value int64) int64 {
-	if value >= 1_000_000_000_000 {
+	if value >= 10_000_000_000 {
 		return value / 1000
 	}
 	return value

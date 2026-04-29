@@ -17,7 +17,7 @@ const CODE_BLOCK_REG = /```[\s\S]*?```/;
 const INLINE_CODE_REG = /`[^`]+`/;
 
 const normalizeTimestampToMilliseconds = (value: number): number => {
-  return value < 1_000_000_000_000 ? value * 1000 : value;
+  return value < 10_000_000_000 ? value * 1000 : value;
 };
 
 const splitConditions = (filter: string): string[] => {
