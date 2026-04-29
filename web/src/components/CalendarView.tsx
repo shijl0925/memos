@@ -1,18 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getMemoStats } from "@/helpers/api";
 import { DAILY_TIMESTAMP } from "@/helpers/consts";
 import { getDateStampByDate } from "@/helpers/datetime";
-import { useFilterStore } from "@/store/module";
+import { useFilterStore, useMemoStore, useUserStore } from "@/store/module";
 import Icon from "./Icon";
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const CalendarView = () => {
   const filterStore = useFilterStore();
+  const memoStore = useMemoStore();
+  const userStore = useUserStore();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
+  const [memoCreatedDateStamps, setMemoCreatedDateStamps] = useState<Set<number>>(new Set());
 
   const todayStamp = getDateStampByDate(today);
+  const memos = memoStore.state.memos;
+  const currentUsername = userStore.getCurrentUsername();
+
+  useEffect(() => {
+    getMemoStats(currentUsername)
+      .then(({ data }) => {
+        setMemoCreatedDateStamps(new Set(data.map((createdTs) => getDateStampByDate(createdTs * 1000))));
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }, [memos, currentUsername]);
 
   // Build calendar grid
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
@@ -115,6 +131,7 @@ const CalendarView = () => {
           const isToday = cell.month === "current" && cell.timestamp === todayStamp;
           const isSelected = cell.month === "current" && cell.timestamp === selectedFrom;
           const isCurrentMonth = cell.month === "current";
+          const hasMemoCreated = isCurrentMonth && memoCreatedDateStamps.has(cell.timestamp);
 
           return (
             <div
@@ -124,7 +141,7 @@ const CalendarView = () => {
             >
               <span
                 className={`
-                  w-7 h-7 flex items-center justify-center rounded-full text-xs
+                  relative w-7 h-7 flex items-center justify-center rounded-full text-xs
                   ${!isCurrentMonth ? "text-gray-300 dark:text-zinc-600" : "text-gray-700 dark:text-gray-200"}
                   ${isToday && !isSelected ? "bg-red-700 text-white font-bold" : ""}
                   ${isSelected ? "bg-blue-500 text-white font-bold" : ""}
@@ -132,6 +149,7 @@ const CalendarView = () => {
                 `}
               >
                 {cell.day}
+                {hasMemoCreated && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />}
               </span>
             </div>
           );
