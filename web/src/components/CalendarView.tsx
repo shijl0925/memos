@@ -150,8 +150,7 @@ const CalendarView = () => {
           const memoCreatedCount = isCurrentMonth ? memoCreatedDateCounts.get(cell.timestamp) ?? 0 : 0;
           const hasMemoCreated = memoCreatedCount > 0;
           const memoTooltipOpts = { amount: memoCreatedCount, date: getCalendarDateString(cell.timestamp) };
-          const memoTooltip =
-            memoCreatedCount === 1 ? t("heatmap.memo-on", memoTooltipOpts) : t("heatmap.memos-on", memoTooltipOpts);
+          const memoTooltip = memoCreatedCount === 1 ? t("heatmap.memo-on", memoTooltipOpts) : t("heatmap.memos-on", memoTooltipOpts);
 
           return (
             <div
