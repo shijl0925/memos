@@ -23,3 +23,11 @@ func TestGetSystemStatusSkipsDBFileStatForPostgres(t *testing.T) {
 	require.Equal(t, int64(0), status.DBSize)
 	require.Equal(t, api.Host, status.Host.Role)
 }
+
+func TestIsSQLiteDriver(t *testing.T) {
+	require.True(t, isSQLiteDriver(""))
+	require.True(t, isSQLiteDriver("sqlite"))
+	require.True(t, isSQLiteDriver("sqlite3"))
+	require.False(t, isSQLiteDriver("postgres"))
+	require.False(t, isSQLiteDriver("mysql"))
+}
