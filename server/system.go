@@ -2,17 +2,18 @@ package server
 
 import (
 	"encoding/json"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 
 	"github.com/usememos/memos/api"
 )
 
-func (s *Server) registerSystemRoutes(g Group) {
-	g.GET("/ping", func(c Context) error {
+func (s *Server) registerSystemRoutes(r *ninja.Router) {
+	ninja.Get(r, "/ping", adaptNinjaHandler(func(c Context) error {
 		return c.JSON(http.StatusOK, composeResponse(s.Profile))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/status", func(c Context) error {
+	ninja.Get(r, "/status", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		var userID *int
 		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
@@ -23,9 +24,9 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(systemStatus))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/system/setting", func(c Context) error {
+	ninja.Post(r, "/system/setting", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -42,9 +43,9 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(systemSetting))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/system/setting", func(c Context) error {
+	ninja.Get(r, "/system/setting", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -56,9 +57,9 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(systemSettingList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/system/vacuum", func(c Context) error {
+	ninja.Post(r, "/system/vacuum", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -69,5 +70,5 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }

@@ -2,13 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 
 	"github.com/usememos/memos/api"
 )
 
-func (s *Server) registerAuthRoutes(g Group, secret string) {
-	g.POST("/auth/signin", func(c Context) error {
+func (s *Server) registerAuthRoutes(r *ninja.Router, secret string) {
+	ninja.Post(r, "/auth/signin", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		signin := &api.SignIn{}
 		if err := json.NewDecoder(c.Request().Body).Decode(signin); err != nil {
@@ -24,9 +25,9 @@ func (s *Server) registerAuthRoutes(g Group, secret string) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate tokens", err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/auth/signin/sso", func(c Context) error {
+	ninja.Post(r, "/auth/signin/sso", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		signin := &api.SSOSignIn{}
 		if err := json.NewDecoder(c.Request().Body).Decode(signin); err != nil {
@@ -42,9 +43,9 @@ func (s *Server) registerAuthRoutes(g Group, secret string) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate tokens", err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/auth/signup", func(c Context) error {
+	ninja.Post(r, "/auth/signup", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		signup := &api.SignUp{}
 		if err := json.NewDecoder(c.Request().Body).Decode(signup); err != nil {
@@ -60,10 +61,10 @@ func (s *Server) registerAuthRoutes(g Group, secret string) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to generate tokens", err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/auth/signout", func(c Context) error {
+	ninja.Post(r, "/auth/signout", adaptNinjaHandler(func(c Context) error {
 		RemoveTokensAndCookies(c)
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }

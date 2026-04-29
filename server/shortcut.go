@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 	"strconv"
 
@@ -10,8 +11,8 @@ import (
 	"github.com/usememos/memos/common"
 )
 
-func (s *Server) registerShortcutRoutes(g Group) {
-	g.POST("/shortcut", func(c Context) error {
+func (s *Server) registerShortcutRoutes(r *ninja.Router) {
+	ninja.Post(r, "/shortcut", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -28,9 +29,9 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(shortcut))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.PATCH("/shortcut/:shortcutId", func(c Context) error {
+	ninja.Patch(r, "/shortcut/:shortcutId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -51,9 +52,9 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(shortcut))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/shortcut", func(c Context) error {
+	ninja.Get(r, "/shortcut", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -65,9 +66,9 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch shortcut list", err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(list))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/shortcut/:shortcutId", func(c Context) error {
+	ninja.Get(r, "/shortcut/:shortcutId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		shortcutID, err := strconv.Atoi(c.Param("shortcutId"))
 		if err != nil {
@@ -79,9 +80,9 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch shortcut by ID %d", shortcutID), err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(shortcut))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.DELETE("/shortcut/:shortcutId", func(c Context) error {
+	ninja.Delete(r, "/shortcut/:shortcutId", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -99,5 +100,5 @@ func (s *Server) registerShortcutRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 }

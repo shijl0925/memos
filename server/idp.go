@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 	"strconv"
 
@@ -10,8 +11,8 @@ import (
 	"github.com/usememos/memos/common"
 )
 
-func (s *Server) registerIdentityProviderRoutes(g Group) {
-	g.POST("/idp", func(c Context) error {
+func (s *Server) registerIdentityProviderRoutes(r *ninja.Router) {
+	ninja.Post(r, "/idp", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -28,9 +29,9 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(idp))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.PATCH("/idp/:idpId", func(c Context) error {
+	ninja.Patch(r, "/idp/:idpId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -52,9 +53,9 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(idp))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/idp", func(c Context) error {
+	ninja.Get(r, "/idp", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		var userID *int
 		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
@@ -66,9 +67,9 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(idpList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/idp/:idpId", func(c Context) error {
+	ninja.Get(r, "/idp/:idpId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -85,9 +86,9 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(idp))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.DELETE("/idp/:idpId", func(c Context) error {
+	ninja.Delete(r, "/idp/:idpId", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -106,5 +107,5 @@ func (s *Server) registerIdentityProviderRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 }

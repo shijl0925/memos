@@ -2,13 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 
 	"github.com/usememos/memos/plugin/openai"
 )
 
-func (s *Server) registerOpenAIRoutes(g Group) {
-	g.POST("/openai/chat-completion", func(c Context) error {
+func (s *Server) registerOpenAIRoutes(r *ninja.Router) {
+	ninja.Post(r, "/openai/chat-completion", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 
 		messages := []openai.ChatCompletionMessage{}
@@ -24,14 +25,14 @@ func (s *Server) registerOpenAIRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(result))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/openai/enabled", func(c Context) error {
+	ninja.Get(r, "/openai/enabled", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		cfg, err := s.Service.GetOpenAIConfig(ctx)
 		if err != nil {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(cfg.Key != ""))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 	"strconv"
 
@@ -10,8 +11,8 @@ import (
 	"github.com/usememos/memos/common"
 )
 
-func (s *Server) registerStorageRoutes(g Group) {
-	g.POST("/storage", func(c Context) error {
+func (s *Server) registerStorageRoutes(r *ninja.Router) {
+	ninja.Post(r, "/storage", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -28,9 +29,9 @@ func (s *Server) registerStorageRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(storage))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.PATCH("/storage/:storageId", func(c Context) error {
+	ninja.Patch(r, "/storage/:storageId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -52,9 +53,9 @@ func (s *Server) registerStorageRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(storage))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/storage", func(c Context) error {
+	ninja.Get(r, "/storage", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -66,9 +67,9 @@ func (s *Server) registerStorageRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(storageList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.DELETE("/storage/:storageId", func(c Context) error {
+	ninja.Delete(r, "/storage/:storageId", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -87,5 +88,5 @@ func (s *Server) registerStorageRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,8 +12,8 @@ import (
 	"github.com/usememos/memos/common"
 )
 
-func (s *Server) registerRSSRoutes(g Group) {
-	g.GET("/explore/rss.xml", func(c Context) error {
+func (s *Server) registerRSSRoutes(r *ninja.Router) {
+	ninja.Get(r, "/explore/rss.xml", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		systemCustomizedProfile, err := s.Service.GetSystemCustomizedProfile(ctx)
 		if err != nil {
@@ -33,9 +34,9 @@ func (s *Server) registerRSSRoutes(g Group) {
 		}
 		c.Header(headerContentType, mimeApplicationXMLCharset)
 		return c.String(http.StatusOK, rss)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/u/:id/rss.xml", func(c Context) error {
+	ninja.Get(r, "/u/:id/rss.xml", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		systemCustomizedProfile, err := s.Service.GetSystemCustomizedProfile(ctx)
 		if err != nil {
@@ -61,7 +62,7 @@ func (s *Server) registerRSSRoutes(g Group) {
 		}
 		c.Header(headerContentType, mimeApplicationXMLCharset)
 		return c.String(http.StatusOK, rss)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }
 
 const MaxRSSItemCount = 100

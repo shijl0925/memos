@@ -68,34 +68,32 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 	}
 
 	s.app.AddController("", serverController{
-		register: func(g Group) {
-			s.registerRSSRoutes(g)
+		registerAPI: func(r *ninja.Router) {
+			s.registerRSSRoutes(r)
 		},
 	})
 
 	s.app.AddController("/o", serverController{
 		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
-		register: func(g Group) {
-			registerGetterPublicRoutes(g)
-			s.registerResourcePublicRoutes(g)
+		registerAPI: func(r *ninja.Router) {
+			registerGetterPublicRoutes(r)
+			s.registerResourcePublicRoutes(r)
 		},
 	})
 
 	s.app.AddController("/api", serverController{
 		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
 		registerAPI: func(r *ninja.Router) {
+			s.registerSystemRoutes(r)
+			s.registerAuthRoutes(r, secret)
 			s.registerUserRoutes(r)
 			s.registerMemoRoutes(r)
+			s.registerShortcutRoutes(r)
+			s.registerResourceRoutes(r)
 			s.registerTagRoutes(r)
-		},
-		register: func(g Group) {
-			s.registerSystemRoutes(g)
-			s.registerAuthRoutes(g, secret)
-			s.registerShortcutRoutes(g)
-			s.registerResourceRoutes(g)
-			s.registerStorageRoutes(g)
-			s.registerIdentityProviderRoutes(g)
-			s.registerOpenAIRoutes(g)
+			s.registerStorageRoutes(r)
+			s.registerIdentityProviderRoutes(r)
+			s.registerOpenAIRoutes(r)
 		},
 	})
 
