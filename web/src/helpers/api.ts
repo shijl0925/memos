@@ -222,6 +222,22 @@ export function deleteMemo(memoId: MemoId) {
   return axios.delete(`/api/memo/${memoId}`);
 }
 
+export function getShortcutList() {
+  return axios.get<Shortcut[]>("/api/shortcut");
+}
+
+export function createShortcut(shortcutCreate: ShortcutCreate) {
+  return axios.post<Shortcut>("/api/shortcut", shortcutCreate);
+}
+
+export function patchShortcut(shortcutPatch: ShortcutPatch) {
+  return axios.patch<Shortcut>(`/api/shortcut/${shortcutPatch.id}`, shortcutPatch);
+}
+
+export function deleteShortcut(shortcutId: ShortcutId) {
+  return axios.delete(`/api/shortcut/${shortcutId}`);
+}
+
 export function getResourceList() {
   return axios.get<Resource[]>("/api/resource");
 }
