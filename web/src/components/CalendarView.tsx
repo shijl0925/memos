@@ -3,6 +3,7 @@ import { getMemoStats } from "@/helpers/api";
 import { DAILY_TIMESTAMP } from "@/helpers/consts";
 import { getDateStampByDate } from "@/helpers/datetime";
 import { useFilterStore, useMemoStore, useUserStore } from "@/store/module";
+import { useTranslate } from "@/utils/i18n";
 import Icon from "./Icon";
 
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -16,6 +17,7 @@ const getCalendarDateString = (timestamp: number) => {
 };
 
 const CalendarView = () => {
+  const t = useTranslate();
   const filterStore = useFilterStore();
   const memoStore = useMemoStore();
   const userStore = useUserStore();
@@ -147,7 +149,9 @@ const CalendarView = () => {
           const isCurrentMonth = cell.month === "current";
           const memoCreatedCount = isCurrentMonth ? memoCreatedDateCounts.get(cell.timestamp) ?? 0 : 0;
           const hasMemoCreated = memoCreatedCount > 0;
-          const memoTooltip = `${getCalendarDateString(cell.timestamp)} 有 ${memoCreatedCount} 条备忘录`;
+          const memoTooltipOpts = { amount: memoCreatedCount, date: getCalendarDateString(cell.timestamp) };
+          const memoTooltip =
+            memoCreatedCount === 1 ? t("heatmap.memo-on", memoTooltipOpts) : t("heatmap.memos-on", memoTooltipOpts);
 
           return (
             <div
@@ -171,7 +175,6 @@ const CalendarView = () => {
                     <span className="absolute top-0 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-zinc-800" />
                     <span
                       role="tooltip"
-                      aria-live="polite"
                       className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs font-normal text-white opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       {memoTooltip}
