@@ -39,7 +39,7 @@ const Home = () => {
       <HomeSidebar />
       <div className="flex-grow min-w-0 flex justify-center pt-4">
         <div className="w-full max-w-3xl px-4">
-          <MobileHeader onSearchClick={openSidebar} />
+          <MobileHeader onMenuClick={openSidebar} onSearchClick={openSidebar} />
           {!userStore.isVisitorMode() && <MemoEditor className="mb-2" />}
           <MemoFilter />
           <MemoList />
