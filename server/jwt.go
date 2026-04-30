@@ -93,7 +93,7 @@ func JWTMiddleware(server *Server, secret string) MiddlewareFunc {
 				return next(c)
 			}
 
-			if common.HasPrefixes(path, "/api/ping", "/api/idp", "/api/user/:id") && method == http.MethodGet {
+			if isPublicGetPath(path) && method == http.MethodGet {
 				return next(c)
 			}
 
@@ -201,6 +201,17 @@ func JWTMiddleware(server *Server, secret string) MiddlewareFunc {
 			return next(c)
 		}
 	}
+}
+
+func isPublicGetPath(path string) bool {
+	if path == "/api/ping" || path == "/api/idp" {
+		return true
+	}
+	userIDPath, ok := strings.CutPrefix(path, "/api/user/")
+	if !ok || userIDPath == "" || strings.Contains(userIDPath, "/") {
+		return false
+	}
+	return userIDPath != "me"
 }
 
 func audienceContains(audience jwt.ClaimStrings, token string) bool {
