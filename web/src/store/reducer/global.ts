@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { DEFAULT_MEMOS_LOGO_URL } from "@/helpers/consts";
 
 interface State {
   locale: Locale;
@@ -26,7 +27,7 @@ const globalSlice = createSlice({
       memoDisplayWithUpdatedTs: false,
       customizedProfile: {
         name: "memos",
-        logoUrl: "/logo.webp",
+        logoUrl: DEFAULT_MEMOS_LOGO_URL,
         description: "",
         locale: "en",
         appearance: "system",

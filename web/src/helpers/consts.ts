@@ -2,6 +2,8 @@
 export const UNKNOWN_ID = -1;
 export const UNKNOWN_USERNAME = "";
 
+export const DEFAULT_MEMOS_LOGO_URL = "/logo.webp";
+
 // default animation duration
 export const ANIMATION_DURATION = 200;
 
