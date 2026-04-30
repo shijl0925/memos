@@ -319,6 +319,114 @@ func TestStoreShortcutTagSettingsStorageAndIdentityProvider(t *testing.T) {
 	require.NoError(t, s.Vacuum(ctx))
 }
 
+func TestStoreMySQLCompatibleBranches(t *testing.T) {
+	ctx := context.Background()
+	s := newTestingStore(ctx, t)
+	s.driver = "mysql"
+	s.profile.Driver = "mysql"
+
+	user := createStoreTestUser(ctx, t, s, "mysqluser", api.Host)
+	mysqlNickname := "mysql_nickname"
+	user, err := s.PatchUser(ctx, &api.UserPatch{ID: user.ID, Nickname: &mysqlNickname})
+	require.NoError(t, err)
+	require.Equal(t, mysqlNickname, user.Nickname)
+	users, err := s.FindUserList(ctx, &api.UserFind{Nickname: &mysqlNickname})
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+
+	memo, err := s.CreateMemo(ctx, &api.MemoCreate{
+		CreatorID:  user.ID,
+		Content:    "mysql branch memo",
+		Visibility: api.Public,
+	})
+	require.NoError(t, err)
+	mysqlContent := "mysql branch memo updated"
+	memo, err = s.PatchMemo(ctx, &api.MemoPatch{ID: memo.ID, Content: &mysqlContent})
+	require.NoError(t, err)
+	require.Equal(t, mysqlContent, memo.Content)
+
+	resource, err := s.CreateResource(ctx, &api.ResourceCreate{
+		CreatorID: user.ID,
+		Filename:  "mysql.png",
+		Blob:      []byte("mysql"),
+		Type:      "image/png",
+		Size:      5,
+	})
+	require.NoError(t, err)
+	mysqlFilename := "mysql-renamed.png"
+	resource, err = s.PatchResource(ctx, &api.ResourcePatch{ID: resource.ID, Filename: &mysqlFilename})
+	require.NoError(t, err)
+	require.Equal(t, mysqlFilename, resource.Filename)
+
+	shortcut, err := s.CreateShortcut(ctx, &api.ShortcutCreate{
+		CreatorID: user.ID,
+		Title:     "mysql shortcut",
+		Payload:   "{}",
+	})
+	require.NoError(t, err)
+	mysqlShortcutTitle := "mysql shortcut updated"
+	shortcut, err = s.PatchShortcut(ctx, &api.ShortcutPatch{ID: shortcut.ID, Title: &mysqlShortcutTitle})
+	require.NoError(t, err)
+	require.Equal(t, mysqlShortcutTitle, shortcut.Title)
+
+	storageConfig := &api.StorageConfig{S3Config: &api.StorageS3Config{Bucket: "mysql-bucket"}}
+	storage, err := s.CreateStorage(ctx, &api.StorageCreate{
+		Name:   "mysql storage",
+		Type:   api.StorageS3,
+		Config: storageConfig,
+	})
+	require.NoError(t, err)
+	mysqlStorageName := "mysql storage updated"
+	storage, err = s.PatchStorage(ctx, &api.StoragePatch{
+		ID:     storage.ID,
+		Type:   api.StorageS3,
+		Name:   &mysqlStorageName,
+		Config: storageConfig,
+	})
+	require.NoError(t, err)
+	require.Equal(t, mysqlStorageName, storage.Name)
+
+	idpConfig := &IdentityProviderConfig{OAuth2Config: &IdentityProviderOAuth2Config{
+		ClientID:     "mysql-client",
+		ClientSecret: "mysql-secret",
+		AuthURL:      "https://example.com/auth",
+		TokenURL:     "https://example.com/token",
+		UserInfoURL:  "https://example.com/userinfo",
+		FieldMapping: &FieldMapping{Identifier: "sub"},
+	}}
+	idp, err := s.CreateIdentityProvider(ctx, &IdentityProviderMessage{
+		Name:   "mysql idp",
+		Type:   IdentityProviderOAuth2,
+		Config: idpConfig,
+	})
+	require.NoError(t, err)
+	mysqlIDPName := "mysql idp updated"
+	idp, err = s.UpdateIdentityProvider(ctx, &UpdateIdentityProviderMessage{
+		ID:   idp.ID,
+		Type: IdentityProviderOAuth2,
+		Name: &mysqlIDPName,
+	})
+	require.NoError(t, err)
+	require.Equal(t, mysqlIDPName, idp.Name)
+
+	s.profile.Mode = "dev"
+	activity, err := s.CreateActivity(ctx, &api.ActivityCreate{
+		CreatorID: user.ID,
+		Type:      api.ActivityMemoCreate,
+		Level:     api.ActivityInfo,
+		Payload:   "{}",
+	})
+	require.NoError(t, err)
+	require.Equal(t, api.ActivityMemoCreate, activity.Type)
+
+	require.NoError(t, s.DeleteIdentityProvider(ctx, &DeleteIdentityProviderMessage{ID: idp.ID}))
+	require.NoError(t, s.DeleteStorage(ctx, &api.StorageDelete{ID: storage.ID}))
+	require.NoError(t, s.DeleteShortcut(ctx, &api.ShortcutDelete{ID: &shortcut.ID}))
+	require.NoError(t, s.DeleteResource(ctx, &api.ResourceDelete{ID: resource.ID}))
+	require.NoError(t, s.DeleteMemo(ctx, &api.MemoDelete{ID: memo.ID}))
+	require.NoError(t, s.DeleteUser(ctx, &api.UserDelete{ID: user.ID}))
+}
+
 func newTestingStore(ctx context.Context, t *testing.T) *Store {
 	t.Helper()
 
