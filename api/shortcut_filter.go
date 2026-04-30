@@ -123,7 +123,7 @@ func splitShortcutConditions(filter string) []string {
 			}
 		}
 
-		current.WriteByte(char)
+		_ = current.WriteByte(char)
 	}
 
 	if value := strings.TrimSpace(current.String()); value != "" {

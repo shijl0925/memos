@@ -5,7 +5,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestGetCurrentVersion(t *testing.T) {
+	require.Equal(t, DevVersion, GetCurrentVersion("dev"))
+	require.Equal(t, Version, GetCurrentVersion("prod"))
+	require.Equal(t, Version, GetCurrentVersion("unknown"))
+}
+
+func TestGetMinorAndSchemaVersion(t *testing.T) {
+	require.Equal(t, "1.2", GetMinorVersion("1.2.3"))
+	require.Empty(t, GetMinorVersion("1.2"))
+	require.Equal(t, "1.2.0", GetSchemaVersion("1.2.3"))
+}
 
 func TestIsVersionGreaterOrEqualThan(t *testing.T) {
 	tests := []struct {
