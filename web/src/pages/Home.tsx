@@ -5,14 +5,19 @@ import MemoEditor from "@/components/MemoEditor";
 import MemoFilter from "@/components/MemoFilter";
 import MemoList from "@/components/MemoList";
 import MobileHeader from "@/components/MobileHeader";
-import { useGlobalStore, useUserStore } from "@/store/module";
+import { useGlobalStore, useLayoutStore, useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 
 const Home = () => {
   const t = useTranslate();
   const globalStore = useGlobalStore();
+  const layoutStore = useLayoutStore();
   const userStore = useUserStore();
   const user = userStore.state.user;
+
+  const openSidebar = () => {
+    layoutStore.setHomeSidebarStatus(true);
+  };
 
   useEffect(() => {
     const currentUsername = userStore.getCurrentUsername();
@@ -33,7 +38,7 @@ const Home = () => {
       <HomeSidebar />
       <div className="flex-grow min-w-0 flex justify-center pt-4">
         <div className="w-full max-w-3xl px-4">
-          <MobileHeader />
+          <MobileHeader onMenuClick={openSidebar} onSearchClick={openSidebar} />
           {!userStore.isVisitorMode() && <MemoEditor className="mb-2" />}
           <MemoFilter />
           <MemoList />
