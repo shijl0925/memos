@@ -16,6 +16,7 @@ const Home = () => {
   const user = userStore.state.user;
 
   const openSidebar = () => {
+    layoutStore.setHeaderStatus(false);
     layoutStore.setHomeSidebarStatus(true);
   };
 
@@ -38,7 +39,7 @@ const Home = () => {
       <HomeSidebar />
       <div className="flex-grow min-w-0 flex justify-center pt-4">
         <div className="w-full max-w-3xl px-4">
-          <MobileHeader onMenuClick={openSidebar} onSearchClick={openSidebar} />
+          <MobileHeader onSearchClick={openSidebar} />
           {!userStore.isVisitorMode() && <MemoEditor className="mb-2" />}
           <MemoFilter />
           <MemoList />
