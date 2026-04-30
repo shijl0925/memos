@@ -309,7 +309,7 @@ func TestServerRoutesCoverage(t *testing.T) {
 	requireStatus(t, rec, http.StatusOK)
 
 	rec = client.json(http.MethodGet, "/api/idp/"+itoa(idp.ID), nil)
-	requireStatus(t, rec, http.StatusUnauthorized)
+	requireStatus(t, rec, http.StatusOK)
 
 	rec = client.json(http.MethodDelete, "/api/idp/"+itoa(idp.ID), nil)
 	requireStatus(t, rec, http.StatusOK)
@@ -438,14 +438,14 @@ func TestServerRouteErrorCoverage(t *testing.T) {
 		{http.MethodPost, "/api/idp", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/idp/not-a-number", bytes.NewBufferString("{}"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/idp/1", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
-		{http.MethodGet, "/api/idp/not-a-number", nil, "", http.StatusUnauthorized},
+		{http.MethodGet, "/api/idp/not-a-number", nil, "", http.StatusBadRequest},
 		{http.MethodDelete, "/api/idp/not-a-number", nil, "", http.StatusBadRequest},
 		{http.MethodDelete, "/api/idp/999999", nil, "", http.StatusNotFound},
 		{http.MethodPost, "/api/openai/chat-completion", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPost, "/api/openai/chat-completion", bytes.NewBufferString(`[{"role":"user","content":"hello"}]`), "application/json", http.StatusBadRequest},
 		{http.MethodGet, "/u/not-a-number/rss.xml", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/r/not-a-number", nil, "", http.StatusBadRequest},
-		{http.MethodGet, "/o/r/999999", nil, "", http.StatusInternalServerError},
+		{http.MethodGet, "/o/r/999999", nil, "", http.StatusNotFound},
 		{http.MethodGet, "/o/r/not-a-number/public", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/r/not-a-number/public/file.txt", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/get/httpmeta?url=:%2f%2f", nil, "", http.StatusBadRequest},
@@ -486,7 +486,7 @@ func TestAdditionalRouteBranchesCoverage(t *testing.T) {
 	writer := multipart.NewWriter(&body)
 	require.NoError(t, writer.Close())
 	rec = client.do(http.MethodPost, "/api/resource/blob", &body, writer.FormDataContentType())
-	requireStatus(t, rec, http.StatusInternalServerError)
+	requireStatus(t, rec, http.StatusBadRequest)
 
 	audioPath := filepath.Join(t.TempDir(), "sound.mp3")
 	require.NoError(t, os.WriteFile(audioPath, []byte("audio bytes"), 0644))

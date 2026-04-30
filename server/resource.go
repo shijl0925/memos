@@ -52,7 +52,7 @@ func (s *Server) registerResourceRoutes(g Group) {
 
 		file, err := c.FormFile("file")
 		if err != nil {
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to get uploading file", err)
+			return newHTTPErrorWithInternal(http.StatusBadRequest, "Upload file not found", err)
 		}
 		if file == nil {
 			return newHTTPError(http.StatusBadRequest, "Upload file not found")
@@ -184,6 +184,9 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
 		if err != nil {
+			if common.ErrorCode(err) == common.NotFound {
+				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			}
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
 		}
 		if resource == nil {
@@ -201,6 +204,9 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
 		if err != nil {
+			if common.ErrorCode(err) == common.NotFound {
+				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			}
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
 		}
 		if resource == nil {
@@ -217,6 +223,9 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 		}
 		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
 		if err != nil {
+			if common.ErrorCode(err) == common.NotFound {
+				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			}
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
 		}
 		if resource == nil {
