@@ -62,7 +62,7 @@ func (c *routeTestClient) json(method, target string, payload any) *httptest.Res
 	return c.do(method, target, body, "application/json")
 }
 
-func (c *routeTestClient) upload(target, fieldName, filename, _ string, content []byte) *httptest.ResponseRecorder {
+func (c *routeTestClient) upload(target, fieldName, filename string, content []byte) *httptest.ResponseRecorder {
 	c.t.Helper()
 
 	var body bytes.Buffer
@@ -164,7 +164,7 @@ func TestServerRoutesCoverage(t *testing.T) {
 	requireStatus(t, rec, http.StatusOK)
 
 	var resource api.Resource
-	rec = client.upload("/api/resource/blob", "file", "note.txt", "text/plain", []byte("resource body"))
+	rec = client.upload("/api/resource/blob", "file", "note.txt", []byte("resource body"))
 	requireStatus(t, rec, http.StatusOK)
 	decodeResponseData(t, rec, &resource)
 
