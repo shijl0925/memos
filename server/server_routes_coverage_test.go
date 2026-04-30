@@ -61,7 +61,7 @@ func (c *routeTestClient) json(method, target string, payload any) *httptest.Res
 	return c.do(method, target, body, "application/json")
 }
 
-func (c *routeTestClient) upload(target, fieldName, filename, contentType string, content []byte) *httptest.ResponseRecorder {
+func (c *routeTestClient) upload(target, fieldName, filename, _ string, content []byte) *httptest.ResponseRecorder {
 	c.t.Helper()
 
 	var body bytes.Buffer
@@ -620,22 +620,22 @@ type fakeApp struct {
 	startAddress string
 }
 
-func (a *fakeApp) Group(string) Group                 { return &fakeGroup{} }
-func (a *fakeApp) UseLogger(string)                   {}
-func (a *fakeApp) UseGzip()                           {}
-func (a *fakeApp) UseCSRF(string, func(Context) bool) {}
-func (a *fakeApp) UseCORS()                           {}
-func (a *fakeApp) UseSecure(SecureConfig)             {}
-func (a *fakeApp) UseTimeout(time.Duration, string)   {}
-func (a *fakeApp) UseSession(string)                  {}
-func (a *fakeApp) UseStatic(StaticFileServerConfig)   {}
-func (a *fakeApp) Start(address string) error         { a.startAddress = address; return nil }
-func (a *fakeApp) Shutdown(context.Context) error     { return nil }
-func (g *fakeGroup) GET(string, HandlerFunc)          {}
-func (g *fakeGroup) POST(string, HandlerFunc)         {}
-func (g *fakeGroup) PATCH(string, HandlerFunc)        {}
-func (g *fakeGroup) DELETE(string, HandlerFunc)       {}
-func (g *fakeGroup) Use(...MiddlewareFunc)            {}
+func (*fakeApp) Group(string) Group                 { return &fakeGroup{} }
+func (*fakeApp) UseLogger(string)                   {}
+func (*fakeApp) UseGzip()                           {}
+func (*fakeApp) UseCSRF(string, func(Context) bool) {}
+func (*fakeApp) UseCORS()                           {}
+func (*fakeApp) UseSecure(SecureConfig)             {}
+func (*fakeApp) UseTimeout(time.Duration, string)   {}
+func (*fakeApp) UseSession(string)                  {}
+func (*fakeApp) UseStatic(StaticFileServerConfig)   {}
+func (a *fakeApp) Start(address string) error       { a.startAddress = address; return nil }
+func (*fakeApp) Shutdown(context.Context) error     { return nil }
+func (*fakeGroup) GET(string, HandlerFunc)          {}
+func (*fakeGroup) POST(string, HandlerFunc)         {}
+func (*fakeGroup) PATCH(string, HandlerFunc)        {}
+func (*fakeGroup) DELETE(string, HandlerFunc)       {}
+func (*fakeGroup) Use(...MiddlewareFunc)            {}
 
 type fakeGroup struct{}
 
@@ -644,21 +644,21 @@ type stubContext struct {
 	values  map[string]any
 }
 
-func (c *stubContext) Request() *http.Request              { return c.request }
-func (c *stubContext) Writer() http.ResponseWriter         { return httptest.NewRecorder() }
-func (c *stubContext) Cookie(string) (*http.Cookie, error) { return nil, http.ErrNoCookie }
-func (c *stubContext) SetCookie(*http.Cookie)              {}
-func (c *stubContext) JSON(int, any) error                 { return nil }
-func (c *stubContext) String(int, string) error            { return nil }
-func (c *stubContext) Stream(int, string, io.Reader) error { return nil }
-func (c *stubContext) Status(int)                          {}
-func (c *stubContext) Header(string, string)               {}
-func (c *stubContext) Path() string                        { return c.request.URL.Path }
-func (c *stubContext) Param(string) string                 { return "" }
-func (c *stubContext) QueryParam(name string) string       { return c.request.URL.Query().Get(name) }
-func (c *stubContext) Set(key string, value any)           { c.values[key] = value }
-func (c *stubContext) Get(key string) any                  { return c.values[key] }
-func (c *stubContext) FormFile(string) (*multipart.FileHeader, error) {
+func (c *stubContext) Request() *http.Request            { return c.request }
+func (*stubContext) Writer() http.ResponseWriter         { return httptest.NewRecorder() }
+func (*stubContext) Cookie(string) (*http.Cookie, error) { return nil, http.ErrNoCookie }
+func (*stubContext) SetCookie(*http.Cookie)              {}
+func (*stubContext) JSON(int, any) error                 { return nil }
+func (*stubContext) String(int, string) error            { return nil }
+func (*stubContext) Stream(int, string, io.Reader) error { return nil }
+func (*stubContext) Status(int)                          {}
+func (*stubContext) Header(string, string)               {}
+func (c *stubContext) Path() string                      { return c.request.URL.Path }
+func (*stubContext) Param(string) string                 { return "" }
+func (c *stubContext) QueryParam(name string) string     { return c.request.URL.Query().Get(name) }
+func (c *stubContext) Set(key string, value any)         { c.values[key] = value }
+func (c *stubContext) Get(key string) any                { return c.values[key] }
+func (*stubContext) FormFile(string) (*multipart.FileHeader, error) {
 	return nil, http.ErrMissingFile
 }
 func (c *stubContext) Scheme() string { return requestScheme(c.request) }
