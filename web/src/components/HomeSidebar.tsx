@@ -288,7 +288,9 @@ const HomeSidebar = () => {
 
   return (
     <>
-      <div
+      <button
+        type="button"
+        aria-label="Close sidebar"
         className={`fixed inset-0 z-30 bg-black opacity-60 md:hidden ${showHomeSidebar ? "block" : "hidden"}`}
         onClick={closeMobileSidebar}
       />

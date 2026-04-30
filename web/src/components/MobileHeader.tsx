@@ -31,6 +31,7 @@ const MobileHeader = (props: Props) => {
         <button
           type="button"
           aria-label="Open navigation"
+          aria-expanded={layoutStore.state.showHeader}
           className="flex sm:hidden flex-row justify-center items-center w-11 h-11 mr-1 shrink-0 bg-transparent"
           onClick={handleMenuClick}
         >
@@ -46,6 +47,7 @@ const MobileHeader = (props: Props) => {
       <button
         type="button"
         aria-label="Open search and calendar"
+        aria-expanded={layoutStore.state.showHomeSidebar}
         className={`${showSearch ? "flex" : "hidden"} flex-row justify-center items-center w-11 h-11 shrink-0 bg-transparent`}
         onClick={handleSearchClick}
       >
