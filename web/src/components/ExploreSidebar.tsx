@@ -49,7 +49,7 @@ const ExploreSidebar = () => {
       />
       <aside
         className={`fixed md:sticky top-0 left-0 z-40 md:z-auto w-72 max-w-[85vw] md:max-w-none shrink-0 h-full md:h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1 transition-transform duration-300 md:translate-x-0 ${
-          showHomeSidebar ? "translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full"
+          showHomeSidebar ? "!translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full"
         }`}
       >
         {/* Search */}
