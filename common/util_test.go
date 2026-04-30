@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -100,7 +101,7 @@ func TestApplicationErrorHelpers(t *testing.T) {
 	require.Equal(t, NotFound, ErrorCode(appErr))
 	require.Equal(t, "memo not found", ErrorMessage(appErr))
 
-	wrappedErr := errors.Join(errors.New("outer"), appErr)
+	wrappedErr := fmt.Errorf("outer: %w", appErr)
 	require.Equal(t, NotFound, ErrorCode(wrappedErr))
 	require.Equal(t, "memo not found", ErrorMessage(wrappedErr))
 
