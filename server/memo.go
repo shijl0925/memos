@@ -7,11 +7,12 @@ import (
 	"strconv"
 	"strings"
 
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/usememos/memos/api"
 )
 
-func (s *Server) registerMemoRoutes(g Group) {
-	g.POST("/memo", func(c Context) error {
+func (s *Server) registerMemoRoutes(r *ninja.Router) {
+	ninja.Post(r, "/memo", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -28,9 +29,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(memo))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.PATCH("/memo/:memoId", func(c Context) error {
+	ninja.Patch(r, "/memo/:memoId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -52,9 +53,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(memo))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/memo", func(c Context) error {
+	ninja.Get(r, "/memo", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		memoFind := &api.MemoFind{}
 		if userID, err := strconv.Atoi(c.QueryParam("creatorId")); err == nil {
@@ -102,9 +103,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(list))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/memo/:memoId", func(c Context) error {
+	ninja.Get(r, "/memo/:memoId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
@@ -121,9 +122,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(memo))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/memo/:memoId/organizer", func(c Context) error {
+	ninja.Post(r, "/memo/:memoId/organizer", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
@@ -145,9 +146,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(memo))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/memo/:memoId/resource", func(c Context) error {
+	ninja.Post(r, "/memo/:memoId/resource", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
@@ -169,9 +170,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(resource))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/memo/:memoId/resource", func(c Context) error {
+	ninja.Get(r, "/memo/:memoId/resource", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		memoID, err := strconv.Atoi(c.Param("memoId"))
 		if err != nil {
@@ -188,9 +189,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(resourceList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/memo/stats", func(c Context) error {
+	ninja.Get(r, "/memo/stats", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		creatorID, err := strconv.Atoi(c.QueryParam("creatorId"))
 		if err != nil {
@@ -207,9 +208,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(createdTsList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/memo/all", func(c Context) error {
+	ninja.Get(r, "/memo/all", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		memoFind := &api.MemoFind{}
 
@@ -257,9 +258,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(list))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.DELETE("/memo/:memoId", func(c Context) error {
+	ninja.Delete(r, "/memo/:memoId", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -274,9 +275,9 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 
-	g.DELETE("/memo/:memoId/resource/:resourceId", func(c Context) error {
+	ninja.Delete(r, "/memo/:memoId/resource/:resourceId", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -295,5 +296,5 @@ func (s *Server) registerMemoRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 }

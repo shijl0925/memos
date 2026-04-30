@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"strconv"
 
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/usememos/memos/api"
 )
 
-func (s *Server) registerUserRoutes(g Group) {
-	g.POST("/user", func(c Context) error {
+func (s *Server) registerUserRoutes(r *ninja.Router) {
+	ninja.Post(r, "/user", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		currentUserID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -27,9 +28,9 @@ func (s *Server) registerUserRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/user", func(c Context) error {
+	ninja.Get(r, "/user", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userList, err := s.Store.FindUserList(ctx, &api.UserFind{})
 		if err != nil {
@@ -40,9 +41,9 @@ func (s *Server) registerUserRoutes(g Group) {
 			user.Email = ""
 		}
 		return c.JSON(http.StatusOK, composeResponse(userList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/user/setting", func(c Context) error {
+	ninja.Post(r, "/user/setting", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -59,9 +60,9 @@ func (s *Server) registerUserRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(userSetting))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/user/me", func(c Context) error {
+	ninja.Get(r, "/user/me", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -73,9 +74,9 @@ func (s *Server) registerUserRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/user/:id", func(c Context) error {
+	ninja.Get(r, "/user/:id", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
@@ -91,9 +92,9 @@ func (s *Server) registerUserRoutes(g Group) {
 			user.Email = ""
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.PATCH("/user/:id", func(c Context) error {
+	ninja.Patch(r, "/user/:id", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
@@ -114,9 +115,9 @@ func (s *Server) registerUserRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(user))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.DELETE("/user/:id", func(c Context) error {
+	ninja.Delete(r, "/user/:id", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		currentUserID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -132,5 +133,5 @@ func (s *Server) registerUserRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 }

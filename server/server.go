@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/usememos/memos/api"
 	"github.com/usememos/memos/server/profile"
 	"github.com/usememos/memos/service"
@@ -66,26 +67,35 @@ func NewServer(ctx context.Context, profile *profile.Profile) (*Server, error) {
 		}
 	}
 
-	rootGroup := s.app.Group("")
-	s.registerRSSRoutes(rootGroup)
+	s.app.AddController("", serverController{
+		registerAPI: func(r *ninja.Router) {
+			s.registerRSSRoutes(r)
+		},
+	})
 
-	publicGroup := s.app.Group("/o")
-	publicGroup.Use(JWTMiddleware(s, secret))
-	registerGetterPublicRoutes(publicGroup)
-	s.registerResourcePublicRoutes(publicGroup)
+	s.app.AddController("/o", serverController{
+		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
+		registerAPI: func(r *ninja.Router) {
+			registerGetterPublicRoutes(r)
+			s.registerResourcePublicRoutes(r)
+		},
+	})
 
-	apiGroup := s.app.Group("/api")
-	apiGroup.Use(JWTMiddleware(s, secret))
-	s.registerSystemRoutes(apiGroup)
-	s.registerAuthRoutes(apiGroup, secret)
-	s.registerUserRoutes(apiGroup)
-	s.registerMemoRoutes(apiGroup)
-	s.registerShortcutRoutes(apiGroup)
-	s.registerResourceRoutes(apiGroup)
-	s.registerTagRoutes(apiGroup)
-	s.registerStorageRoutes(apiGroup)
-	s.registerIdentityProviderRoutes(apiGroup)
-	s.registerOpenAIRoutes(apiGroup)
+	s.app.AddController("/api", serverController{
+		middlewares: []MiddlewareFunc{JWTMiddleware(s, secret)},
+		registerAPI: func(r *ninja.Router) {
+			s.registerSystemRoutes(r)
+			s.registerAuthRoutes(r, secret)
+			s.registerUserRoutes(r)
+			s.registerMemoRoutes(r)
+			s.registerShortcutRoutes(r)
+			s.registerResourceRoutes(r)
+			s.registerTagRoutes(r)
+			s.registerStorageRoutes(r)
+			s.registerIdentityProviderRoutes(r)
+			s.registerOpenAIRoutes(r)
+		},
+	})
 
 	return s, nil
 }

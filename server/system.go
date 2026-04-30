@@ -2,30 +2,34 @@ package server
 
 import (
 	"encoding/json"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 
 	"github.com/usememos/memos/api"
+	"github.com/usememos/memos/server/profile"
 )
 
-func (s *Server) registerSystemRoutes(g Group) {
-	g.GET("/ping", func(c Context) error {
-		return c.JSON(http.StatusOK, composeResponse(s.Profile))
-	})
+func (s *Server) registerSystemRoutes(r *ninja.Router) {
+	ninja.Get(r, "/ping", adaptNinjaJSONHandler(func(c *ninja.Context, _ *struct{}) (*profile.Profile, error) {
+		return s.Profile, nil
+	}), ninja.SuccessStatus(http.StatusOK))
 
-	g.GET("/status", func(c Context) error {
-		ctx := c.Request().Context()
+	ninja.Get(r, "/status", adaptNinjaJSONHandler(func(c *ninja.Context, _ *struct{}) (*api.SystemStatus, error) {
+		ctx := c.Request.Context()
 		var userID *int
-		if id, ok := c.Get(getUserIDContextKey()).(int); ok {
-			userID = &id
+		if id, ok := c.Context.Get(getUserIDContextKey()); ok {
+			if id, ok := id.(int); ok {
+				userID = &id
+			}
 		}
 		systemStatus, err := s.Service.GetSystemStatus(ctx, userID)
 		if err != nil {
-			return convertServiceError(err)
+			return nil, convertServiceError(err)
 		}
-		return c.JSON(http.StatusOK, composeResponse(systemStatus))
-	})
+		return systemStatus, nil
+	}), ninja.SuccessStatus(http.StatusOK))
 
-	g.POST("/system/setting", func(c Context) error {
+	ninja.Post(r, "/system/setting", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -42,9 +46,9 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(systemSetting))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/system/setting", func(c Context) error {
+	ninja.Get(r, "/system/setting", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -56,9 +60,9 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(systemSettingList))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/system/vacuum", func(c Context) error {
+	ninja.Post(r, "/system/vacuum", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -69,5 +73,5 @@ func (s *Server) registerSystemRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }

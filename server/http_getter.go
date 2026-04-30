@@ -2,14 +2,15 @@ package server
 
 import (
 	"fmt"
+	ninja "github.com/shijl0925/gin-ninja"
 	"net/http"
 	"net/url"
 
 	getter "github.com/usememos/memos/plugin/http-getter"
 )
 
-func registerGetterPublicRoutes(g Group) {
-	g.GET("/get/httpmeta", func(c Context) error {
+func registerGetterPublicRoutes(r *ninja.Router) {
+	ninja.Get(r, "/get/httpmeta", adaptNinjaHandler(func(c Context) error {
 		urlStr := c.QueryParam("url")
 		if urlStr == "" {
 			return newHTTPError(http.StatusBadRequest, "Missing website url")
@@ -23,9 +24,9 @@ func registerGetterPublicRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusNotAcceptable, fmt.Sprintf("Failed to get website meta with url: %s", urlStr), err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(htmlMeta))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/get/image", func(c Context) error {
+	ninja.Get(r, "/get/image", adaptNinjaHandler(func(c Context) error {
 		urlStr := c.QueryParam("url")
 		if urlStr == "" {
 			return newHTTPError(http.StatusBadRequest, "Missing image url")
@@ -46,5 +47,5 @@ func registerGetterPublicRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to write image blob", err)
 		}
 		return nil
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/usememos/memos/common"
 	"github.com/usememos/memos/common/log"
 	"go.uber.org/zap"
@@ -28,9 +29,18 @@ const (
 
 func newGinApp() App {
 	gin.SetMode(gin.ReleaseMode)
-	app := gin.New()
+	api := ninja.New(ninja.Config{
+		Title:             "Memos API",
+		Version:           "1.0.0",
+		DisableGinDefault: true,
+		DisableDocs:       true,
+		DisableOpenAPI:    true,
+		DisableHomepage:   true,
+	})
+	app := api.Engine()
 	app.Use(gin.Recovery())
 	return &ginApp{
+		api: api,
 		app: app,
 		server: &http.Server{
 			Handler: app,
@@ -39,12 +49,13 @@ func newGinApp() App {
 }
 
 type ginApp struct {
+	api    *ninja.NinjaAPI
 	app    *gin.Engine
 	server *http.Server
 }
 
-func (a *ginApp) Group(prefix string) Group {
-	return &ginGroup{group: a.app.Group(prefix)}
+func (a *ginApp) AddController(prefix string, controller ninja.Controller, opts ...ninja.RouterOption) {
+	a.api.AddController(prefix, controller, opts...)
 }
 
 func (a *ginApp) UseLogger(_ string) {
@@ -173,9 +184,8 @@ func (a *ginApp) UseStatic(config StaticFileServerConfig) {
 	}
 
 	group := a.app.Group(config.PathPrefix)
-	wrappedGroup := &ginGroup{group: group}
-	if len(config.Middlewares) > 0 {
-		wrappedGroup.Use(config.Middlewares...)
+	for _, middleware := range config.Middlewares {
+		group.Use(toGinMiddleware(middleware))
 	}
 	handler := func(c *gin.Context) {
 		ctx := newGinContext(c)
@@ -196,41 +206,6 @@ func (a *ginApp) Start(address string) error {
 
 func (a *ginApp) Shutdown(ctx context.Context) error {
 	return a.server.Shutdown(ctx)
-}
-
-type ginGroup struct {
-	group *gin.RouterGroup
-}
-
-func (g *ginGroup) GET(path string, handler HandlerFunc) {
-	g.group.GET(path, wrapGinHandler(handler))
-}
-
-func (g *ginGroup) POST(path string, handler HandlerFunc) {
-	g.group.POST(path, wrapGinHandler(handler))
-}
-
-func (g *ginGroup) PATCH(path string, handler HandlerFunc) {
-	g.group.PATCH(path, wrapGinHandler(handler))
-}
-
-func (g *ginGroup) DELETE(path string, handler HandlerFunc) {
-	g.group.DELETE(path, wrapGinHandler(handler))
-}
-
-func (g *ginGroup) Use(middlewares ...MiddlewareFunc) {
-	for _, middleware := range middlewares {
-		g.group.Use(toGinMiddleware(middleware))
-	}
-}
-
-func wrapGinHandler(handler HandlerFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if err := handler(newGinContext(c)); err != nil {
-			writeGinError(c, err)
-			c.Abort()
-		}
-	}
 }
 
 func toGinMiddleware(middleware MiddlewareFunc) gin.HandlerFunc {

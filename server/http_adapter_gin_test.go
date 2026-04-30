@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	ninja "github.com/shijl0925/gin-ninja"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,8 +31,12 @@ func TestNewAppUsesGinByDefault(t *testing.T) {
 func TestGinUseGzip(t *testing.T) {
 	app := newTestGinApp(t)
 	app.UseGzip()
-	app.Group("").GET("/hello", func(c Context) error {
-		return c.String(http.StatusOK, "hello world")
+	app.AddController("", serverController{
+		registerAPI: func(r *ninja.Router) {
+			ninja.Get(r, "/hello", adaptNinjaHandler(func(c Context) error {
+				return c.String(http.StatusOK, "hello world")
+			}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+		},
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/hello", nil)
@@ -53,12 +58,15 @@ func TestGinUseGzip(t *testing.T) {
 func TestGinUseCSRFSetsCookieAndProtectsUnsafeRequests(t *testing.T) {
 	app := newTestGinApp(t)
 	app.UseCSRF("cookie:_csrf", nil)
-	group := app.Group("")
-	group.GET("/", func(c Context) error {
-		return c.String(http.StatusOK, "ok")
-	})
-	group.POST("/submit", func(c Context) error {
-		return c.String(http.StatusOK, "submitted")
+	app.AddController("", serverController{
+		registerAPI: func(r *ninja.Router) {
+			ninja.Get(r, "/", adaptNinjaHandler(func(c Context) error {
+				return c.String(http.StatusOK, "ok")
+			}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+			ninja.Post(r, "/submit", adaptNinjaHandler(func(c Context) error {
+				return c.String(http.StatusOK, "submitted")
+			}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+		},
 	})
 
 	getRequest := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -85,9 +93,13 @@ func TestGinUseCSRFSetsCookieAndProtectsUnsafeRequests(t *testing.T) {
 func TestGinUseTimeout(t *testing.T) {
 	app := newTestGinApp(t)
 	app.UseTimeout(10*time.Millisecond, "Request timeout")
-	app.Group("").GET("/slow", func(c Context) error {
-		time.Sleep(50 * time.Millisecond)
-		return c.String(http.StatusOK, "done")
+	app.AddController("", serverController{
+		registerAPI: func(r *ninja.Router) {
+			ninja.Get(r, "/slow", adaptNinjaHandler(func(c Context) error {
+				time.Sleep(50 * time.Millisecond)
+				return c.String(http.StatusOK, "done")
+			}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+		},
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/slow", nil)
@@ -96,6 +108,41 @@ func TestGinUseTimeout(t *testing.T) {
 
 	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 	require.Contains(t, recorder.Body.String(), "Request timeout")
+}
+
+func TestGinAddControllerRegistersNinjaController(t *testing.T) {
+	app := newTestGinApp(t)
+	app.AddController("/api", serverController{
+		middlewares: []MiddlewareFunc{
+			func(next HandlerFunc) HandlerFunc {
+				return func(c Context) error {
+					c.Set("controller-middleware", true)
+					return next(c)
+				}
+			},
+		},
+		registerAPI: func(r *ninja.Router) {
+			ninja.Get(r, "/ping", adaptNinjaHandler(func(c Context) error {
+				enabled, _ := c.Get("controller-middleware").(bool)
+				return c.JSON(http.StatusOK, composeResponse(enabled))
+			}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+			ninja.Get(r, "/fail", adaptNinjaHandler(func(c Context) error {
+				return newHTTPError(http.StatusBadRequest, "controller error")
+			}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
+	recorder := httptest.NewRecorder()
+	app.app.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.JSONEq(t, `{"data":true}`, recorder.Body.String())
+
+	errorRequest := httptest.NewRequest(http.MethodGet, "/api/fail", nil)
+	errorRecorder := httptest.NewRecorder()
+	app.app.ServeHTTP(errorRecorder, errorRequest)
+	require.Equal(t, http.StatusBadRequest, errorRecorder.Code)
+	require.JSONEq(t, `{"error":"controller error"}`, errorRecorder.Body.String())
 }
 
 func TestDetailedErrorLogEnvDisabledByDefault(t *testing.T) {
@@ -136,8 +183,12 @@ func TestGinWriteErrorOnlyExposesGinErrorWhenDetailedLogsEnabled(t *testing.T) {
 				c.Next()
 				require.Len(t, c.Errors, test.wantGinErrors)
 			})
-			app.Group("").GET("/fail", func(c Context) error {
-				return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch memo list", internalErr)
+			app.AddController("", serverController{
+				registerAPI: func(r *ninja.Router) {
+					ninja.Get(r, "/fail", adaptNinjaHandler(func(c Context) error {
+						return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch memo list", internalErr)
+					}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
+				},
 			})
 
 			request := httptest.NewRequest(http.MethodGet, "/fail?limit=20", nil)
@@ -149,4 +200,23 @@ func TestGinWriteErrorOnlyExposesGinErrorWhenDetailedLogsEnabled(t *testing.T) {
 			require.JSONEq(t, `{"error":"Failed to fetch memo list"}`, recorder.Body.String())
 		})
 	}
+}
+
+func TestGinAddControllerRegistersVoidNinjaHandler(t *testing.T) {
+	app := newTestGinApp(t)
+	app.AddController("/api", serverController{
+		registerAPI: func(r *ninja.Router) {
+			ninja.Delete(r, "/memo/:id", adaptNinjaVoidHandler(func(c Context) error {
+				c.Status(http.StatusNoContent)
+				return nil
+			}), ninja.ExcludeFromDocs())
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodDelete, "/api/memo/1", nil)
+	recorder := httptest.NewRecorder()
+	app.app.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.Empty(t, recorder.Body.String())
 }

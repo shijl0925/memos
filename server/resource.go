@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	ninja "github.com/shijl0925/gin-ninja"
 	"io"
 	"net/http"
 	"os"
@@ -19,8 +20,8 @@ const (
 	maxFileSize = 32 << 20
 )
 
-func (s *Server) registerResourceRoutes(g Group) {
-	g.POST("/resource", func(c Context) error {
+func (s *Server) registerResourceRoutes(r *ninja.Router) {
+	ninja.Post(r, "/resource", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -37,9 +38,9 @@ func (s *Server) registerResourceRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(resource))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.POST("/resource/blob", func(c Context) error {
+	ninja.Post(r, "/resource/blob", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -69,9 +70,9 @@ func (s *Server) registerResourceRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(resource))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/resource", func(c Context) error {
+	ninja.Get(r, "/resource", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -91,9 +92,9 @@ func (s *Server) registerResourceRoutes(g Group) {
 			return newHTTPErrorWithInternal(http.StatusInternalServerError, "Failed to fetch resource list", err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(list))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.PATCH("/resource/:resourceId", func(c Context) error {
+	ninja.Patch(r, "/resource/:resourceId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -115,9 +116,9 @@ func (s *Server) registerResourceRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, composeResponse(resource))
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.DELETE("/resource/:resourceId", func(c Context) error {
+	ninja.Delete(r, "/resource/:resourceId", adaptNinjaVoidHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		userID, ok := c.Get(getUserIDContextKey()).(int)
 		if !ok {
@@ -136,10 +137,10 @@ func (s *Server) registerResourceRoutes(g Group) {
 			return convertServiceError(err)
 		}
 		return c.JSON(http.StatusOK, true)
-	})
+	}), ninja.ExcludeFromDocs())
 }
 
-func (s *Server) registerResourcePublicRoutes(g Group) {
+func (s *Server) registerResourcePublicRoutes(r *ninja.Router) {
 	// Helper that streams a resource blob to the client.
 	serveResource := func(c Context, resource *api.Resource) error {
 		ctx := c.Request().Context()
@@ -176,7 +177,7 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 	}
 
 	// Primary route: /o/r/:resourceId (used by the v0.14.4 frontend)
-	g.GET("/r/:resourceId", func(c Context) error {
+	ninja.Get(r, "/r/:resourceId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
@@ -190,10 +191,10 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
 		}
 		return serveResource(c, resource)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
 	// Legacy routes kept for backward compatibility with old URLs that include publicId and filename.
-	g.GET("/r/:resourceId/:publicId", func(c Context) error {
+	ninja.Get(r, "/r/:resourceId/:publicId", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
@@ -207,9 +208,9 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
 		}
 		return serveResource(c, resource)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 
-	g.GET("/r/:resourceId/:publicId/:filename", func(c Context) error {
+	ninja.Get(r, "/r/:resourceId/:publicId/:filename", adaptNinjaHandler(func(c Context) error {
 		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
@@ -223,5 +224,5 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
 		}
 		return serveResource(c, resource)
-	})
+	}), ninja.SuccessStatus(http.StatusOK), ninja.ExcludeFromDocs())
 }
