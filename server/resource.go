@@ -175,61 +175,55 @@ func (s *Server) registerResourcePublicRoutes(g Group) {
 		return c.Stream(http.StatusOK, resourceType, bytes.NewReader(blob))
 	}
 
+	findPublicResource := func(c Context, resourceID int) (*api.Resource, error) {
+		ctx := c.Request().Context()
+		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
+		if err != nil {
+			if common.ErrorCode(err) == common.NotFound {
+				return nil, newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			}
+			return nil, newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
+		}
+		if resource == nil {
+			return nil, newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+		}
+		return resource, nil
+	}
+
 	// Primary route: /o/r/:resourceId (used by the v0.14.4 frontend)
 	g.GET("/r/:resourceId", func(c Context) error {
-		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
+		resource, err := findPublicResource(c, resourceID)
 		if err != nil {
-			if common.ErrorCode(err) == common.NotFound {
-				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
-			}
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
-		}
-		if resource == nil {
-			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			return err
 		}
 		return serveResource(c, resource)
 	})
 
 	// Legacy routes kept for backward compatibility with old URLs that include publicId and filename.
 	g.GET("/r/:resourceId/:publicId", func(c Context) error {
-		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
+		resource, err := findPublicResource(c, resourceID)
 		if err != nil {
-			if common.ErrorCode(err) == common.NotFound {
-				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
-			}
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
-		}
-		if resource == nil {
-			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			return err
 		}
 		return serveResource(c, resource)
 	})
 
 	g.GET("/r/:resourceId/:publicId/:filename", func(c Context) error {
-		ctx := c.Request().Context()
 		resourceID, err := strconv.Atoi(c.Param("resourceId"))
 		if err != nil {
 			return newHTTPErrorWithInternal(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId")), err)
 		}
-		resource, err := s.Store.FindResource(ctx, &api.ResourceFind{ID: &resourceID, GetBlob: true})
+		resource, err := findPublicResource(c, resourceID)
 		if err != nil {
-			if common.ErrorCode(err) == common.NotFound {
-				return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
-			}
-			return newHTTPErrorWithInternal(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID), err)
-		}
-		if resource == nil {
-			return newHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+			return err
 		}
 		return serveResource(c, resource)
 	})

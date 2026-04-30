@@ -208,7 +208,10 @@ func isPublicGetPath(path string) bool {
 		return true
 	}
 	userIDPath, ok := strings.CutPrefix(path, "/api/user/")
-	return ok && userIDPath != "" && userIDPath != "me" && !strings.Contains(userIDPath, "/")
+	if !ok || userIDPath == "" || strings.Contains(userIDPath, "/") {
+		return false
+	}
+	return userIDPath != "me"
 }
 
 func audienceContains(audience jwt.ClaimStrings, token string) bool {
