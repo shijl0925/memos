@@ -44,7 +44,7 @@ const ExploreSidebar = () => {
       <button
         type="button"
         aria-label="Close sidebar"
-        className={`fixed inset-0 z-30 bg-black opacity-60 md:hidden ${showHomeSidebar ? "block" : "hidden"}`}
+        className={`fixed inset-0 z-30 bg-black/60 md:hidden ${showHomeSidebar ? "block" : "hidden"}`}
         onClick={() => layoutStore.setHomeSidebarStatus(false)}
       />
       <aside
