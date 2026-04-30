@@ -1,4 +1,5 @@
 import * as api from "@/helpers/api";
+import { DEFAULT_MEMOS_LOGO_URL } from "@/helpers/consts";
 import storage from "@/helpers/storage";
 import i18n from "@/i18n";
 import { findNearestLanguageMatch } from "@/utils/i18n";
@@ -20,7 +21,7 @@ export const initialGlobalState = async () => {
       memoDisplayWithUpdatedTs: false,
       customizedProfile: {
         name: "memos",
-        logoUrl: "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png",
+        logoUrl: DEFAULT_MEMOS_LOGO_URL,
         description: "",
         locale: "en",
         appearance: "system",
@@ -44,7 +45,7 @@ export const initialGlobalState = async () => {
       ...data,
       customizedProfile: {
         name: customizedProfile.name || "memos",
-        logoUrl: customizedProfile.logoUrl || "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png",
+        logoUrl: customizedProfile.logoUrl || DEFAULT_MEMOS_LOGO_URL,
         description: customizedProfile.description,
         locale: customizedProfile.locale || "en",
         appearance: customizedProfile.appearance || "system",

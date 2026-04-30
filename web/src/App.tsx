@@ -3,6 +3,7 @@ import { Suspense, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
+import { DEFAULT_MEMOS_LOGO_URL } from "./helpers/consts";
 import storage from "./helpers/storage";
 import { getSystemColorScheme } from "./helpers/utils";
 import Loading from "./pages/Loading";
@@ -52,9 +53,7 @@ const App = () => {
     // dynamic update metadata with customized profile.
     document.title = systemStatus.customizedProfile.name;
     const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    link.href =
-      systemStatus.customizedProfile.logoUrl ||
-      "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png";
+    link.href = systemStatus.customizedProfile.logoUrl || DEFAULT_MEMOS_LOGO_URL;
   }, [systemStatus]);
 
   useEffect(() => {

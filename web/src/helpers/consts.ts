@@ -2,6 +2,8 @@
 export const UNKNOWN_ID = -1;
 export const UNKNOWN_USERNAME = "";
 
+export const DEFAULT_MEMOS_LOGO_URL = "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png";
+
 // default animation duration
 export const ANIMATION_DURATION = 200;
 
