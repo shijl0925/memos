@@ -104,7 +104,7 @@ const Explore = () => {
       <ExploreSidebar />
       <div className="flex-grow min-w-0 flex justify-center pt-4">
         <div className="w-full max-w-3xl px-4 pb-8">
-          <MobileHeader onMenuClick={openSidebar} onSearchClick={openSidebar} />
+          <MobileHeader showSearch={true} onMenuClick={openSidebar} onSearchClick={openSidebar} />
           {!loadingState.isLoading && (
             <main className="relative w-full h-auto flex flex-col justify-start items-start">
               <MemoFilter />
