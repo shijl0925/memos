@@ -52,7 +52,9 @@ const App = () => {
     // dynamic update metadata with customized profile.
     document.title = systemStatus.customizedProfile.name;
     const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    link.href = systemStatus.customizedProfile.logoUrl || "/logo.webp";
+    link.href =
+      systemStatus.customizedProfile.logoUrl ||
+      "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png";
   }, [systemStatus]);
 
   useEffect(() => {

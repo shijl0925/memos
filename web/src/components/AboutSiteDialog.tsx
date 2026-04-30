@@ -33,7 +33,11 @@ const AboutSiteDialog: React.FC<Props> = ({ destroy }: Props) => {
           <div className="flex flex-row justify-start items-center mr-2">
             {t("about.powered-by")}
             <a href="https://usememos.com" target="_blank" className="flex flex-row justify-start items-center mx-1 hover:underline">
-              <img className="w-6 h-auto rounded-full mr-1" src="/logo.webp" alt="" />
+              <img
+                className="w-6 h-auto rounded-full mr-1"
+                src="https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png"
+                alt=""
+              />
               memos
             </a>
             <span>v{profile.version}</span>

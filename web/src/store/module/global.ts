@@ -20,7 +20,7 @@ export const initialGlobalState = async () => {
       memoDisplayWithUpdatedTs: false,
       customizedProfile: {
         name: "memos",
-        logoUrl: "/logo.webp",
+        logoUrl: "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png",
         description: "",
         locale: "en",
         appearance: "system",
@@ -44,7 +44,7 @@ export const initialGlobalState = async () => {
       ...data,
       customizedProfile: {
         name: customizedProfile.name || "memos",
-        logoUrl: customizedProfile.logoUrl || "/logo.webp",
+        logoUrl: customizedProfile.logoUrl || "https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/logo-rounded.png",
         description: customizedProfile.description,
         locale: customizedProfile.locale || "en",
         appearance: customizedProfile.appearance || "system",
