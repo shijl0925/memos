@@ -221,7 +221,8 @@ const HomeSidebar = () => {
   };
 
   const handleTagChipClick = (tag: string) => {
-    filterStore.setTagFilter(activeTagFilter === tag ? undefined : tag);
+    const isActiveTag = activeTagFilter === tag;
+    filterStore.setTagFilter(isActiveTag ? undefined : tag);
     closeMobileSidebar();
   };
 
