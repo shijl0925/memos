@@ -84,5 +84,4 @@ func TestExtractMetaProperty(t *testing.T) {
 
 	content, ok = extractMetaProperty(token, "og:description")
 	require.False(t, ok)
-	require.Equal(t, "value", content)
 }

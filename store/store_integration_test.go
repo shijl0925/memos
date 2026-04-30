@@ -190,16 +190,16 @@ func TestStoreShortcutTagSettingsStorageAndIdentityProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, systemSettings, 1)
 
-	s.profile.Mode = "dev"
-	activity, err := s.CreateActivity(ctx, &api.ActivityCreate{
-		CreatorID: user.ID,
+	devStore := newTestingStoreWithMode(ctx, t, "dev")
+	devUser := createStoreTestUser(ctx, t, devStore, "activity", api.Host)
+	activity, err := devStore.CreateActivity(ctx, &api.ActivityCreate{
+		CreatorID: devUser.ID,
 		Type:      api.ActivityUserUpdate,
 		Level:     api.ActivityInfo,
 		Payload:   `{"field":"nickname"}`,
 	})
 	require.NoError(t, err)
 	require.Equal(t, api.ActivityUserUpdate, activity.Type)
-	s.profile.Mode = "prod"
 
 	tag, err := s.UpsertTag(ctx, &api.TagUpsert{Name: "project", CreatorID: user.ID})
 	require.NoError(t, err)
@@ -321,9 +321,7 @@ func TestStoreShortcutTagSettingsStorageAndIdentityProvider(t *testing.T) {
 
 func TestStoreMySQLCompatibleBranches(t *testing.T) {
 	ctx := context.Background()
-	s := newTestingStore(ctx, t)
-	s.driver = "mysql"
-	s.profile.Driver = "mysql"
+	s := newTestingStoreWithDriver(ctx, t, "mysql")
 
 	user := createStoreTestUser(ctx, t, s, "mysqluser", api.Host)
 	mysqlNickname := "mysql_nickname"
@@ -409,7 +407,6 @@ func TestStoreMySQLCompatibleBranches(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, mysqlIDPName, idp.Name)
 
-	s.profile.Mode = "dev"
 	activity, err := s.CreateActivity(ctx, &api.ActivityCreate{
 		CreatorID: user.ID,
 		Type:      api.ActivityMemoCreate,
@@ -428,6 +425,18 @@ func TestStoreMySQLCompatibleBranches(t *testing.T) {
 }
 
 func newTestingStore(ctx context.Context, t *testing.T) *Store {
+	return newTestingStoreWithOptions(ctx, t, "", "")
+}
+
+func newTestingStoreWithMode(ctx context.Context, t *testing.T, mode string) *Store {
+	return newTestingStoreWithOptions(ctx, t, "", mode)
+}
+
+func newTestingStoreWithDriver(ctx context.Context, t *testing.T, driver string) *Store {
+	return newTestingStoreWithOptions(ctx, t, driver, "dev")
+}
+
+func newTestingStoreWithOptions(ctx context.Context, t *testing.T, driver string, mode string) *Store {
 	t.Helper()
 
 	profile := test.GetTestingProfile(t)
@@ -436,7 +445,17 @@ func newTestingStore(ctx context.Context, t *testing.T) *Store {
 	t.Cleanup(func() {
 		require.NoError(t, database.DBInstance.Close())
 	})
-	return New(database.DBInstance, profile)
+	if driver != "" {
+		profile.Driver = driver
+	}
+	if mode != "" {
+		profile.Mode = mode
+	}
+	s := New(database.DBInstance, profile)
+	if driver != "" {
+		s.driver = driver
+	}
+	return s
 }
 
 func createStoreTestUser(ctx context.Context, t *testing.T, s *Store, username string, role api.Role) *api.User {
