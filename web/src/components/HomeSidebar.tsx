@@ -6,7 +6,7 @@ import { getDateStampByDate } from "@/helpers/datetime";
 import { parseShortcutExpressionFilter } from "@/helpers/shortcut";
 import { LINK_REG } from "@/labs/marked/parser/Link";
 import { PLAIN_LINK_REG } from "@/labs/marked/parser/PlainLink";
-import { useFilterStore, useMemoStore, useTagStore, useUserStore } from "@/store/module";
+import { useFilterStore, useLayoutStore, useMemoStore, useTagStore, useUserStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 import CalendarView from "./CalendarView";
 import showCreateShortcutDialog from "./CreateShortcutDialog";
@@ -154,6 +154,7 @@ const HomeSidebar = () => {
   const memoStore = useMemoStore();
   const tagStore = useTagStore();
   const userStore = useUserStore();
+  const layoutStore = useLayoutStore();
 
   const memos = memoStore.state.memos.filter((m) => m.creatorUsername === userStore.getCurrentUsername() && m.rowStatus === "NORMAL");
   const tagsText = tagStore.state.tags;
@@ -195,27 +196,34 @@ const HomeSidebar = () => {
 
   const codeCount = memos.filter((m) => m.content.match(CODE_BLOCK_REG) || m.content.match(INLINE_CODE_REG)).length;
 
+  const closeMobileSidebar = () => {
+    layoutStore.setHomeSidebarStatus(false);
+  };
+
   const activeType = filterStore.state.type;
+  const activeTagFilter = filterStore.state.tag;
+  const selectedShortcutId = filterStore.state.shortcut?.id;
+  const showHomeSidebar = layoutStore.state.showHomeSidebar;
 
   const handleTodoChip = () => {
     filterStore.setMemoTypeFilter(activeType === "TODO" ? undefined : "TODO");
+    closeMobileSidebar();
   };
 
   const handleCodeChip = () => {
     filterStore.setMemoTypeFilter(activeType === "CODE" ? undefined : "CODE");
+    closeMobileSidebar();
   };
 
   const handleLinkChip = () => {
     filterStore.setMemoTypeFilter(activeType === "LINKED" ? undefined : "LINKED");
+    closeMobileSidebar();
   };
 
   const handleTagChipClick = (tag: string) => {
-    const current = filterStore.state.tag;
-    filterStore.setTagFilter(current === tag ? undefined : tag);
+    filterStore.setTagFilter(activeTagFilter === tag ? undefined : tag);
+    closeMobileSidebar();
   };
-
-  const activeTagFilter = filterStore.state.tag;
-  const selectedShortcutId = filterStore.state.shortcut?.id;
 
   const handleCreateShortcut = () => {
     showCreateShortcutDialog(undefined, fetchShortcuts);
@@ -253,6 +261,7 @@ const HomeSidebar = () => {
   const handleShortcutClick = (shortcut: Shortcut) => {
     if (selectedShortcutId === shortcut.id) {
       filterStore.setShortcutFilter(undefined);
+      closeMobileSidebar();
       return;
     }
 
@@ -262,6 +271,7 @@ const HomeSidebar = () => {
         title: shortcut.title,
         payload: shortcut.payload,
       });
+      closeMobileSidebar();
       return;
     }
 
@@ -272,125 +282,138 @@ const HomeSidebar = () => {
     }
     filterStore.clearFilter();
     filterStore.setFilter(nextFilter);
+    closeMobileSidebar();
   };
 
   return (
-    <aside className="sticky top-0 w-72 shrink-0 h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1">
-      {/* Search */}
-      <div className="w-full px-4 mb-2">
-        <SearchBar />
-      </div>
-
-      {/* Calendar */}
-      <CalendarView />
-
-      {/* Filter chips */}
-      {!userStore.isVisitorMode() && (
-        <div className="w-full px-3 flex flex-wrap gap-2 mb-1">
-          <button
-            onClick={handleLinkChip}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
-              activeType === "LINKED"
-                ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
-                : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
-            }`}
-          >
-            <Icon.Link2 className="w-3.5 h-auto" />
-            Links {linkCount}
-          </button>
-          <button
-            onClick={handleTodoChip}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
-              activeType === "TODO"
-                ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
-                : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
-            }`}
-          >
-            <Icon.CheckSquare className="w-3.5 h-auto" />
-            To-do {todoDone}/{todoTotal}
-          </button>
-          <button
-            onClick={handleCodeChip}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
-              activeType === "CODE"
-                ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
-                : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
-            }`}
-          >
-            <Icon.Code2 className="w-3.5 h-auto" />
-            Code {codeCount}
-          </button>
+    <>
+      <button
+        type="button"
+        aria-label="Close sidebar"
+        className={`fixed inset-0 z-30 bg-black/60 md:hidden ${showHomeSidebar ? "block" : "hidden"}`}
+        onClick={closeMobileSidebar}
+      />
+      <aside
+        className={`fixed md:sticky top-0 left-0 z-40 md:z-auto w-72 max-w-[85vw] md:max-w-none shrink-0 h-full md:h-screen overflow-y-auto hide-scrollbar flex flex-col justify-start items-start border-r border-gray-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 py-4 gap-1 transition-transform duration-300 md:translate-x-0 ${
+          showHomeSidebar ? "!translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full"
+        }`}
+      >
+        {/* Search */}
+        <div className="w-full px-4 mb-2">
+          <SearchBar />
         </div>
-      )}
 
-      {/* Shortcuts */}
-      {!userStore.isVisitorMode() && (
-        <div className="w-full px-3 mb-1">
-          <div className="flex items-center justify-between py-1">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Shortcuts</span>
+        {/* Calendar */}
+        <CalendarView />
+
+        {/* Filter chips */}
+        {!userStore.isVisitorMode() && (
+          <div className="w-full px-3 flex flex-wrap gap-2 mb-1">
             <button
-              onClick={handleCreateShortcut}
-              className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400 cursor-pointer"
+              onClick={handleLinkChip}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                activeType === "LINKED"
+                  ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
+                  : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
+              }`}
             >
-              <Icon.Plus className="w-4 h-4" />
+              <Icon.Link2 className="w-3.5 h-auto" />
+              Links {linkCount}
+            </button>
+            <button
+              onClick={handleTodoChip}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                activeType === "TODO"
+                  ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
+                  : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
+              }`}
+            >
+              <Icon.CheckSquare className="w-3.5 h-auto" />
+              To-do {todoDone}/{todoTotal}
+            </button>
+            <button
+              onClick={handleCodeChip}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                activeType === "CODE"
+                  ? "bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200"
+                  : "bg-white border-gray-200 text-gray-600 dark:bg-zinc-800 dark:border-zinc-600 dark:text-gray-300 hover:border-gray-300"
+              }`}
+            >
+              <Icon.Code2 className="w-3.5 h-auto" />
+              Code {codeCount}
             </button>
           </div>
-          <div className="flex flex-col gap-1">
-            {shortcuts.map((shortcut) => {
-              const selected = selectedShortcutId === shortcut.id;
-              return (
+        )}
+
+        {/* Shortcuts */}
+        {!userStore.isVisitorMode() && (
+          <div className="w-full px-3 mb-1">
+            <div className="flex items-center justify-between py-1">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Shortcuts</span>
+              <button
+                onClick={handleCreateShortcut}
+                className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400 cursor-pointer"
+              >
+                <Icon.Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1">
+              {shortcuts.map((shortcut) => {
+                const selected = selectedShortcutId === shortcut.id;
+                return (
+                  <button
+                    key={shortcut.id}
+                    onClick={() => handleShortcutClick(shortcut)}
+                    className={`group w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-sm transition-colors ${
+                      selected
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span className="truncate text-left">{shortcut.title}</span>
+                    <span className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Icon.Edit3 className="w-3.5 h-3.5" onClick={(event) => handleEditShortcut(event, shortcut)} />
+                      <Icon.Trash className="w-3.5 h-3.5" onClick={(event) => handleDeleteShortcut(event, shortcut)} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Tags as chips */}
+        {!userStore.isVisitorMode() && tags.length > 0 && (
+          <div className="w-full px-3">
+            <div className="flex items-center justify-between py-1 mb-1">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{t("common.tags")}</span>
+              <button
+                onClick={() => showCreateTagDialog()}
+                className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400"
+              >
+                <Icon.MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
                 <button
-                  key={shortcut.id}
-                  onClick={() => handleShortcutClick(shortcut)}
-                  className={`group w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md text-sm transition-colors ${
-                    selected
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
-                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  key={tag}
+                  onClick={() => handleTagChipClick(tag)}
+                  className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs transition-colors ${
+                    activeTagFilter === tag
+                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
+                      : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600"
                   }`}
                 >
-                  <span className="truncate text-left">{shortcut.title}</span>
-                  <span className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Icon.Edit3 className="w-3.5 h-3.5" onClick={(event) => handleEditShortcut(event, shortcut)} />
-                    <Icon.Trash className="w-3.5 h-3.5" onClick={(event) => handleDeleteShortcut(event, shortcut)} />
-                  </span>
+                  <span className="opacity-60">#</span>
+                  {tag}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Tags as chips */}
-      {!userStore.isVisitorMode() && tags.length > 0 && (
-        <div className="w-full px-3">
-          <div className="flex items-center justify-between py-1 mb-1">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{t("common.tags")}</span>
-            <button
-              onClick={() => showCreateTagDialog()}
-              className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-400"
-            >
-              <Icon.MoreVertical className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => handleTagChipClick(tag)}
-                className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs transition-colors ${
-                  activeTagFilter === tag
-                    ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
-                    : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-600"
-                }`}
-              >
-                <span className="opacity-60">#</span>
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </aside>
+        )}
+      </aside>
+    </>
   );
 };
 

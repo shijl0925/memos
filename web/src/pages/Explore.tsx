@@ -10,13 +10,14 @@ import { DEFAULT_MEMO_LIMIT } from "@/helpers/consts";
 import { getTimeStampByDate } from "@/helpers/datetime";
 import useLoading from "@/hooks/useLoading";
 import { TAG_REG } from "@/labs/marked/parser";
-import { useFilterStore, useMemoStore } from "@/store/module";
+import { useFilterStore, useLayoutStore, useMemoStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
 
 const Explore = () => {
   const t = useTranslate();
   const location = useLocation();
   const filterStore = useFilterStore();
+  const layoutStore = useLayoutStore();
   const memoStore = useMemoStore();
   const filter = filterStore.state;
   const { memos } = memoStore.state;
@@ -25,6 +26,15 @@ const Explore = () => {
 
   const { tag: tagQuery, text: textQuery, duration } = filter;
   const showMemoFilter = Boolean(tagQuery || textQuery || (duration && duration.from < duration.to));
+  const openNavigation = () => {
+    layoutStore.setHomeSidebarStatus(false);
+    layoutStore.setHeaderStatus(true);
+  };
+
+  const openSidebar = () => {
+    layoutStore.setHeaderStatus(false);
+    layoutStore.setHomeSidebarStatus(true);
+  };
 
   const fetchedMemos = showMemoFilter
     ? memos.filter((memo) => {
@@ -100,7 +110,7 @@ const Explore = () => {
       <ExploreSidebar />
       <div className="flex-grow min-w-0 flex justify-center pt-4">
         <div className="w-full max-w-3xl px-4 pb-8">
-          <MobileHeader showSearch={false} />
+          <MobileHeader onMenuClick={openNavigation} onSearchClick={openSidebar} />
           {!loadingState.isLoading && (
             <main className="relative w-full h-auto flex flex-col justify-start items-start">
               <MemoFilter />
