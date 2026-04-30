@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -394,6 +395,9 @@ func TestServerRouteErrorCoverage(t *testing.T) {
 		contentType string
 		want        int
 	}{
+		{http.MethodPost, "/api/auth/signin", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
+		{http.MethodPost, "/api/auth/signin/sso", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
+		{http.MethodPost, "/api/auth/signup", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPost, "/api/system/setting", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPost, "/api/user", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/user/not-a-number", bytes.NewBufferString("{}"), "application/json", http.StatusBadRequest},
@@ -420,6 +424,7 @@ func TestServerRouteErrorCoverage(t *testing.T) {
 		{http.MethodDelete, "/api/resource/not-a-number", nil, "", http.StatusBadRequest},
 		{http.MethodPost, "/api/tag", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPost, "/api/tag/delete", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
+		{http.MethodPost, "/api/tag/delete", bytes.NewBufferString(`{"name":"missing"}`), "application/json", http.StatusNotFound},
 		{http.MethodPost, "/api/shortcut", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/shortcut/not-a-number", bytes.NewBufferString("{}"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/shortcut/1", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
@@ -429,23 +434,124 @@ func TestServerRouteErrorCoverage(t *testing.T) {
 		{http.MethodPatch, "/api/storage/not-a-number", bytes.NewBufferString("{}"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/storage/1", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodDelete, "/api/storage/not-a-number", nil, "", http.StatusBadRequest},
+		{http.MethodDelete, "/api/storage/999999", nil, "", http.StatusNotFound},
 		{http.MethodPost, "/api/idp", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/idp/not-a-number", bytes.NewBufferString("{}"), "application/json", http.StatusBadRequest},
 		{http.MethodPatch, "/api/idp/1", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
 		{http.MethodGet, "/api/idp/not-a-number", nil, "", http.StatusUnauthorized},
 		{http.MethodDelete, "/api/idp/not-a-number", nil, "", http.StatusBadRequest},
+		{http.MethodDelete, "/api/idp/999999", nil, "", http.StatusNotFound},
 		{http.MethodPost, "/api/openai/chat-completion", bytes.NewBufferString("{"), "application/json", http.StatusBadRequest},
+		{http.MethodPost, "/api/openai/chat-completion", bytes.NewBufferString(`[{"role":"user","content":"hello"}]`), "application/json", http.StatusBadRequest},
 		{http.MethodGet, "/u/not-a-number/rss.xml", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/r/not-a-number", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/r/999999", nil, "", http.StatusInternalServerError},
 		{http.MethodGet, "/o/r/not-a-number/public", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/r/not-a-number/public/file.txt", nil, "", http.StatusBadRequest},
 		{http.MethodGet, "/o/get/httpmeta?url=:%2f%2f", nil, "", http.StatusBadRequest},
+		{http.MethodGet, "/o/get/httpmeta?url=http://127.0.0.1:1", nil, "", http.StatusNotAcceptable},
 		{http.MethodGet, "/o/get/image?url=:%2f%2f", nil, "", http.StatusBadRequest},
+		{http.MethodGet, "/o/get/image?url=http://127.0.0.1:1/image.png", nil, "", http.StatusBadRequest},
 	} {
 		rec := client.do(test.method, test.target, test.body, test.contentType)
 		requireStatus(t, rec, test.want)
 	}
+}
+
+func TestAdditionalRouteBranchesCoverage(t *testing.T) {
+	ctx := context.Background()
+	ts := newSQLiteAuthTestServer(t)
+	client := newRouteTestClient(t, ts)
+
+	rec := client.json(http.MethodPost, "/api/auth/signup", api.SignUp{
+		Username: "hostuser",
+		Password: "hostpassword",
+	})
+	requireStatus(t, rec, http.StatusOK)
+
+	rec = client.json(http.MethodGet, "/api/status", nil)
+	requireStatus(t, rec, http.StatusOK)
+
+	rec = client.json(http.MethodPost, "/api/auth/signin/sso", api.SSOSignIn{IdentityProviderID: 999999})
+	requireStatus(t, rec, http.StatusNotFound)
+
+	rec = client.json(http.MethodPost, "/api/resource", api.ResourceCreate{
+		Filename:     "bad-link.txt",
+		ExternalLink: "ftp://example.com/file.txt",
+		Type:         "text/plain",
+	})
+	requireStatus(t, rec, http.StatusBadRequest)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.Close())
+	rec = client.do(http.MethodPost, "/api/resource/blob", &body, writer.FormDataContentType())
+	requireStatus(t, rec, http.StatusInternalServerError)
+
+	audioPath := filepath.Join(t.TempDir(), "sound.mp3")
+	require.NoError(t, os.WriteFile(audioPath, []byte("audio bytes"), 0644))
+	resource, err := ts.Store.CreateResource(ctx, &api.ResourceCreate{
+		CreatorID:    1,
+		Filename:     "sound.mp3",
+		InternalPath: audioPath,
+		Type:         "audio/mpeg",
+		Size:         int64(len("audio bytes")),
+	})
+	require.NoError(t, err)
+	rec = client.json(http.MethodGet, "/o/r/"+itoa(resource.ID), nil)
+	requireStatus(t, rec, http.StatusOK)
+	require.Contains(t, rec.Body.String(), "audio bytes")
+
+	idpConfig := &api.IdentityProviderConfig{OAuth2Config: &api.IdentityProviderOAuth2Config{
+		ClientID:     "client",
+		ClientSecret: "secret",
+		AuthURL:      "https://example.com/auth",
+		TokenURL:     "https://example.com/token",
+		UserInfoURL:  "https://example.com/user",
+		FieldMapping: &api.FieldMapping{Identifier: "sub"},
+	}}
+	idp, err := ts.Service.CreateIdentityProvider(ctx, 1, &api.IdentityProviderCreate{
+		Name:   "direct-oidc",
+		Type:   api.IdentityProviderOAuth2,
+		Config: idpConfig,
+	})
+	require.NoError(t, err)
+	group := newCapturedGroup()
+	ts.Server.registerIdentityProviderRoutes(group)
+	directCtx := &stubContext{
+		request: httptest.NewRequest(http.MethodGet, "/idp/"+itoa(idp.ID), nil),
+		values:  map[string]any{getUserIDContextKey(): 1},
+		params:  map[string]string{"idpId": itoa(idp.ID)},
+	}
+	require.NoError(t, group.get["/idp/:idpId"](directCtx))
+	require.Equal(t, http.StatusOK, directCtx.status)
+}
+
+func TestGetterPublicRoutesServeLocalHTTP(t *testing.T) {
+	ts := newSQLiteAuthTestServer(t)
+	client := newRouteTestClient(t, ts)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/page":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<html><head><title>Local title</title><meta property="description" content="Local desc"><meta property="og:image" content="local.png"></head><body></body></html>`))
+		case "/image.png":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write([]byte("png"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	rec := client.json(http.MethodGet, "/o/get/httpmeta?url="+url.QueryEscape(upstream.URL+"/page"), nil)
+	requireStatus(t, rec, http.StatusOK)
+	require.Contains(t, rec.Body.String(), "Local title")
+
+	rec = client.json(http.MethodGet, "/o/get/image?url="+url.QueryEscape(upstream.URL+"/image.png"), nil)
+	requireStatus(t, rec, http.StatusOK)
+	require.Equal(t, "image/png", rec.Header().Get(headerContentType))
+	require.Equal(t, "png", rec.Body.String())
 }
 
 func TestServerStartCreatesActivityAndStartsApp(t *testing.T) {
@@ -639,25 +745,64 @@ func (*fakeGroup) Use(...MiddlewareFunc)            {}
 
 type fakeGroup struct{}
 
+type capturedGroup struct {
+	get    map[string]HandlerFunc
+	post   map[string]HandlerFunc
+	patch  map[string]HandlerFunc
+	delete map[string]HandlerFunc
+}
+
+func newCapturedGroup() *capturedGroup {
+	return &capturedGroup{
+		get:    map[string]HandlerFunc{},
+		post:   map[string]HandlerFunc{},
+		patch:  map[string]HandlerFunc{},
+		delete: map[string]HandlerFunc{},
+	}
+}
+
+func (g *capturedGroup) GET(path string, handler HandlerFunc)    { g.get[path] = handler }
+func (g *capturedGroup) POST(path string, handler HandlerFunc)   { g.post[path] = handler }
+func (g *capturedGroup) PATCH(path string, handler HandlerFunc)  { g.patch[path] = handler }
+func (g *capturedGroup) DELETE(path string, handler HandlerFunc) { g.delete[path] = handler }
+func (*capturedGroup) Use(...MiddlewareFunc)                     {}
+
 type stubContext struct {
 	request *http.Request
 	values  map[string]any
+	params  map[string]string
+	writer  http.ResponseWriter
+	status  int
 }
 
-func (c *stubContext) Request() *http.Request            { return c.request }
-func (*stubContext) Writer() http.ResponseWriter         { return httptest.NewRecorder() }
+func (c *stubContext) Request() *http.Request { return c.request }
+func (c *stubContext) Writer() http.ResponseWriter {
+	if c.writer != nil {
+		return c.writer
+	}
+	return httptest.NewRecorder()
+}
 func (*stubContext) Cookie(string) (*http.Cookie, error) { return nil, http.ErrNoCookie }
 func (*stubContext) SetCookie(*http.Cookie)              {}
-func (*stubContext) JSON(int, any) error                 { return nil }
+func (c *stubContext) JSON(code int, _ any) error        { c.status = code; return nil }
 func (*stubContext) String(int, string) error            { return nil }
 func (*stubContext) Stream(int, string, io.Reader) error { return nil }
-func (*stubContext) Status(int)                          {}
-func (*stubContext) Header(string, string)               {}
-func (c *stubContext) Path() string                      { return c.request.URL.Path }
-func (*stubContext) Param(string) string                 { return "" }
-func (c *stubContext) QueryParam(name string) string     { return c.request.URL.Query().Get(name) }
-func (c *stubContext) Set(key string, value any)         { c.values[key] = value }
-func (c *stubContext) Get(key string) any                { return c.values[key] }
+func (c *stubContext) Status(code int)                   { c.status = code }
+func (c *stubContext) Header(key, value string) {
+	if c.writer != nil {
+		c.writer.Header().Set(key, value)
+	}
+}
+func (c *stubContext) Path() string                  { return c.request.URL.Path }
+func (c *stubContext) Param(name string) string      { return c.params[name] }
+func (c *stubContext) QueryParam(name string) string { return c.request.URL.Query().Get(name) }
+func (c *stubContext) Set(key string, value any) {
+	if c.values == nil {
+		c.values = map[string]any{}
+	}
+	c.values[key] = value
+}
+func (c *stubContext) Get(key string) any { return c.values[key] }
 func (*stubContext) FormFile(string) (*multipart.FileHeader, error) {
 	return nil, http.ErrMissingFile
 }
