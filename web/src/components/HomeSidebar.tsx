@@ -196,14 +196,14 @@ const HomeSidebar = () => {
 
   const codeCount = memos.filter((m) => m.content.match(CODE_BLOCK_REG) || m.content.match(INLINE_CODE_REG)).length;
 
+  const closeMobileSidebar = () => {
+    layoutStore.setHomeSidebarStatus(false);
+  };
+
   const activeType = filterStore.state.type;
   const activeTagFilter = filterStore.state.tag;
   const selectedShortcutId = filterStore.state.shortcut?.id;
   const showHomeSidebar = layoutStore.state.showHomeSidebar;
-
-  const closeMobileSidebar = () => {
-    layoutStore.setHomeSidebarStatus(false);
-  };
 
   const handleTodoChip = () => {
     filterStore.setMemoTypeFilter(activeType === "TODO" ? undefined : "TODO");
@@ -221,8 +221,7 @@ const HomeSidebar = () => {
   };
 
   const handleTagChipClick = (tag: string) => {
-    const current = filterStore.state.tag;
-    filterStore.setTagFilter(current === tag ? undefined : tag);
+    filterStore.setTagFilter(activeTagFilter === tag ? undefined : tag);
     closeMobileSidebar();
   };
 
