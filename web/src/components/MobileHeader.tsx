@@ -12,7 +12,7 @@ const MobileHeader = (props: Props) => {
   const { showSearch = true, onMenuClick, onSearchClick } = props;
   const layoutStore = useLayoutStore();
   const [titleText] = useState("MEMOS");
-  const handleMenuClick =
+  const handleNavigationClick =
     onMenuClick ??
     (() => {
       layoutStore.setHomeSidebarStatus(false);
@@ -33,7 +33,7 @@ const MobileHeader = (props: Props) => {
           aria-label="Open navigation"
           aria-expanded={layoutStore.state.showHeader}
           className="flex sm:hidden flex-row justify-center items-center w-11 h-11 mr-1 shrink-0 bg-transparent"
-          onClick={handleMenuClick}
+          onClick={handleNavigationClick}
         >
           <Icon.Menu className="w-6 h-auto dark:text-gray-200" />
         </button>
