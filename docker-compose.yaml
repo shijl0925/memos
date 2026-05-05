@@ -1,7 +1,7 @@
 version: "3.0"
 services:
   memos:
-    image: neosmemo/memos:latest
+    image: shijl0925/memos:latest
     container_name: memos
     restart: unless-stopped
     environment:
