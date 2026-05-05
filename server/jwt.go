@@ -207,8 +207,12 @@ func isPublicGetPath(path string) bool {
 	if path == "/api/ping" || path == "/api/idp" {
 		return true
 	}
-	userIDPath, ok := strings.CutPrefix(path, "/api/user/")
-	if !ok || userIDPath == "" || strings.Contains(userIDPath, "/") {
+	const userPathPrefix = "/api/user/"
+	if !strings.HasPrefix(path, userPathPrefix) {
+		return false
+	}
+	userIDPath := strings.TrimPrefix(path, userPathPrefix)
+	if userIDPath == "" || strings.Contains(userIDPath, "/") {
 		return false
 	}
 	return userIDPath != "me"
