@@ -1,8 +1,11 @@
-version: "3.0"
 services:
   memos:
     image: neosmemo/memos:latest
     container_name: memos
+    restart: unless-stopped
+    environment:
+      MEMOS_DRIVER: postgres
+      MEMOS_DSN: ${MEMOS_DSN:?Set MEMOS_DSN to your external PostgreSQL connection string}
     volumes:
       - ~/.memos/:/var/opt/memos
     ports:
