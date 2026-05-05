@@ -1,9 +1,16 @@
 version: "3.0"
 services:
   memos:
-    image: neosmemo/memos:latest
+    image: shijl0925/memos:latest
     container_name: memos
+    restart: unless-stopped
+    environment:
+      MEMOS_DRIVER: postgres
+      # Set MEMOS_DSN in the deployment environment or an uncommitted .env file.
+      # Do not commit database credentials.
+      MEMOS_DSN: ${MEMOS_DSN:?Set MEMOS_DSN to a PostgreSQL connection string, e.g. postgres://USER:PASSWORD@HOST:PORT/DATABASE}
     volumes:
+      # Keeps local Memos runtime data such as uploaded resources; database data lives in external PostgreSQL.
       - ~/.memos/:/var/opt/memos
     ports:
       - 5230:5230
