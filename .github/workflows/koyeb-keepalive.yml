@@ -2,7 +2,7 @@ name: Koyeb Keepalive
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/30 08-23 * * *"
   workflow_dispatch:
 
 permissions: {}
