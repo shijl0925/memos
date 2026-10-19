@@ -12,4 +12,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Request Koyeb ping endpoint
-        run: curl --fail --silent --show-error --retry 3 --max-time 30 https://memos-shijl0925-7a7f0c28.koyeb.app/ping
+        run: curl --fail --silent --show-error --retry 3 --max-time 30 https://memos-shijl0925-7a7f0c28.koyeb.app/api/ping
