@@ -248,6 +248,10 @@ func toGinMiddleware(middleware MiddlewareFunc) gin.HandlerFunc {
 }
 
 func writeGinError(c *gin.Context, err error) {
+	if c.Request.Context().Err() != nil {
+		return
+	}
+
 	var httpErr *httpError
 	if unwrapHTTPError(err, &httpErr) {
 		if isDetailedErrorLogEnabled() {

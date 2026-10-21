@@ -2,6 +2,7 @@ package server
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -149,4 +150,19 @@ func TestGinWriteErrorOnlyExposesGinErrorWhenDetailedLogsEnabled(t *testing.T) {
 			require.JSONEq(t, `{"error":"Failed to fetch memo list"}`, recorder.Body.String())
 		})
 	}
+}
+
+func TestGinWriteErrorSkipsCanceledRequests(t *testing.T) {
+	t.Setenv(detailedErrorLogEnvVarName, "true")
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	requestContext, cancel := context.WithCancel(context.Background())
+	cancel()
+	ginCtx.Request = httptest.NewRequest(http.MethodGet, "/fail", nil).WithContext(requestContext)
+
+	writeGinError(ginCtx, errors.New("context canceled"))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Empty(t, recorder.Body.String())
+	require.Empty(t, ginCtx.Errors)
 }
